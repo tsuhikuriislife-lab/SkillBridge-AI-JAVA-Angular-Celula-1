@@ -25,7 +25,14 @@ export class AiComponent {
     this.error=''; this.answer=''; this.loading=true;
     this.http.post<{recommendation:string}>(`${apiBase()}/ai/recommendations`, { goal: this.goal }).subscribe({
       next: r => { this.answer = r.recommendation; this.loading=false; },
-      error: e => { this.error = e?.error?.detail || 'Inicia sesión y verifica GEMINI_API_KEY.'; this.loading=false; }
+      error: e => {
+        if (e.status === 401 || e.status === 403) {
+          this.error = 'Tu sesión ha expirado o no tienes permisos. Por favor, inicia sesión.';
+        } else {
+          this.error = e?.error?.detail || 'Error al comunicarse con la IA.';
+        }
+        this.loading = false;
+      }
     });
   }
 }

@@ -25,6 +25,9 @@ export class AuthService {
 
   token(): string | null { return localStorage.getItem(this.key); }
   isAuthenticated(): boolean { return this.authenticated(); }
+  isLoggedIn(): boolean {
+    return this.isAuthenticated();
+  }
   logout(): void { localStorage.removeItem(this.key); this.authenticated.set(false); this.router.navigateByUrl('/'); }
   private save(token: string): void { localStorage.setItem(this.key, token); this.authenticated.set(true); }
 }
