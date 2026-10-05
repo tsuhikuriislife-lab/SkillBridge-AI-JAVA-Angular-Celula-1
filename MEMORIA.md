@@ -11,3 +11,13 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - Creación de `MEMORIA.md` para asentar el inicio del track de cambios.
 - **Próximos pasos posibles:** Iniciar el desarrollo del Sprint enfocado en HU-08 ("Consultar mis reservas") y HU-09 ("Cancelar una reserva propia").
 
+
+## [2026-10-05] Implementación de Manejo de Errores IA (HU-12)
+- **Agente:** Antigravity (Gemini 3.1 Pro)
+- **Contexto:** Mejorar los mensajes de error al interactuar con Gemini.
+- **Cambios realizados:**
+  - Creación de excepciones de dominio: `AiConfigurationException`, `AiQuotaExceededException`, y `AiNetworkException`.
+  - Mapeo de excepciones en `GlobalExceptionHandler` con los correspondientes códigos de estado HTTP (503 Service Unavailable y 429 Too Many Requests).
+  - Actualización de `GeminiAiAdapter` para capturar `RuntimeException`, analizar el mensaje de error subyacente y lanzar las excepciones específicas (red, cuota, apiKey).
+  - Mejora en el frontend (`ai.component.ts`) para mostrar mensajes de sesión expirada (401/403) y consumir el detalle provisto por el backend.
+- **Próximos pasos posibles:** Continuar con HU-08 ("Consultar mis reservas") y HU-09 ("Cancelar una reserva propia").

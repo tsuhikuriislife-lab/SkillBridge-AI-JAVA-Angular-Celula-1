@@ -1,6 +1,9 @@
 package com.riwi.skillbridge.infrastructure.adapter.out.ai;
 
 import com.riwi.skillbridge.application.port.out.AiRecommendationPort;
+import com.riwi.skillbridge.domain.exception.AiConfigurationException;
+import com.riwi.skillbridge.domain.exception.AiNetworkException;
+import com.riwi.skillbridge.domain.exception.AiQuotaExceededException;
 import com.riwi.skillbridge.domain.exception.BusinessRuleException;
 import com.riwi.skillbridge.domain.model.Offering;
 import org.springframework.ai.chat.client.ChatClient;
@@ -46,7 +49,15 @@ public class GeminiAiAdapter implements AiRecommendationPort {
         } catch (BusinessRuleException ex) {
             throw ex;
         } catch (RuntimeException ex) {
-            throw new BusinessRuleException("Gemini no está disponible; inténtalo de nuevo");
+            String msg = (ex.getMessage() != null) ? ex.getMessage().toLowerCase() : "";
+            if (msg.contains("401") || msg.contains("403") || msg.contains("api_key") || msg.contains("unauthorized") || msg.contains("api key")) {
+                throw new AiConfigurationException("Error de configuración: La API Key de Gemini es inválida o no está configurada.");
+            } else if (msg.contains("429") || msg.contains("quota") || msg.contains("too many requests") || msg.contains("exhausted")) {
+                throw new AiQuotaExceededException("Se ha excedido la cuota del proveedor de IA. Por favor, intenta más tarde.");
+            } else if (msg.contains("timeout") || msg.contains("network") || msg.contains("connection") || msg.contains("ioexception") || msg.contains("503") || msg.contains("502") || msg.contains("504")) {
+                throw new AiNetworkException("Error de red: El proveedor de IA no está disponible o hubo un problema de conexión.");
+            }
+            throw new BusinessRuleException("Ocurrió un error inesperado al comunicarse con Gemini: " + ex.getClass().getSimpleName());
         }
     }
 }
