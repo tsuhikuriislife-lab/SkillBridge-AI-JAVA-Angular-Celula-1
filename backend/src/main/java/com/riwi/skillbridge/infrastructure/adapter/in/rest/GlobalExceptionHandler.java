@@ -1,5 +1,8 @@
 package com.riwi.skillbridge.infrastructure.adapter.in.rest;
 
+import com.riwi.skillbridge.domain.exception.AiConfigurationException;
+import com.riwi.skillbridge.domain.exception.AiNetworkException;
+import com.riwi.skillbridge.domain.exception.AiQuotaExceededException;
 import com.riwi.skillbridge.domain.exception.BusinessRuleException;
 import com.riwi.skillbridge.domain.exception.DomainNotFoundException;
 import com.riwi.skillbridge.domain.exception.InvalidCredentialsException;
@@ -37,6 +40,27 @@ public class GlobalExceptionHandler {
                 .findFirst().orElse("Solicitud inválida");
         ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
         p.setTitle("Validation error");
+        return p;
+    }
+
+    @ExceptionHandler(AiConfigurationException.class)
+    ProblemDetail aiConfiguration(AiConfigurationException ex) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+        p.setTitle("AI Configuration Error");
+        return p;
+    }
+
+    @ExceptionHandler(AiQuotaExceededException.class)
+    ProblemDetail aiQuotaExceeded(AiQuotaExceededException ex) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+        p.setTitle("AI Quota Exceeded");
+        return p;
+    }
+
+    @ExceptionHandler(AiNetworkException.class)
+    ProblemDetail aiNetwork(AiNetworkException ex) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+        p.setTitle("AI Network Error");
         return p;
     }
 }
