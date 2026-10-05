@@ -11,3 +11,7 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - Creación de `MEMORIA.md` para asentar el inicio del track de cambios.
 - **Próximos pasos posibles:** Iniciar el desarrollo del Sprint enfocado en HU-08 ("Consultar mis reservas") y HU-09 ("Cancelar una reserva propia").
 
+## [2026-10-05] Aviso al intentar abrir una vista protegida
+- **Cambios realizados:** El componente de ingreso ahora escucha cambios en los parámetros de consulta y muestra el aviso de inicio de sesión cuando el guard redirige con `authRequired=true`, incluso si la vista de ingreso ya estaba abierta.
+- **Validación:** `cd frontend && npm run build` completado correctamente.
+
