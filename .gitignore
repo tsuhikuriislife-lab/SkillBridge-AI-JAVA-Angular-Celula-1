@@ -30,3 +30,6 @@ backend/target/
 .env
 backend/.env
 frontend/.env
+
+# Diseños
+diseños/
