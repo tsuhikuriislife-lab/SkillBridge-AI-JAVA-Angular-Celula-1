@@ -14,6 +14,9 @@ import { AuthService } from './core/auth.service';
           <a routerLink="/">Servicios</a>
           <a routerLink="/book">Reservar</a>
           <a routerLink="/ai">IA</a>
+          @if (auth.role() === 'PROVIDER') {
+            <a routerLink="/provider">Panel de proveedor</a>
+          }
           @if (!auth.isAuthenticated()) {
             <a routerLink="/login">Ingresar</a>
           } @else {

@@ -18,7 +18,7 @@ class OfferingServiceTest {
     void shouldReturnCacheWithoutQueryingDatabase() {
         OfferingRepositoryPort repository = mock(OfferingRepositoryPort.class);
         OfferingCachePort cache = mock(OfferingCachePort.class);
-        var expected = List.of(new Offering(UUID.randomUUID(), "Java", "Mentoría", "BACKEND", BigDecimal.TEN, true));
+        var expected = List.of(new Offering(UUID.randomUUID(), "Java", "Mentoría", "BACKEND", BigDecimal.TEN, true, UUID.randomUUID(), java.time.LocalTime.of(8, 0), java.time.LocalTime.of(17, 0), "FRIDAY", "http://example.com/photo.jpg"));
         when(cache.getActiveOfferings()).thenReturn(Optional.of(expected));
 
         var service = new OfferingService(repository, cache);
