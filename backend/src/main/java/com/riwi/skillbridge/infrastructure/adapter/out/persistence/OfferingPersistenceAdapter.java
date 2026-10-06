@@ -51,6 +51,11 @@ public class OfferingPersistenceAdapter implements OfferingRepositoryPort {
         return repository.findDistinctCategories();
     }
 
+    @Override
+    public List<com.riwi.skillbridge.domain.model.CategoryCount> findTopCategories(int limit) {
+        return repository.findTopCategories(PageRequest.of(0, limit));
+    }
+
     private Offering toDomain(OfferingEntity e) {
         return new Offering(e.getId(), e.getTitle(), e.getDescription(), e.getCategory(), e.getPrice(), e.isActive(), e.getProviderId(), e.getStartTime(), e.getEndTime(), e.getEndDay(), e.getPhotoUrl());
     }

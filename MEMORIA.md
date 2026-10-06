@@ -24,3 +24,14 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
 - **Cambios realizados:** El componente de ingreso ahora escucha cambios en los parámetros de consulta y muestra el aviso de inicio de sesión cuando el guard redirige con `authRequired=true`, incluso si la vista de ingreso ya estaba abierta.
 - **Validación:** `cd frontend && npm run build` completado correctamente.
 
+
+## [2026-10-06] Implementación de Detalle de Servicio y Toast de Autenticación
+- **Agente:** Antigravity
+- **Contexto:** HU/Tarea - Implementar la vista de Detalles de Servicio y lógica de "Inscribirse".
+- **Cambios realizados:**
+  - Creación del componente standalone `ServiceDetailsComponent` en frontend integrando HTML/CSS de diseños (`DetalleServicio.html`).
+  - Lógica añadida en `HomeComponent` para validar el estado de sesión antes de redirigir a `/service/:id` al presionar "Inscribirse".
+  - Se agregó un "Toast" modal en `home.component.html` (y estilos) que pide al usuario iniciar sesión si no está autenticado, con botones para cancelar o ir a Login.
+  - Se agregó el método `getById(id)` en `OfferingService` del frontend.
+  - Se agregó el endpoint `GET /api/offerings/{id}` en `OfferingController.java` del backend, y configuración correspondiente en `SecurityConfiguration.java` para permitir acceso público.
+  - Reconstrucción de contenedores de backend y frontend.

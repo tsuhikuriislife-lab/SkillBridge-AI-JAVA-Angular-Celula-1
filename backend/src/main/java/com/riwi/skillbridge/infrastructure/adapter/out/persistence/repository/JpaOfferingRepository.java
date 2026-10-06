@@ -15,4 +15,7 @@ public interface JpaOfferingRepository extends JpaRepository<OfferingEntity, UUI
     
     @Query("SELECT DISTINCT o.category FROM OfferingEntity o ORDER BY o.category ASC")
     List<String> findDistinctCategories();
+
+    @Query("SELECT new com.riwi.skillbridge.domain.model.CategoryCount(o.category, COUNT(o)) FROM OfferingEntity o GROUP BY o.category ORDER BY COUNT(o) DESC")
+    List<com.riwi.skillbridge.domain.model.CategoryCount> findTopCategories(Pageable pageable);
 }

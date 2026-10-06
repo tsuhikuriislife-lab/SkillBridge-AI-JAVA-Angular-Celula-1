@@ -12,4 +12,5 @@ public interface OfferingRepositoryPort {
     Offering save(Offering offering);
     PageResult<Offering> findByProviderId(UUID providerId, int page, int size);
     List<String> findDistinctCategories();
+    List<com.riwi.skillbridge.domain.model.CategoryCount> findTopCategories(int limit);
 }

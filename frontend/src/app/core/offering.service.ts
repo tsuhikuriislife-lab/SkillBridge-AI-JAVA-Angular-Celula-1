@@ -22,12 +22,20 @@ export interface PageResult<T> {
   number: number;
 }
 
+export interface CategoryCount {
+  name: string;
+  count: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class OfferingService {
   constructor(private http: HttpClient) {}
   list() { return this.http.get<Offering[]>(`${apiBase()}/offerings`); }
   
+  getById(id: string) { return this.http.get<Offering>(`${apiBase()}/offerings/${id}`); }
+
   getCategories() { return this.http.get<string[]>(`${apiBase()}/categories`); }
+  getTopCategories(limit: number = 8) { return this.http.get<CategoryCount[]>(`${apiBase()}/categories/top?limit=${limit}`); }
   
   create(offering: Partial<Offering>) {
     return this.http.post<Offering>(`${apiBase()}/provider/offerings`, offering);
