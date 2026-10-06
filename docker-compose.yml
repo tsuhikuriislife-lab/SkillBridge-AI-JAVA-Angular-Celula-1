@@ -68,7 +68,7 @@ services:
       rabbitmq:
         condition: service_healthy
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8081:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/liveness | grep -q UP"]
       interval: 10s
