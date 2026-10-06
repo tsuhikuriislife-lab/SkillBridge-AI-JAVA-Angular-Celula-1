@@ -10,5 +10,7 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'ai', component: AiComponent, canActivate: [authGuard] },
   { path: 'book', component: BookingComponent, canActivate: [authGuard] },
-  { path: '**', redirectTo: '' }
+  { path: 'bookings', loadComponent: () => import('./features/my-booking.component').then(m => m.MyBookingsComponent),  canActivate: [authGuard] },
+  { path: '**', redirectTo: '' },
+  
 ];

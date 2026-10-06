@@ -19,6 +19,7 @@ import { Offering, OfferingService } from '../core/offering.service';
   `,
   styles: [`.hero{padding:70px 0;background:linear-gradient(135deg,#101c35,#27426f);color:white}.hero h1{font-size:clamp(2rem,5vw,4rem);max-width:850px;margin:.3rem 0}.eyebrow{font-weight:800;letter-spacing:.12em}.section{padding:42px 0}`]
 })
+
 export class HomeComponent implements OnInit {
   offerings: Offering[] = [];
   error = '';

@@ -13,7 +13,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Service
-public class BookingService implements CreateBookingUseCase {
+public class BookingService implements CreateBookingUseCase  {
     private final BookingRepositoryPort bookingRepository;
     private final OfferingRepositoryPort offeringRepository;
     private final UserAccountPort userAccountPort;
