@@ -281,7 +281,7 @@ Esto permite reemplazar Gemini por otro proveedor sin modificar el caso de uso.
 - Springdoc OpenAPI
 - JUnit 5
 - Mockito
-- Testcontainers preparado como dependencia
+- Testcontainers para pruebas de integración con PostgreSQL
 - JaCoCo
 
 ## Frontend
@@ -814,9 +814,16 @@ http://localhost:8080
 ## Backend
 
 ```bash
-cd backend
-mvn clean verify
+make test-back
 ```
+
+`make test-back` ejecuta `mvn test` desde el host. Requiere Java 21, Maven y un daemon Docker compatible con Testcontainers; no es necesario levantar Docker Compose, porque Testcontainers inicia PostgreSQL aislado. Para ejecutar solo las pruebas unitarias sin Docker:
+
+```bash
+make test-back-unit
+```
+
+La CI ejecuta la suite completa con `mvn -B clean verify` en GitHub Actions.
 
 El reporte JaCoCo queda en:
 
@@ -824,11 +831,11 @@ El reporte JaCoCo queda en:
 backend/target/site/jacoco/index.html
 ```
 
-El proyecto incluye un ejemplo de prueba de `OfferingService` que demuestra que cuando existe cache hit el repositorio no debe consultarse.
+Las pruebas unitarias de `BookingService` cubren validaciones de creación y paginación; `OfferingService` cubre cache hit y cache miss. La prueba de persistencia con Testcontainers valida Flyway, escrituras de reservas, filtros por actividad, orden y paginación.
 
 ## Siguiente nivel recomendado
 
-Agregar Testcontainers para probar:
+Ampliar la cobertura de infraestructura con Testcontainers para probar:
 
 - PostgreSQL real.
 - Flyway migrations.
@@ -862,6 +869,20 @@ Docker
   -> build backend image
   -> build frontend image
 ```
+
+La CI también se ejecuta para PR y pushes en `feature/*`. Cuando los tres checks pasan, un PR dirigido a `feature/*` se integra automáticamente. Al cerrar un PR ya integrado en una rama `feature/*`, se crea un PR hacia `develop`; al integrarlo en `develop`, se crea otro hacia `main`.
+
+Los PR de promoción se configuran con auto-merge. El de `develop` a `main` solo se integrará cuando GitHub confirme los checks requeridos y la aprobación humana configurada en las reglas de ramas.
+
+### Configuración requerida en GitHub
+
+1. En **Settings → General → Pull Requests**, habilita **Allow auto-merge**.
+2. Crea un fine-grained personal access token limitado a este repositorio, con permisos **Contents: Read and write** y **Pull requests: Read and write**.
+3. Guarda el token en **Settings → Secrets and variables → Actions** con el nombre `PR_AUTOMATION_TOKEN`. El workflow lo usa para crear PR y habilitar merges automáticos; no lo escribas en el código.
+4. Protege `develop` exigiendo PR y los checks `backend`, `frontend` y `docker`.
+5. Protege `main` exigiendo PR, al menos una aprobación y los checks `backend`, `frontend` y `docker`. Bloquea los pushes directos a `main`.
+
+No exijas una aprobación en `develop` si quieres que esa promoción se integre automáticamente cuando pasen los checks.
 
 Para una cohorte real recomiendo que después de ejecutar una vez `npm install` se confirme el `package-lock.json` al repositorio y se cambien los comandos a `npm ci` para builds completamente reproducibles.
 
