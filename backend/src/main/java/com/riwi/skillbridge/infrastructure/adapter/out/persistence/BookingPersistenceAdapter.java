@@ -24,28 +24,13 @@ public class BookingPersistenceAdapter implements BookingRepositoryPort {
 
     @Override
     public List<Booking> findAll() {
-        return List.of();
+        return repository.findAll().stream()
+                .map(entity -> new Booking(
+                        entity.getId(),
+                        entity.getOfferingId(),
+                        entity.getCustomerId(),
+                        entity.getScheduledAt(),
+                        entity.getStatus()))
+                .toList();
     }
 }
-
- // 2.
-//Adaptador de persistencia (BookingPersistenceAdapter): usa el findAll() que ya hereda de JpaRepository y convierte cada entidad a Booking:
-//@Override
-//public List<Booking> findAll() {
-//    return repository.findAll().stream()
-//        .map(entity -> new Booking(
-//            entity.getId(),
-//            entity.getOfferingId(),
-//            entity.getCustomerId(),
-//            entity.getScheduledAt(),
-//            entity.getStatus()))
-//        .toList();
-//}
-
-
-//3.
-//Servicio (BookingService): delega en el puerto, en vez de devolver una lista vacía:
-//@Override
-//public List<Booking> findAll() {
-//    return bookingRepository.findAll();
-//}

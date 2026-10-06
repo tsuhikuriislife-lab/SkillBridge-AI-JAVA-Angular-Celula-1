@@ -54,7 +54,6 @@ public class BookingService implements CreateBookingUseCase, GetBookingsUseCase 
 
     @Override
     public List<Booking> findAll() {
-
-        return List.of();
+        return bookingRepository.findAll();
     }
 }

@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/bookings")
 public class BookingController {
@@ -28,4 +30,8 @@ public class BookingController {
         return createUseCase.create(request.offeringId(), request.scheduledAt(), authentication.getName());
     }
 
+    @GetMapping
+    public List<Booking> findAll() {
+        return consultUseCase.findAll();
+    }
 }
