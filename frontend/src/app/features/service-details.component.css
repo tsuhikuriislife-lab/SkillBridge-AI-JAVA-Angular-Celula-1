@@ -1,0 +1,566 @@
+
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+    
+
+/* ============================================================
+   VARIABLES
+   ============================================================ */
+
+
+
+
+
+
+
+/* ============================================================
+   HERO / BANNER
+   ============================================================ */
+.service-hero {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+
+    min-height: 420px;
+
+    padding: 28px 6% 90px;
+
+    justify-content: flex-end;
+
+    background: linear-gradient(180deg, rgb(var(--color-background) / 30%) 0%, rgb(var(--color-background) / 85%) 75%),
+                linear-gradient(140deg, #22304a, #0f172a);
+
+    color: rgb(var(--color-white));
+}
+
+/* Breadcrumb */
+.service-hero__breadcrumb {
+    display: flex;
+
+    margin-bottom: 14px;
+
+    gap: 10px;
+    align-items: center;
+
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.service-hero__breadcrumb a {
+    color: rgb(var(--color-white) / 55%);
+    text-decoration: none;
+
+    transition: color 0.2s ease;
+}
+
+.service-hero__breadcrumb a:hover {
+    color: rgb(var(--color-white));
+}
+
+.service-hero__breadcrumb i {
+    font-size: 12px;
+    color: rgb(var(--color-white) / 35%);
+}
+
+.service-hero__breadcrumb span {
+    color: rgb(var(--color-white));
+}
+
+.service-hero__title {
+    font-size: clamp(30px, 4.5vw, 52px);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    line-height: 1.1;
+}
+
+
+/* ============================================================
+   CONTENIDO PRINCIPAL
+   ============================================================ */
+.service-detail {
+    display: grid;
+
+    width: 100%;
+    max-width: 1180px;
+
+    margin: -60px auto 0;
+    padding: 0 24px 80px;
+
+    grid-template-columns: 1.7fr 1fr;
+    gap: 28px;
+
+    align-items: start;
+
+    position: relative;
+    z-index: 1;
+}
+
+.card {
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 22px;
+
+    background-color: rgb(var(--color-white));
+
+    box-shadow: 0 8px 30px rgb(var(--color-background) / 6%);
+}
+
+.card__section {
+    padding: 30px;
+}
+
+.card__title {
+    margin-bottom: 16px;
+
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+}
+
+.card__text {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.75;
+
+    color: rgb(var(--color-text));
+}
+
+
+/* ---------- Columna izquierda ---------- */
+.service-info__columns {
+    display: grid;
+
+    margin-top: 22px;
+
+    grid-template-columns: 1fr 1fr;
+    gap: 26px;
+}
+
+.service-info__subtitle {
+    display: flex;
+
+    margin-bottom: 14px;
+
+    gap: 8px;
+    align-items: center;
+
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.service-info__subtitle i {
+    font-size: 17px;
+    color: rgb(var(--color-primary));
+}
+
+/* Listas con check */
+.check-list {
+    display: flex;
+    flex-direction: column;
+
+    list-style: none;
+
+    gap: 10px;
+}
+
+.check-list li {
+    display: flex;
+
+    gap: 10px;
+    align-items: flex-start;
+
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.55;
+
+    color: rgb(var(--color-text));
+}
+
+.check-list li i {
+    margin-top: 2px;
+
+    font-size: 16px;
+    color: rgb(var(--status-active));
+}
+
+
+/* ---------- Columna derecha: card de compra ---------- */
+.buy-card {
+    position: sticky;
+    top: 24px;
+
+    padding: 28px;
+
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 22px;
+
+    background-color: rgb(var(--color-white));
+
+    box-shadow: 0 10px 36px rgb(var(--color-background) / 10%);
+}
+
+.buy-card__price {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+.buy-card__price small {
+    font-size: 14px;
+    font-weight: 700;
+
+    color: rgb(var(--color-text));
+}
+
+.buy-card__seats {
+    display: flex;
+
+    margin: 6px 0 22px;
+
+    gap: 6px;
+    align-items: center;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    color: rgb(var(--status-active));
+}
+
+.buy-card__seats i {
+    font-size: 14px;
+}
+
+/* Lista de detalles */
+.buy-card__details {
+    display: flex;
+    flex-direction: column;
+
+    margin-bottom: 22px;
+
+    list-style: none;
+
+    gap: 13px;
+}
+
+.buy-card__details li {
+    display: flex;
+
+    gap: 10px;
+    align-items: center;
+
+    font-size: 13.5px;
+
+    color: rgb(var(--color-text));
+}
+
+.buy-card__details li i {
+    font-size: 17px;
+    color: rgb(var(--color-primary));
+}
+
+.buy-card__details strong {
+    margin-left: auto;
+
+    font-weight: 700;
+
+    color: rgb(var(--color-dark));
+
+    text-align: right;
+}
+
+/* Botón inscribirse */
+.buy-card__button {
+    display: flex;
+
+    width: 100%;
+    min-height: 54px;
+
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+
+    border: none;
+    border-radius: 14px;
+
+    background-color: rgb(var(--color-primary));
+    color: rgb(var(--color-white));
+
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    box-shadow: 0 6px 16px rgb(var(--color-primary) / 35%);
+
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.buy-card__button:hover {
+    background-color: rgb(35 84 190);
+}
+
+.buy-card__button:active {
+    transform: scale(0.98);
+}
+
+/* Garantías */
+.buy-card__guarantees {
+    display: flex;
+    flex-direction: column;
+
+    margin-top: 20px;
+
+    gap: 10px;
+}
+
+.buy-card__guarantees span {
+    display: flex;
+
+    gap: 8px;
+    align-items: center;
+
+    font-size: 12px;
+    font-weight: 600;
+
+    color: rgb(var(--color-text));
+}
+
+.buy-card__guarantees i {
+    font-size: 15px;
+    color: rgb(var(--status-active));
+}
+
+
+/* ============================================================
+   INSTRUCTOR
+   ============================================================ */
+.instructor-card {
+    display: flex;
+
+    margin-top: 28px;
+    padding: 26px 30px;
+
+    gap: 20px;
+    align-items: flex-start;
+
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 22px;
+
+    background-color: rgb(var(--color-white));
+
+    box-shadow: 0 8px 30px rgb(var(--color-background) / 6%);
+}
+
+.instructor-card__avatar {
+    display: flex;
+
+    width: 76px;
+    height: 76px;
+
+    flex-shrink: 0;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 20px;
+
+    background: linear-gradient(135deg, #0959db, #2f7cf6);
+
+    font-size: 26px;
+    font-weight: 800;
+
+    color: rgb(var(--color-white));
+
+    overflow: hidden;
+}
+
+.instructor-card__name {
+    font-size: 17px;
+    font-weight: 800;
+}
+
+.instructor-card__role {
+    margin: 3px 0 10px;
+
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+
+    color: rgb(var(--color-primary));
+}
+
+.instructor-card__text {
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.65;
+
+    color: rgb(var(--color-text));
+}
+
+.instructor-card__social {
+    display: flex;
+
+    margin-top: 12px;
+
+    gap: 8px;
+}
+
+.instructor-card__social a {
+    display: flex;
+
+    width: 32px;
+    height: 32px;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 10px;
+
+    background-color: #f4f6fb;
+
+    font-size: 15px;
+    color: rgb(var(--color-text));
+    text-decoration: none;
+
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.instructor-card__social a:hover {
+    background-color: rgb(var(--color-primary));
+    color: rgb(var(--color-white));
+}
+
+
+/* ============================================================
+   RESEÑAS
+   ============================================================ */
+.reviews {
+    width: 100%;
+    max-width: 1180px;
+
+    margin: 0 auto;
+    padding: 0 24px 80px;
+}
+
+.reviews__title {
+    margin-bottom: 24px;
+
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+.reviews__grid {
+    display: grid;
+
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px;
+}
+
+.review-card {
+    padding: 26px;
+
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 20px;
+
+    background-color: rgb(var(--color-white));
+
+    box-shadow: 0 6px 22px rgb(var(--color-background) / 5%);
+}
+
+.review-card__stars {
+    display: flex;
+
+    gap: 3px;
+
+    font-size: 15px;
+    color: rgb(var(--status-in-progress));
+}
+
+.review-card__text {
+    margin: 14px 0 18px;
+
+    font-size: 14px;
+    font-style: italic;
+    line-height: 1.7;
+
+    color: rgb(var(--color-text));
+}
+
+.review-card__author {
+    display: flex;
+
+    gap: 12px;
+    align-items: center;
+}
+
+.review-card__avatar {
+    display: flex;
+
+    width: 40px;
+    height: 40px;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    font-size: 13px;
+    font-weight: 800;
+
+    color: rgb(var(--color-white));
+}
+
+.review-card__avatar--1 { background: linear-gradient(135deg, #0959db, #2f7cf6); }
+.review-card__avatar--2 { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+
+.review-card__name {
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.review-card__role {
+    font-size: 12px;
+    font-weight: 500;
+
+    color: rgb(var(--color-text));
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 900px) {
+    .service-detail {
+        grid-template-columns: 1fr;
+    }
+
+    .buy-card {
+        position: static;
+    }
+
+    .service-info__columns,
+    .reviews__grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .instructor-card {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .instructor-card__social {
+        justify-content: center;
+    }
+
+    .service-hero {
+        padding: 24px 6% 70px;
+    }
+}
+

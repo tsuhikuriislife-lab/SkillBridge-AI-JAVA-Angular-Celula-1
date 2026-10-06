@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistente IA - SkillBridge AI</title>
+
+    <!-- Fuente -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+    </style>
+<base target="_blank">
+</head>
+<body>
+
+<style>
+/* ============================================================
+   VARIABLES (mismas referencias del Main.CSS / login)
+   ============================================================ */
+:root {
+    --color-white: 255 255 255;
+    --color-background: 15 23 42;
+    --color-primary: 40 97 216;
+    --color-dark: 26 26 26;
+    --color-text: 95 95 95;
+    --color-border: 223 223 223;
+
+    --status-active: 16 185 129;
+}
+
+
+/* ============================================================
+   BASE
+   ============================================================ */
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+
+    padding: 40px 16px;
+
+    background-color: #f7f9fd;
+
+    font-family: "Plus Jakarta Sans", sans-serif;
+    color: rgb(var(--color-dark));
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/* ============================================================
+   VENTANA DEL CHAT
+   ============================================================ */
+.chat {
+    display: flex;
+    flex-direction: column;
+
+    width: 100%;
+    max-width: 720px;
+    height: min(760px, 90vh);
+
+    background-color: rgb(var(--color-white));
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 24px;
+
+    box-shadow: 0 8px 30px rgb(var(--color-background) / 8%);
+
+    overflow: hidden;
+}
+
+
+/* ============================================================
+   CABECERA
+   ============================================================ */
+.chat__header {
+    display: flex;
+
+    padding: 16px 20px;
+
+    gap: 12px;
+    align-items: center;
+
+    border-bottom: 1px solid rgb(var(--color-border));
+}
+
+.chat__header-icon {
+    display: flex;
+
+    width: 38px;
+    height: 38px;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 12px;
+
+    background-color: rgb(var(--color-primary) / 10%);
+
+    font-size: 19px;
+    color: rgb(var(--color-primary));
+}
+
+.chat__header-info {
+    display: flex;
+    flex-direction: column;
+
+    gap: 3px;
+}
+
+.chat__header-name {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+}
+
+.chat__header-status {
+    display: inline-flex;
+
+    width: fit-content;
+
+    padding: 3px 10px;
+
+    gap: 6px;
+    align-items: center;
+
+    border-radius: 20px;
+
+    background-color: rgb(var(--status-active) / 12%);
+
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+
+    color: rgb(var(--status-active));
+}
+
+/* Punto pulsante del estado "en línea" */
+.chat__header-status::before {
+    content: "";
+
+    width: 6px;
+    height: 6px;
+
+    border-radius: 50%;
+
+    background-color: rgb(var(--status-active));
+
+    animation: pulseDot 1.6s ease infinite;
+}
+
+@keyframes pulseDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.45; transform: scale(0.8); }
+}
+
+.chat__header-actions {
+    display: flex;
+
+    margin-left: auto;
+
+    gap: 8px;
+    align-items: center;
+}
+
+.chat__header-btn {
+    display: flex;
+
+    width: 38px;
+    height: 38px;
+
+    align-items: center;
+    justify-content: center;
+
+    border: none;
+    border-radius: 12px;
+
+    background: transparent;
+
+    font-size: 18px;
+    color: rgb(var(--color-text));
+
+    cursor: pointer;
+
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.chat__header-btn:hover {
+    background-color: rgb(var(--color-primary) / 10%);
+    color: rgb(var(--color-primary));
+}
+
+
+/* ============================================================
+   MENSAJES
+   ============================================================ */
+.chat__messages {
+    display: flex;
+    flex-direction: column;
+
+    flex: 1;
+
+    padding: 24px 20px;
+
+    gap: 16px;
+
+    overflow-y: auto;
+
+    scroll-behavior: smooth;
+}
+
+/* ---------- Animación al añadir un mensaje ---------- */
+@keyframes messageIn {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.message {
+    display: flex;
+
+    max-width: 82%;
+
+    gap: 10px;
+    align-items: flex-end;
+
+    animation: messageIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Burbuja del asistente (izquierda, clara) */
+.message--assistant {
+    align-self: flex-start;
+}
+
+.message--assistant .message__bubble {
+    background-color: #f1f4fb;
+    border-radius: 18px 18px 18px 6px;
+}
+
+/* Burbuja del usuario (derecha, oscura — como en la imagen) */
+.message--user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.message--user .message__bubble {
+    background-color: rgb(var(--color-background));
+    border-radius: 18px 18px 6px 18px;
+    color: rgb(var(--color-white));
+}
+
+.message__avatar {
+    display: flex;
+
+    width: 32px;
+    height: 32px;
+
+    flex-shrink: 0;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background-color: rgb(var(--color-primary) / 12%);
+
+    font-size: 15px;
+    color: rgb(var(--color-primary));
+}
+
+.message--user .message__avatar {
+    background-color: rgb(var(--color-background) / 10%);
+    color: rgb(var(--color-dark));
+}
+
+.message__bubble {
+    padding: 13px 16px;
+
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.55;
+}
+
+/* Mensaje de bienvenida especial */
+.message--welcome .message__bubble {
+    background-color: #f1f4fb;
+    border: 1px solid rgb(var(--color-primary) / 15%);
+    border-radius: 18px;
+}
+
+
+/* ============================================================
+   SUGERENCIAS (chips)
+   ============================================================ */
+.chat__suggestions {
+    display: flex;
+    flex-direction: column;
+
+    align-self: flex-start;
+
+    gap: 8px;
+}
+
+/* Entrada escalonada de las sugerencias al cargar / nuevo chat */
+@keyframes suggestionIn {
+    from {
+        opacity: 0;
+        transform: translateX(-14px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.suggestion {
+    display: flex;
+
+    width: fit-content;
+
+    padding: 10px 16px;
+
+    gap: 10px;
+    align-items: center;
+
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 25px;
+
+    background-color: rgb(var(--color-white));
+
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+
+    color: rgb(var(--color-text));
+
+    cursor: pointer;
+
+    animation: suggestionIn 0.4s ease both;
+
+    transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+.suggestion:hover {
+    border-color: rgb(var(--color-primary));
+    background-color: rgb(var(--color-primary) / 6%);
+    color: rgb(var(--color-primary));
+
+    transform: translateX(4px);
+}
+
+.suggestion i {
+    font-size: 15px;
+    color: rgb(var(--color-primary));
+}
+
+
+/* ============================================================
+   INDICADOR "ESCRIBIENDO..." (tres puntos animados)
+   ============================================================ */
+.typing {
+    display: none;
+
+    align-self: flex-start;
+
+    gap: 10px;
+    align-items: center;
+}
+
+.typing.is-visible {
+    display: flex;
+
+    animation: messageIn 0.3s ease both;
+}
+
+.typing__bubble {
+    display: flex;
+
+    padding: 15px 18px;
+
+    gap: 5px;
+    align-items: center;
+
+    background-color: #f1f4fb;
+    border-radius: 18px 18px 18px 6px;
+}
+
+.typing__dot {
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background-color: rgb(var(--color-primary));
+
+    animation: typingBounce 1.2s ease infinite;
+}
+
+.typing__dot:nth-child(2) { animation-delay: 0.15s; }
+.typing__dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30%           { transform: translateY(-6px); opacity: 1; }
+}
+
+
+/* ============================================================
+   INPUT DE MENSAJE
+   ============================================================ */
+.chat__input-area {
+    display: flex;
+
+    padding: 14px 20px 10px;
+
+    gap: 12px;
+    align-items: center;
+}
+
+.chat__input {
+    flex: 1;
+    min-height: 52px;
+
+    padding: 14px 18px;
+
+    background-color: #f4f6fb;
+    border: 1px solid transparent;
+    border-radius: 16px;
+
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+
+    color: rgb(var(--color-dark));
+
+    outline: none;
+
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat__input::placeholder {
+    color: rgb(var(--color-text) / 60%);
+}
+
+.chat__input:focus {
+    background-color: rgb(var(--color-white));
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 4px rgb(var(--color-primary) / 12%);
+}
+
+.chat__send {
+    display: flex;
+
+    width: 52px;
+    height: 52px;
+
+    flex-shrink: 0;
+
+    align-items: center;
+    justify-content: center;
+
+    border: none;
+    border-radius: 16px;
+
+    background-color: rgb(var(--color-primary));
+    color: rgb(var(--color-white));
+
+    font-size: 20px;
+
+    cursor: pointer;
+
+    box-shadow: 0 6px 16px rgb(var(--color-primary) / 35%);
+
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.chat__send:hover {
+    background-color: rgb(35 84 190);
+}
+
+.chat__send:active {
+    transform: scale(0.94);
+}
+
+.chat__disclaimer {
+    padding: 0 20px 14px;
+
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    text-align: center;
+
+    color: rgb(var(--color-text) / 55%);
+}
+
+
+/* ============================================================
+   SCROLLBAR DEL ÁREA DE MENSAJES
+   ============================================================ */
+.chat__messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat__messages::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+
+    background-color: rgb(var(--color-border));
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 700px) {
+    body {
+        padding: 0;
+    }
+
+    .chat {
+        max-width: 100%;
+        height: 100dvh;
+
+        border: none;
+        border-radius: 0;
+    }
+
+    .message {
+        max-width: 92%;
+    }
+}
+</style>
+
+<!-- Boxicons -->
+<link href="https://cdn.boxicons.com/3.0.8/fonts/basic/boxicons.min.css" rel="stylesheet">
+<link href="https://cdn.boxicons.com/3.0.8/fonts/filled/boxicons-filled.min.css" rel="stylesheet">
+
+
+<!-- ============================================================
+     VENTANA DEL ASISTENTE (solo la parte del chat)
+============================================================ -->
+<div class="chat">
+
+    <!-- Cabecera -->
+    <div class="chat__header">
+        <div class="chat__header-icon">
+            <i class="bx bx-sparkles-alt"></i>
+        </div>
+        <div class="chat__header-info">
+            <span class="chat__header-name">SkillBridge AI Assistant</span>
+            <span class="chat__header-status">En línea</span>
+        </div>
+        <div class="chat__header-actions">
+            <button class="chat__header-btn" id="new-chat" title="Nueva consulta" aria-label="Nueva consulta">
+                <i class="bx bx-plus"></i>
+            </button>
+            <button class="chat__header-btn" title="Cerrar asistente" aria-label="Cerrar asistente">
+                <i class="bx bx-x"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mensajes -->
+    <div class="chat__messages" id="messages">
+
+        <!-- Bienvenida -->
+        <div class="message message--assistant message--welcome">
+            <div class="message__avatar"><i class="bx bx-sparkles-alt"></i></div>
+            <div class="message__bubble">
+                ¡Hola! Soy el asistente inteligente de SkillBridge AI. Puedo ayudarte a
+                resolver dudas sobre arquitectura de software, configurar tus servicios
+                suscritos o guiarte en el uso de Spring Boot, Angular y soluciones Cloud.
+                ¿En qué trabajaremos hoy?
+            </div>
+        </div>
+
+        <!-- Sugerencias -->
+        <div class="chat__suggestions" id="suggestions">
+            <button class="suggestion" style="animation-delay: 0.05s">
+                <i class="bx bx-layer"></i> ¿Cómo estructurar una arquitectura hexagonal en Spring Boot?
+            </button>
+            <button class="suggestion" style="animation-delay: 0.12s">
+                <i class="bx bx-bolt-circle"></i> Explicación del flujo de eventos con caché en esta plataforma
+            </button>
+            <button class="suggestion" style="animation-delay: 0.19s">
+                <i class="bx bx-sparkles-alt"></i> Recomiéndame un servicio según mi perfil de desarrollo
+            </button>
+        </div>
+
+        <!-- Indicador "escribiendo..." -->
+        <div class="typing" id="typing">
+            <div class="message__avatar"><i class="bx bx-sparkles-alt"></i></div>
+            <div class="typing__bubble">
+                <span class="typing__dot"></span>
+                <span class="typing__dot"></span>
+                <span class="typing__dot"></span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Input -->
+    <div class="chat__input-area">
+        <input class="chat__input" id="input" type="text"
+               placeholder="Escribe tu consulta sobre servicios, arquitectura o código aquí...">
+        <button class="chat__send" id="send" aria-label="Enviar mensaje">
+            <i class="bx bx-send"></i>
+        </button>
+    </div>
+
+    <p class="chat__disclaimer">SkillBridge AI es un asistente creado para arquitecturas modernas</p>
+
+</div>
+
+
+<script>
+    /* ============================================================
+       REFERENCIAS
+    ============================================================ */
+    const messages    = document.getElementById('messages');
+    const input       = document.getElementById('input');
+    const sendBtn     = document.getElementById('send');
+    const typing      = document.getElementById('typing');
+    const suggestions = document.getElementById('suggestions');
+    const newChatBtn  = document.getElementById('new-chat');
+
+    // Mueve el indicador "escribiendo..." al final siempre
+    function keepTypingLast() {
+        messages.appendChild(typing);
+    }
+
+    function scrollToBottom() {
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+
+    /* ============================================================
+       AÑADIR MENSAJE (con animación de entrada)
+    ============================================================ */
+    function addMessage(text, sender) {
+        keepTypingLast();
+
+        const msg = document.createElement('div');
+        msg.className = 'message message--' + sender;
+
+        const icon = sender === 'assistant' ? 'bx-sparkles-alt' : 'bx-user';
+
+        msg.innerHTML = `
+            <div class="message__avatar"><i class="bx ${icon}"></i></div>
+            <div class="message__bubble"></div>
+        `;
+        msg.querySelector('.message__bubble').textContent = text;
+
+        messages.insertBefore(msg, typing);
+        scrollToBottom();
+
+        return msg;
+    }
+
+
+    /* ============================================================
+       ENVIAR MENSAJE
+       1. Aparece la burbuja del usuario (animada)
+       2. Aparece "escribiendo..." (tres puntos animados)
+       3. La respuesta del asistente aparece (animada)
+    ============================================================ */
+    function sendMessage(text) {
+        const content = (text ?? input.value).trim();
+        if (!content) return;
+
+        input.value = '';
+
+        // Ocultar sugerencias después del primer mensaje
+        if (suggestions && !suggestions.hidden) {
+            suggestions.style.transition = 'opacity 0.3s ease';
+            suggestions.style.opacity = 0;
+            setTimeout(() => { suggestions.hidden = true; }, 300);
+        }
+
+        // 1. Mensaje del usuario (animación automática por CSS)
+        addMessage(content, 'user');
+
+        // 2. Indicador "escribiendo..."
+        setTimeout(() => {
+            typing.classList.add('is-visible');
+            scrollToBottom();
+
+            // 3. Respuesta simulada del asistente
+            setTimeout(() => {
+                typing.classList.remove('is-visible');
+                addMessage(
+                    'Entendido. He registrado tu consulta sobre: "' + content + '". ' +
+                    'Esto es una respuesta de demostración — conecta aquí tu API del asistente IA.',
+                    'assistant'
+                );
+            }, 1400);
+        }, 350);
+    }
+
+    sendBtn.addEventListener('click', () => sendMessage());
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+
+    /* ============================================================
+       SUGERENCIAS: al hacer clic se envían como mensaje
+    ============================================================ */
+    suggestions.addEventListener('click', (e) => {
+        const chip = e.target.closest('.suggestion');
+        if (chip) sendMessage(chip.textContent.trim());
+    });
+
+
+    /* ============================================================
+       NUEVA CONSULTA: limpia el chat con desvanecido y reinicia
+       la bienvenida + sugerencias con animación
+    ============================================================ */
+    newChatBtn.addEventListener('click', () => {
+        // Desvanecer mensajes actuales
+        messages.style.transition = 'opacity 0.25s ease';
+        messages.style.opacity = 0;
+
+        setTimeout(() => {
+            // Quitar todo excepto el indicador "escribiendo"
+            messages.querySelectorAll('.message').forEach(m => m.remove());
+            typing.classList.remove('is-visible');
+
+            // Restaurar sugerencias (se animan solas por su animation-delay)
+            suggestions.hidden = false;
+            suggestions.style.opacity = 1;
+            [...suggestions.children].forEach(chip => {
+                chip.style.animation = 'none';
+                void chip.offsetWidth; // reinicia la animación
+                chip.style.animation = '';
+            });
+
+            // Volver a añadir la bienvenida (animada)
+            const welcome = document.createElement('div');
+            welcome.className = 'message message--assistant message--welcome';
+            welcome.innerHTML = `
+                <div class="message__avatar"><i class="bx bx-sparkles-alt"></i></div>
+                <div class="message__bubble">
+                    ¡Hola! Soy el asistente inteligente de SkillBridge AI. Puedo ayudarte a
+                    resolver dudas sobre arquitectura de software, configurar tus servicios
+                    suscritos o guiarte en el uso de Spring Boot, Angular y soluciones Cloud.
+                    ¿En qué trabajaremos hoy?
+                </div>
+            `;
+            keepTypingLast();
+            messages.insertBefore(welcome, typing);
+
+            // Aparecer todo de nuevo
+            messages.style.opacity = 1;
+            scrollToBottom();
+        }, 260);
+    });
+</script>
+
+</body>
+</html>

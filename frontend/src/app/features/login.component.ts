@@ -28,6 +28,6 @@ export class LoginComponent {
   submit() {
     this.error = '';
     const request = this.mode === 'login' ? this.auth.login(this.email, this.password) : this.auth.register(this.name, this.email, this.password);
-    request.subscribe({ next: () => this.router.navigateByUrl('/ai'), error: e => this.error = e?.error?.detail || 'No fue posible autenticar.' });
+    request.subscribe({ next: () => this.router.navigateByUrl('/'), error: e => this.error = e?.error?.detail || 'No fue posible autenticar.' });
   }
 }
