@@ -1,4 +1,4 @@
-.PHONY: up down reset logs ps observability test-back test-front build
+.PHONY: up down reset logs ps observability test-back test-back-unit test-front build
 
 up:
 	docker compose up --build -d
@@ -21,7 +21,10 @@ observability:
 	docker compose --profile observability up --build -d
 
 test-back:
-	docker compose run --rm backend mvn test
+	cd backend && mvn test
+
+test-back-unit:
+	cd backend && mvn -Dtest=BookingServiceTest,OfferingServiceTest test
 
 test-front:
 	cd frontend && npm ci && npm test -- --watch=false

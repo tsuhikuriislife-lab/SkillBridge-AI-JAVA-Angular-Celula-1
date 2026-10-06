@@ -5,6 +5,8 @@ import { AppComponent } from './app/app.component';
 import { routes } from './app/app.routes';
 import { authInterceptor } from './app/core/auth.interceptor';
 
+registerLocaleData(localeEsCo);
+
 bootstrapApplication(AppComponent, {
   providers: [
     provideRouter(routes, withInMemoryScrolling({ anchorScrolling: 'enabled' })), 

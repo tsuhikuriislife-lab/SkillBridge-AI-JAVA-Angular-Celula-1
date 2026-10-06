@@ -27,4 +27,19 @@ class OfferingServiceTest {
         assertEquals(expected, result);
         verifyNoInteractions(repository);
     }
+
+    @Test
+    void shouldLoadAndCacheOfferingsWhenCacheMisses() {
+        OfferingRepositoryPort repository = mock(OfferingRepositoryPort.class);
+        OfferingCachePort cache = mock(OfferingCachePort.class);
+        var expected = List.of(new Offering(UUID.randomUUID(), "Angular", "Mentoría", "FRONTEND", BigDecimal.TEN, true));
+        when(cache.getActiveOfferings()).thenReturn(Optional.empty());
+        when(repository.findAllActive()).thenReturn(expected);
+
+        var service = new OfferingService(repository, cache);
+
+        assertEquals(expected, service.listActive());
+        verify(repository).findAllActive();
+        verify(cache).putActiveOfferings(expected);
+    }
 }

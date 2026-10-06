@@ -21,6 +21,7 @@ import { HistoryService } from './core/history.service';
           @if (!auth.isAuthenticated()) {
             <a routerLink="/login">Ingresar</a>
           } @else {
+            <a routerLink="/bookings">Mis reservas</a>
             <button class="link-button" (click)="auth.logout()">Salir</button>
           }
         </nav>
