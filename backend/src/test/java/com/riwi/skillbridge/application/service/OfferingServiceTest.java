@@ -32,7 +32,7 @@ class OfferingServiceTest {
     void shouldLoadAndCacheOfferingsWhenCacheMisses() {
         OfferingRepositoryPort repository = mock(OfferingRepositoryPort.class);
         OfferingCachePort cache = mock(OfferingCachePort.class);
-        var expected = List.of(new Offering(UUID.randomUUID(), "Angular", "Mentoría", "FRONTEND", BigDecimal.TEN, true));
+        var expected = List.of(new Offering(UUID.randomUUID(), "Angular", "Mentoría", "FRONTEND", BigDecimal.TEN, true, UUID.randomUUID(), java.time.LocalTime.of(9, 0), java.time.LocalTime.of(17, 0), "MONDAY", "url"));
         when(cache.getActiveOfferings()).thenReturn(Optional.empty());
         when(repository.findAllActive()).thenReturn(expected);
 
