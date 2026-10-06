@@ -1,0 +1,233 @@
+<section id="login-section" class="login-section">
+
+    <!-- Información / Bienvenida -->
+    <div class="login-section__welcome">
+
+        <div class="login-section__logo">
+            <img
+                id="login-logo"
+                class="login-section__logo-img"
+                src="assets/Img/Group 22 (1).svg"
+                alt="Logo de la plataforma"
+            >
+        </div>
+
+        <div class="login-section__welcome-title">
+            <h1 id="welcome-title">
+                {{ currentText.title }}
+            </h1>
+        </div>
+
+        <div class="login-section__welcome-description">
+            <p id="welcome-description">
+                {{ currentText.description }}
+            </p>
+        </div>
+
+        <div class="login-section__features">
+
+            <div class="login-section__feature">
+                <i class="bx bx-hexagon"></i>
+                <div class="login-section__feature-text">
+                    <span><strong>Hex</strong> Arquitectura</span>
+                </div>
+            </div>
+
+            <div class="login-section__feature">
+                <i class="bx bx-sparkles-alt"></i>
+                <div class="login-section__feature-text">
+                    <strong>Asistente IA</strong>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Formularios -->
+    <div id="login-form-container" class="login-section__form-container">
+
+        <!-- Mensaje de Error / Notificación -->
+        @if (error) {
+            <div class="login-form__alert" style="color: #ef4444; margin-bottom: 1rem; text-align: center;">
+                {{ error }}
+            </div>
+        }
+
+        <!-- ===== INICIAR SESIÓN ===== -->
+        @if (mode === 'login') {
+            <div id="form-login" class="login-section__form-view">
+
+                <div class="login-section__form-header">
+                    <h2>Iniciar Sesión</h2>
+                    <h3>Ingresa tus credenciales para continuar.</h3>
+                </div>
+
+                <form class="login-form" (ngSubmit)="submit()">
+
+                    <div class="login-form__group">
+                        <label for="login-email" class="login-form__label">
+                            Correo Electrónico
+                        </label>
+                        <div class="login-form__field">
+                            <i class="bx bx-envelope login-form__field-icon"></i>
+                            <input
+                                id="login-email"
+                                name="email"
+                                class="login-form__input"
+                                type="email"
+                                [(ngModel)]="email"
+                                placeholder="usuario@ejemplo.com"
+                                autocomplete="email"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <div class="login-form__group">
+                        <label for="login-password" class="login-form__label">
+                            Contraseña
+                        </label>
+                        <div class="login-form__field">
+                            <i class="bx bx-lock login-form__field-icon"></i>
+                            <input
+                                id="login-password"
+                                name="password"
+                                class="login-form__input"
+                                [type]="showPassword ? 'text' : 'password'"
+                                [(ngModel)]="password"
+                                placeholder="••••••••"
+                                autocomplete="current-password"
+                                required
+                            >
+                            <button 
+                                type="button" 
+                                class="login-form__field-toggle toggle-password"
+                                (click)="togglePasswordVisibility()"
+                            >
+                                <i class="bx" [ngClass]="showPassword ? 'bx-hide' : 'bx-show'"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="login-form__options">
+                        <div class="login-form__remember">
+                            <input id="remember-session" name="remember" class="login-form__checkbox" type="checkbox">
+                            <label for="remember-session">Recordar mi sesión</label>
+                        </div>
+                        <div class="login-form__forgot">
+                            <a href="#">¿Olvidaste tu contraseña?</a>
+                        </div>
+                    </div>
+
+                    <div class="login-form__submit">
+                        <button class="login-form__button" type="submit">
+                            Iniciar Sesión
+                        </button>
+                    </div>
+
+                </form>
+
+                <div class="login-section__register">
+                    <span>¿Aún no tienes una cuenta?</span>
+                    <a href="javascript:void(0)" id="go-to-register" (click)="toggleMode('register')">Regístrate gratis</a>
+                </div>
+
+            </div>
+        }
+
+        <!-- ===== CREAR CUENTA ===== -->
+        @if (mode === 'register') {
+            <div id="form-register" class="login-section__form-view">
+
+                <div class="login-section__form-header">
+                    <h2>Crear Cuenta</h2>
+                    <h3>Completa tus datos para registrarte.</h3>
+                </div>
+
+                <form class="login-form" (ngSubmit)="submit()">
+
+                    <div class="login-form__group">
+                        <label for="register-name" class="login-form__label">
+                            Nombre Completo
+                        </label>
+                        <div class="login-form__field">
+                            <i class="bx bx-user login-form__field-icon"></i>
+                            <input
+                                id="register-name"
+                                name="name"
+                                class="login-form__input"
+                                type="text"
+                                [(ngModel)]="name"
+                                placeholder="Juan Pérez"
+                                autocomplete="name"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <div class="login-form__group">
+                        <label for="register-email" class="login-form__label">
+                            Correo Electrónico
+                        </label>
+                        <div class="login-form__field">
+                            <i class="bx bx-envelope login-form__field-icon"></i>
+                            <input
+                                id="register-email"
+                                name="email"
+                                class="login-form__input"
+                                type="email"
+                                [(ngModel)]="email"
+                                placeholder="usuario@ejemplo.com"
+                                autocomplete="email"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <div class="login-form__group">
+                        <label for="register-password" class="login-form__label">
+                            Contraseña
+                        </label>
+                        <div class="login-form__field">
+                            <i class="bx bx-lock login-form__field-icon"></i>
+                            <input
+                                id="register-password"
+                                name="password"
+                                class="login-form__input"
+                                [type]="showPassword ? 'text' : 'password'"
+                                [(ngModel)]="password"
+                                placeholder="••••••••"
+                                autocomplete="new-password"
+                                required
+                            >
+                            <button 
+                                type="button" 
+                                class="login-form__field-toggle toggle-password"
+                                (click)="togglePasswordVisibility()"
+                            >
+                                <i class="bx" [ngClass]="showPassword ? 'bx-hide' : 'bx-show'"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="login-form__submit">
+                        <button class="login-form__button" type="submit">
+                            Crear Cuenta
+                        </button>
+                    </div>
+
+                </form>
+
+                <div class="login-section__register">
+                    <span>¿Ya tienes una cuenta?</span>
+                    <a href="javascript:void(0)" id="go-to-login" (click)="toggleMode('login')">Inicia sesión</a>
+                </div>
+
+            </div>
+        }
+
+    </div>
+
+</section>
