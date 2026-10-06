@@ -3,6 +3,7 @@ import { HomeComponent } from './features/home.component';
 import { LoginComponent } from './features/login.component';
 import { AiComponent } from './features/ai.component';
 import { BookingComponent } from './features/booking.component';
+import { MyBookingsComponent } from './features/my-bookings.component';
 import { authGuard } from './core/auth.guard';
 
 export const routes: Routes = [
@@ -10,7 +11,6 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'ai', component: AiComponent, canActivate: [authGuard] },
   { path: 'book', component: BookingComponent, canActivate: [authGuard] },
-  { path: 'bookings', loadComponent: () => import('./features/my-booking.component').then(m => m.MyBookingsComponent),  canActivate: [authGuard] },
-  { path: '**', redirectTo: '' },
-  
+  { path: 'bookings', component: MyBookingsComponent, canActivate: [authGuard] },
+  { path: '**', redirectTo: '' }
 ];
