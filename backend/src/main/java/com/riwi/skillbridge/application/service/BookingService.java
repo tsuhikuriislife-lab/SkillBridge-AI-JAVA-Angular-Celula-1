@@ -1,5 +1,6 @@
 package com.riwi.skillbridge.application.service;
 
+import com.riwi.skillbridge.application.port.in.GetBookingsUseCase;
 import com.riwi.skillbridge.application.port.in.CreateBookingUseCase;
 import com.riwi.skillbridge.application.port.out.*;
 import com.riwi.skillbridge.domain.exception.BusinessRuleException;
@@ -10,10 +11,11 @@ import com.riwi.skillbridge.domain.model.Offering;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
-public class BookingService implements CreateBookingUseCase {
+public class BookingService implements CreateBookingUseCase, GetBookingsUseCase {
     private final BookingRepositoryPort bookingRepository;
     private final OfferingRepositoryPort offeringRepository;
     private final UserAccountPort userAccountPort;
@@ -48,5 +50,11 @@ public class BookingService implements CreateBookingUseCase {
         Booking saved = bookingRepository.save(booking);
         eventPublisher.bookingCreated(saved);
         return saved;
+    }
+
+    @Override
+    public List<Booking> findAll() {
+
+        return List.of();
     }
 }
