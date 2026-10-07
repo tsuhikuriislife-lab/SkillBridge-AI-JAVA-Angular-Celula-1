@@ -1,0 +1,45 @@
+<section class="error-section">
+
+    <!-- Formas decorativas flotantes -->
+    <span class="error-section__shape error-section__shape--1"></span>
+    <span class="error-section__shape error-section__shape--2"></span>
+    <span class="error-section__shape error-section__shape--3"></span>
+    <span class="error-section__shape error-section__shape--4"></span>
+
+
+    <!-- Código grande -->
+    <h1 class="error-section__code">404</h1>
+
+
+    <!-- Tarjeta -->
+    <div class="error-card">
+        <div class="error-card__icon">
+            <i class="bx bx-map-alt"></i>
+        </div>
+
+        <h2 class="error-card__title">Página no encontrada</h2>
+
+        <p class="error-card__text">
+            Lo sentimos, la página que buscas no existe o fue movida.
+            Es posible que el enlace esté roto o que hayas escrito
+            mal la dirección.
+        </p>
+
+        <div class="error-card__actions">
+            <a routerLink="/" class="error-button error-button--primary">
+                <i class="bx bx-home"></i> Volver al inicio
+            </a>
+            <button class="error-button error-button--ghost" type="button" (click)="goBack()">
+                <i class="bx bx-arrow-back"></i> Ir atrás
+            </button>
+        </div>
+    </div>
+
+
+    <!-- Ayuda -->
+    <p class="error-section__help">
+        ¿Necesitas ayuda? <a routerLink="/">Contacta con soporte</a>
+    </p>
+
+</section>
+

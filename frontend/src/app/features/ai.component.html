@@ -1,0 +1,65 @@
+<div class="chat">
+    <!-- Cabecera -->
+    <div class="chat__header">
+        <div class="chat__header-icon">
+            <i class="bx bx-sparkles-alt"></i>
+        </div>
+        <div class="chat__header-info">
+            <span class="chat__header-name">SkillBridge AI Assistant</span>
+            <span class="chat__header-status">En línea</span>
+        </div>
+        <div class="chat__header-actions">
+            <button class="chat__header-btn" (click)="resetChat()" title="Nueva consulta" aria-label="Nueva consulta">
+                <i class="bx bx-plus"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mensajes -->
+    <div class="chat__messages" #messagesContainer>
+        @for (msg of messages; track $index) {
+          <div class="message" [ngClass]="{'message--user': msg.sender === 'user', 'message--assistant': msg.sender === 'assistant', 'message--welcome': msg.isWelcome}">
+              <div class="message__avatar"><i class="bx" [ngClass]="msg.sender === 'assistant' ? 'bx-sparkles-alt' : 'bx-user'"></i></div>
+              <div class="message__bubble">{{ msg.text }}</div>
+          </div>
+        }
+
+        <!-- Sugerencias -->
+        @if (showSuggestions) {
+          <div class="chat__suggestions">
+              @for (sug of suggestions; track $index) {
+                <button class="suggestion" [style.animation-delay]="($index * 0.07 + 0.05) + 's'" (click)="sendMessage(sug.text)">
+                    <i class="bx" [ngClass]="sug.icon"></i> {{ sug.text }}
+                </button>
+              }
+          </div>
+        }
+
+        <!-- Indicador "escribiendo..." -->
+        @if (loading) {
+          <div class="typing is-visible">
+              <div class="message__avatar"><i class="bx bx-sparkles-alt"></i></div>
+              <div class="typing__bubble">
+                  <span class="typing__dot"></span>
+                  <span class="typing__dot"></span>
+                  <span class="typing__dot"></span>
+              </div>
+          </div>
+        }
+    </div>
+
+    <!-- Input -->
+    <div class="chat__input-area">
+        <input class="chat__input" type="text"
+               placeholder="Escribe tu consulta sobre servicios, arquitectura o código aquí..."
+               [(ngModel)]="inputValue"
+               (keyup.enter)="sendMessage()"
+               [disabled]="loading">
+        <button class="chat__send" (click)="sendMessage()" aria-label="Enviar mensaje" [disabled]="loading || !inputValue.trim()">
+            <i class="bx bx-send"></i>
+        </button>
+    </div>
+
+    <p class="chat__disclaimer">SkillBridge AI es un asistente creado para arquitecturas modernas</p>
+</div>
+

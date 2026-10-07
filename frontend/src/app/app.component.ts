@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/auth.service';
+import { HistoryService } from './core/history.service';
 
 @Component({
   selector: 'app-root',
@@ -14,6 +15,9 @@ import { AuthService } from './core/auth.service';
           <a routerLink="/">Servicios</a>
           <a routerLink="/book">Reservar</a>
           <a routerLink="/ai">IA</a>
+          @if (auth.role() === 'PROVIDER') {
+            <a routerLink="/provider">Panel de proveedor</a>
+          }
           @if (!auth.isAuthenticated()) {
             <a routerLink="/login">Ingresar</a>
           } @else {
@@ -33,4 +37,5 @@ import { AuthService } from './core/auth.service';
 })
 export class AppComponent {
   auth = inject(AuthService);
+  private history = inject(HistoryService);
 }

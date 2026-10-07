@@ -81,7 +81,7 @@ class BookingServiceTest {
         BookingEventPublisherPort publisher = mock(BookingEventPublisherPort.class);
         UUID offeringId = UUID.randomUUID();
         when(offerings.findById(offeringId)).thenReturn(Optional.of(
-            new Offering(offeringId, "Java", "Mentoría", "BACKEND", BigDecimal.TEN, false)));
+            new Offering(offeringId, "Java", "Mentoría", "BACKEND", BigDecimal.TEN, false, UUID.randomUUID(), java.time.LocalTime.of(9, 0), java.time.LocalTime.of(17, 0), "MONDAY", "url")));
         BookingService service = new BookingService(bookings, offerings, users, publisher);
 
         assertThrows(BusinessRuleException.class, () -> service.create(
@@ -114,7 +114,7 @@ class BookingServiceTest {
         BookingEventPublisherPort publisher = mock(BookingEventPublisherPort.class);
         UUID offeringId = UUID.randomUUID();
         when(offerings.findById(offeringId)).thenReturn(Optional.of(
-            new Offering(offeringId, "Java", "Mentoría", "BACKEND", BigDecimal.TEN, true)));
+            new Offering(offeringId, "Java", "Mentoría", "BACKEND", BigDecimal.TEN, true, UUID.randomUUID(), java.time.LocalTime.of(9, 0), java.time.LocalTime.of(17, 0), "MONDAY", "url")));
         when(users.findIdByEmail("missing@example.com")).thenReturn(Optional.empty());
         BookingService service = new BookingService(bookings, offerings, users, publisher);
 
@@ -133,7 +133,7 @@ class BookingServiceTest {
 
         UUID offeringId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        Offering offering = new Offering(offeringId, "Java", "Mentoría", "BACKEND", BigDecimal.TEN, true);
+        Offering offering = new Offering(offeringId, "Java", "Mentoría", "BACKEND", BigDecimal.TEN, true, UUID.randomUUID(), java.time.LocalTime.of(9, 0), java.time.LocalTime.of(17, 0), "MONDAY,TUESDAY", "UTC");
         when(offerings.findById(offeringId)).thenReturn(Optional.of(offering));
         when(users.findIdByEmail("user@example.com")).thenReturn(Optional.of(userId));
         when(bookings.save(any(Booking.class))).thenAnswer(i -> i.getArgument(0));

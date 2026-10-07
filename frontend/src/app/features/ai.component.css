@@ -1,0 +1,518 @@
+/* ============================================================
+   VARIABLES (mismas referencias del Main.CSS / login)
+   ============================================================ */
+:host {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 16px;
+    height: calc(100vh - 64px); /* assuming a header exists, or just fit to screen */
+    background-color: #f7f9fd;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    color: rgb(26 26 26);
+
+    --color-white: 255 255 255;
+    --color-background: 15 23 42;
+    --color-primary: 40 97 216;
+    --color-dark: 26 26 26;
+    --color-text: 95 95 95;
+    --color-border: 223 223 223;
+    --status-active: 16 185 129;
+}
+
+/* ============================================================
+   VENTANA DEL CHAT
+   ============================================================ */
+.chat {
+    display: flex;
+    flex-direction: column;
+
+    width: 100%;
+    max-width: 720px;
+    height: min(760px, 100%);
+
+    background-color: rgb(var(--color-white));
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 24px;
+
+    box-shadow: 0 8px 30px rgb(var(--color-background) / 8%);
+
+    overflow: hidden;
+}
+
+
+/* ============================================================
+   CABECERA
+   ============================================================ */
+.chat__header {
+    display: flex;
+
+    padding: 16px 20px;
+
+    gap: 12px;
+    align-items: center;
+
+    border-bottom: 1px solid rgb(var(--color-border));
+}
+
+.chat__header-icon {
+    display: flex;
+
+    width: 38px;
+    height: 38px;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 12px;
+
+    background-color: rgb(var(--color-primary) / 10%);
+
+    font-size: 19px;
+    color: rgb(var(--color-primary));
+}
+
+.chat__header-info {
+    display: flex;
+    flex-direction: column;
+
+    gap: 3px;
+}
+
+.chat__header-name {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+}
+
+.chat__header-status {
+    display: inline-flex;
+
+    width: fit-content;
+
+    padding: 3px 10px;
+
+    gap: 6px;
+    align-items: center;
+
+    border-radius: 20px;
+
+    background-color: rgb(var(--status-active) / 12%);
+
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+
+    color: rgb(var(--status-active));
+}
+
+/* Punto pulsante del estado "en línea" */
+.chat__header-status::before {
+    content: "";
+
+    width: 6px;
+    height: 6px;
+
+    border-radius: 50%;
+
+    background-color: rgb(var(--status-active));
+
+    animation: pulseDot 1.6s ease infinite;
+}
+
+@keyframes pulseDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.45; transform: scale(0.8); }
+}
+
+.chat__header-actions {
+    display: flex;
+
+    margin-left: auto;
+
+    gap: 8px;
+    align-items: center;
+}
+
+.chat__header-btn {
+    display: flex;
+
+    width: 38px;
+    height: 38px;
+
+    align-items: center;
+    justify-content: center;
+
+    border: none;
+    border-radius: 12px;
+
+    background: transparent;
+
+    font-size: 18px;
+    color: rgb(var(--color-text));
+
+    cursor: pointer;
+
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.chat__header-btn:hover {
+    background-color: rgb(var(--color-primary) / 10%);
+    color: rgb(var(--color-primary));
+}
+
+
+/* ============================================================
+   MENSAJES
+   ============================================================ */
+.chat__messages {
+    display: flex;
+    flex-direction: column;
+
+    flex: 1;
+
+    padding: 24px 20px;
+
+    gap: 16px;
+
+    overflow-y: auto;
+
+    scroll-behavior: smooth;
+}
+
+/* ---------- Animación al añadir un mensaje ---------- */
+@keyframes messageIn {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.message {
+    display: flex;
+
+    max-width: 82%;
+
+    gap: 10px;
+    align-items: flex-end;
+
+    animation: messageIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Burbuja del asistente (izquierda, clara) */
+.message--assistant {
+    align-self: flex-start;
+}
+
+.message--assistant .message__bubble {
+    background-color: #f1f4fb;
+    border-radius: 18px 18px 18px 6px;
+    white-space: pre-line;
+}
+
+/* Burbuja del usuario (derecha, oscura — como en la imagen) */
+.message--user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.message--user .message__bubble {
+    background-color: rgb(var(--color-background));
+    border-radius: 18px 18px 6px 18px;
+    color: rgb(var(--color-white));
+    white-space: pre-line;
+}
+
+.message__avatar {
+    display: flex;
+
+    width: 32px;
+    height: 32px;
+
+    flex-shrink: 0;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background-color: rgb(var(--color-primary) / 12%);
+
+    font-size: 15px;
+    color: rgb(var(--color-primary));
+}
+
+.message--user .message__avatar {
+    background-color: rgb(var(--color-background) / 10%);
+    color: rgb(var(--color-dark));
+}
+
+.message__bubble {
+    padding: 13px 16px;
+
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.55;
+}
+
+/* Mensaje de bienvenida especial */
+.message--welcome .message__bubble {
+    background-color: #f1f4fb;
+    border: 1px solid rgb(var(--color-primary) / 15%);
+    border-radius: 18px;
+}
+
+
+/* ============================================================
+   SUGERENCIAS (chips)
+   ============================================================ */
+.chat__suggestions {
+    display: flex;
+    flex-direction: column;
+
+    align-self: flex-start;
+
+    gap: 8px;
+}
+
+/* Entrada escalonada de las sugerencias al cargar / nuevo chat */
+@keyframes suggestionIn {
+    from {
+        opacity: 0;
+        transform: translateX(-14px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.suggestion {
+    display: flex;
+
+    width: fit-content;
+
+    padding: 10px 16px;
+
+    gap: 10px;
+    align-items: center;
+
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 25px;
+
+    background-color: rgb(var(--color-white));
+
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+
+    color: rgb(var(--color-text));
+
+    cursor: pointer;
+
+    animation: suggestionIn 0.4s ease both;
+
+    transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+.suggestion:hover {
+    border-color: rgb(var(--color-primary));
+    background-color: rgb(var(--color-primary) / 6%);
+    color: rgb(var(--color-primary));
+
+    transform: translateX(4px);
+}
+
+.suggestion i {
+    font-size: 15px;
+    color: rgb(var(--color-primary));
+}
+
+
+/* ============================================================
+   INDICADOR "ESCRIBIENDO..." (tres puntos animados)
+   ============================================================ */
+.typing {
+    display: none;
+
+    align-self: flex-start;
+
+    gap: 10px;
+    align-items: center;
+}
+
+.typing.is-visible {
+    display: flex;
+
+    animation: messageIn 0.3s ease both;
+}
+
+.typing__bubble {
+    display: flex;
+
+    padding: 15px 18px;
+
+    gap: 5px;
+    align-items: center;
+
+    background-color: #f1f4fb;
+    border-radius: 18px 18px 18px 6px;
+}
+
+.typing__dot {
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background-color: rgb(var(--color-primary));
+
+    animation: typingBounce 1.2s ease infinite;
+}
+
+.typing__dot:nth-child(2) { animation-delay: 0.15s; }
+.typing__dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30%           { transform: translateY(-6px); opacity: 1; }
+}
+
+
+/* ============================================================
+   INPUT DE MENSAJE
+   ============================================================ */
+.chat__input-area {
+    display: flex;
+
+    padding: 14px 20px 10px;
+
+    gap: 12px;
+    align-items: center;
+}
+
+.chat__input {
+    flex: 1;
+    min-height: 52px;
+
+    padding: 14px 18px;
+
+    background-color: #f4f6fb;
+    border: 1px solid transparent;
+    border-radius: 16px;
+
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+
+    color: rgb(var(--color-dark));
+
+    outline: none;
+
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat__input::placeholder {
+    color: rgb(var(--color-text) / 60%);
+}
+
+.chat__input:focus {
+    background-color: rgb(var(--color-white));
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 4px rgb(var(--color-primary) / 12%);
+}
+
+.chat__send {
+    display: flex;
+
+    width: 52px;
+    height: 52px;
+
+    flex-shrink: 0;
+
+    align-items: center;
+    justify-content: center;
+
+    border: none;
+    border-radius: 16px;
+
+    background-color: rgb(var(--color-primary));
+    color: rgb(var(--color-white));
+
+    font-size: 20px;
+
+    cursor: pointer;
+
+    box-shadow: 0 6px 16px rgb(var(--color-primary) / 35%);
+
+    transition: background-color 0.2s ease, transform 0.1s ease, opacity 0.2s ease;
+}
+
+.chat__send:hover:not(:disabled) {
+    background-color: rgb(35 84 190);
+}
+
+.chat__send:active:not(:disabled) {
+    transform: scale(0.94);
+}
+
+.chat__send:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.chat__disclaimer {
+    padding: 0 20px 14px;
+
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    text-align: center;
+
+    color: rgb(var(--color-text) / 55%);
+}
+
+
+/* ============================================================
+   SCROLLBAR DEL ÁREA DE MENSAJES
+   ============================================================ */
+.chat__messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat__messages::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+
+    background-color: rgb(var(--color-border));
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 700px) {
+    :host {
+        padding: 0;
+        height: 100vh;
+    }
+
+    .chat {
+        max-width: 100%;
+        height: 100%;
+
+        border: none;
+        border-radius: 0;
+    }
+
+    .message {
+        max-width: 92%;
+    }
+}
+

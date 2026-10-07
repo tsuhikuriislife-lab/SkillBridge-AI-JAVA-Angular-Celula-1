@@ -10,6 +10,7 @@ interface AuthResponse { token: string; tokenType: string; }
 export class AuthService {
   private readonly key = 'skillbridge_token';
   readonly authenticated = signal(!!localStorage.getItem(this.key));
+  readonly userRole = signal(this.extractRole(localStorage.getItem(this.key)));
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -25,9 +26,28 @@ export class AuthService {
 
   token(): string | null { return localStorage.getItem(this.key); }
   isAuthenticated(): boolean { return this.authenticated(); }
-  isLoggedIn(): boolean {
-    return this.isAuthenticated();
+  isLoggedIn(): boolean { return this.isAuthenticated(); }
+  
+  role(): string | null { return this.userRole(); }
+
+  logout(): void { 
+    localStorage.removeItem(this.key); 
+    this.authenticated.set(false); 
+    this.userRole.set(null);
+    this.router.navigateByUrl('/'); 
   }
-  logout(): void { localStorage.removeItem(this.key); this.authenticated.set(false); this.router.navigateByUrl('/'); }
-  private save(token: string): void { localStorage.setItem(this.key, token); this.authenticated.set(true); }
+
+  private save(token: string): void { 
+    localStorage.setItem(this.key, token); 
+    this.authenticated.set(true); 
+    this.userRole.set(this.extractRole(token));
+  }
+
+  private extractRole(token: string | null): string | null {
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.role || null;
+    } catch { return null; }
+  }
 }
