@@ -410,16 +410,3 @@
     <i class="bx bx-up-arrow-alt"></i>
 </button>
 
-@if (showLoginToast) {
-<div class="toast-overlay">
-    <div class="toast-modal">
-        <i class="bx bx-error-circle" style="font-size: 3rem; color: #ff9800; margin-bottom: 1rem;"></i>
-        <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Autenticación requerida</h3>
-        <p style="margin-bottom: 1.5rem; color: #666;">Primero debes iniciar sesión para inscribirte en un servicio.</p>
-        <div style="display: flex; gap: 1rem; justify-content: center;">
-            <button class="cta__button" style="padding: 0.5rem 1.5rem; font-size: 1rem;" (click)="goToLogin()">Login</button>
-            <button class="cta__button" style="padding: 0.5rem 1.5rem; font-size: 1rem; background: transparent; border: 1px solid var(--color-primary); color: var(--color-primary);" (click)="showLoginToast = false">Cancelar</button>
-        </div>
-    </div>
-</div>
-}
