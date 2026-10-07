@@ -431,11 +431,11 @@ export class MyBookingsComponent implements OnInit {
     this.error.set(null);
 
     this.bookingService.getMyBookings().subscribe({
-      next: (data) => {
+      next: (data: Booking[]) => {
         this.reservas.set(data || []);
         this.loading.set(false);
       },
-      error: (err) => {
+      error: (err: any) => {
         const errorMsg = err?.error?.detail || err?.message || 'No fue posible cargar tus reservas.';
         this.error.set(errorMsg);
         this.loading.set(false);
