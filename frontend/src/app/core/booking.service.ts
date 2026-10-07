@@ -3,7 +3,6 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { apiBase } from './api';
-import { Booking } from './models/booking.model';
 
 export interface BookingSummary {
     id: string;
@@ -39,17 +38,4 @@ export class BookingService {
         return this.http.get<BookingPage>(`${apiBase()}/bookings/me`, { params });
     }
 
-    getMyBookings(): Observable<Booking[]> {
-        // Return first 50 bookings mapped to the Booking interface for the component
-        return this.listMine(0, 50, 'DATE_DESC', 'ALL').pipe(
-            map(page => page.content.map(summary => ({
-                id: summary.id,
-                offeringId: summary.offeringId,
-                status: summary.status as any,
-                scheduledAt: summary.scheduledAt,
-                serviceTitle: summary.offeringTitle,
-                category: 'GENERAL' // mock
-            })))
-        );
-    }
 }
