@@ -12,6 +12,7 @@ export const routes: Routes = [
   { path: 'login', loadComponent: () => import('./features/login/login').then(m => m.LoginComponent) },
   { path: 'ai', component: AiComponent, canActivate: [authGuard] },
   { path: 'book', component: BookingComponent, canActivate: [authGuard] },
+  { path: 'bookings', loadComponent: () => import('./features/my-bookings.component').then(m => m.MyBookingsComponent), canActivate: [authGuard] },
   { path: 'service/:id', loadComponent: () => import('./features/service-details.component').then(m => m.ServiceDetailsComponent), canActivate: [authGuard] },
   { path: '**', component: NotFoundComponent, data: { is404: true } }
 ];
