@@ -1,13 +1,13 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { Booking, BookingStatus } from '../core/models/booking.model';
-import { BookingService } from '../core/booking.service';
+import { FormsModule } from '@angular/forms';
+import { BookingService, BookingSummary, BookingSort, BookingActivityFilter, BookingPage } from '../core/booking.service';
 
 @Component({
   selector: 'app-my-bookings',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule],
   template: `
     <div class="booking-container">
       <div class="header-section">
@@ -15,11 +15,43 @@ import { BookingService } from '../core/booking.service';
           <h2>Mis Reservas</h2>
           <p class="subtitle">Gestiona y consulta tus sesiones programadas</p>
         </div>
-        <a routerLink="/book" class="btn-primary">Nueva Reserva</a>
+        <div class="header-actions">
+          <label class="page-size">
+            <select [ngModel]="pageSize" (ngModelChange)="changePageSize($event)" [disabled]="loading">
+              <option [ngValue]="10">10</option>
+              <option [ngValue]="25">25</option>
+              <option [ngValue]="50">50</option>
+            </select>
+            por página
+          </label>
+          <a routerLink="/book" class="btn-primary">Nueva Reserva</a>
+        </div>
       </div>
 
+      <section class="booking-filters" aria-label="Filtros de reservas">
+        <label class="filter-control">
+          Ordenar por
+          <select [ngModel]="sort" (ngModelChange)="changeSort($event)" [disabled]="loading">
+            <option value="TITLE_ASC">Nombre A–Z</option>
+            <option value="TITLE_DESC">Nombre Z–A</option>
+            <option value="DATE_DESC">Fecha más reciente</option>
+            <option value="DATE_ASC">Fecha más antigua</option>
+            <option value="PRICE_ASC">Precio menor a mayor</option>
+            <option value="PRICE_DESC">Precio mayor a menor</option>
+          </select>
+        </label>
+        <label class="filter-control">
+          Estado
+          <select [ngModel]="activity" (ngModelChange)="changeActivity($event)" [disabled]="loading">
+            <option value="ALL">Todas</option>
+            <option value="ACTIVE">Activas</option>
+            <option value="INACTIVE">No activas</option>
+          </select>
+        </label>
+      </section>
+
       <!-- ESTADO DE CARGA -->
-      @if (loading()) {
+      @if (loading) {
         <div class="state-container">
           <div class="spinner"></div>
           <p>Cargando tus reservas...</p>
@@ -27,7 +59,7 @@ import { BookingService } from '../core/booking.service';
       }
 
       <!-- ESTADO DE ERROR -->
-      @else if (error()) {
+      @else if (error) {
         <div class="state-container error-state">
           <svg class="state-icon error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
@@ -35,13 +67,13 @@ import { BookingService } from '../core/booking.service';
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
           <h3>Ocurrió un error</h3>
-          <p>{{ error() }}</p>
-          <button class="btn-retry" (click)="cargarReservas()">Reintentar</button>
+          <p>{{ error }}</p>
+          <button class="btn-retry" (click)="loadPage()">Reintentar</button>
         </div>
       }
 
       <!-- ESTADO VACÍO (CRITERIO DE ACEPTACIÓN) -->
-      @else if (reservas().length === 0) {
+      @else if (bookings.length === 0) {
         <div class="state-container empty-state">
           <div class="empty-icon-wrapper">
             <svg class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -51,9 +83,14 @@ import { BookingService } from '../core/booking.service';
               <line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
           </div>
-          <h3>Aún no tienes reservas</h3>
-          <p>Explora nuestro catálogo de mentorías y servicios para programar tu primera sesión.</p>
-          <a routerLink="/book" class="btn-primary">Explorar Servicios</a>
+          @if (totalElements === 0 && activity === 'ALL') {
+            <h3>Aún no tienes reservas</h3>
+            <p>Explora nuestro catálogo de mentorías y servicios para programar tu primera sesión.</p>
+            <a routerLink="/book" class="btn-primary">Explorar Servicios</a>
+          } @else {
+            <h3>No hay reservas que coincidan</h3>
+            <p>Prueba con otro estado o criterio de orden.</p>
+          }
         </div>
       }
 
@@ -64,7 +101,7 @@ import { BookingService } from '../core/booking.service';
             <thead>
               <tr>
                 <th>SERVICIO</th>
-                <th>CATEGORÍA</th>
+                <th>PRECIO</th>
                 <th>ESTADO</th>
                 <th>FECHA / SESIÓN</th>
                 <th>PROGRESO</th>
@@ -72,7 +109,7 @@ import { BookingService } from '../core/booking.service';
               </tr>
             </thead>
             <tbody>
-              @for (reserva of reservas(); track reserva.id) {
+              @for (reserva of bookings; track reserva.id) {
                 <tr class="table-row">
                   <!-- Servicio -->
                   <td>
@@ -85,15 +122,15 @@ import { BookingService } from '../core/booking.service';
                         </svg>
                       </div>
                       <div class="service-info">
-                        <span class="service-title">{{ reserva.serviceTitle || ('Reserva #' + reserva.id.substring(0, 8)) }}</span>
-                        <span class="service-subtitle">{{ reserva.totalSessions || 1 }} Sesión(es)</span>
+                        <span class="service-title">{{ reserva.offeringTitle || ('Reserva #' + reserva.id.substring(0, 8)) }}</span>
+                        <span class="service-subtitle">ID: {{ reserva.id.substring(0, 8) }}</span>
                       </div>
                     </div>
                   </td>
 
-                  <!-- Categoría -->
+                  <!-- Precio -->
                   <td>
-                    <span class="category-badge">{{ reserva.category || 'GENERAL' }}</span>
+                    <span class="session-price">{{ reserva.price | currency:'COP':'symbol-narrow':'1.0-0':'es-CO' }}</span>
                   </td>
 
                   <!-- Estado -->
@@ -111,11 +148,11 @@ import { BookingService } from '../core/booking.service';
                   <!-- Progreso -->
                   <td>
                     <div class="progress-container">
-                      <span class="progress-label">{{ reserva.progress ?? getCalculatedProgress(reserva.status) }}%</span>
+                      <span class="progress-label">{{ getCalculatedProgress(reserva.status) }}%</span>
                       <div class="progress-bar-bg">
                         <div 
                           class="progress-bar-fill" 
-                          [style.width.%]="reserva.progress ?? getCalculatedProgress(reserva.status)"
+                          [style.width.%]="getCalculatedProgress(reserva.status)"
                           [ngClass]="getProgressBarClass(reserva.status)"
                         ></div>
                       </div>
@@ -136,6 +173,21 @@ import { BookingService } from '../core/booking.service';
             </tbody>
           </table>
         </div>
+
+        <footer class="pagination-footer">
+          <span class="muted">
+            {{ firstVisible }}–{{ lastVisible }} de {{ totalElements }}
+          </span>
+          <div class="pagination-actions">
+            <button class="btn-secondary" type="button" (click)="loadPage(currentPage - 1)" [disabled]="loading || currentPage === 0">
+              Anterior
+            </button>
+            <span class="page-number">{{ currentPage + 1 }} / {{ totalPages }}</span>
+            <button class="btn-secondary" type="button" (click)="loadPage(currentPage + 1)" [disabled]="loading || currentPage + 1 >= totalPages">
+              Siguiente
+            </button>
+          </div>
+        </footer>
       }
     </div>
   `,
@@ -154,9 +206,15 @@ import { BookingService } from '../core/booking.service';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 24px;
+      margin-bottom: 16px;
       padding-bottom: 16px;
       border-bottom: 1px solid #f0f0f0;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
     }
 
     .header-section h2 {
@@ -172,6 +230,43 @@ import { BookingService } from '../core/booking.service';
       font-size: 0.875rem;
     }
 
+    .page-size {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #475467;
+      font-size: 14px;
+    }
+
+    .page-size select, .filter-control select {
+      border: 1px solid #cfd8e6;
+      border-radius: 6px;
+      padding: 6px 12px;
+      background: #fff;
+      color: #17332d;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .booking-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding: 16px;
+      background-color: #f8fafc;
+      border-radius: 8px;
+    }
+
+    .filter-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #475467;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
     .btn-primary {
       background-color: #2563eb;
       color: #ffffff;
@@ -181,7 +276,11 @@ import { BookingService } from '../core/booking.service';
       font-weight: 600;
       font-size: 0.875rem;
       transition: background-color 0.2s;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      cursor: pointer;
     }
 
     .btn-primary:hover {
@@ -330,16 +429,9 @@ import { BookingService } from '../core/booking.service';
       margin-top: 2px;
     }
 
-    .category-badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      background-color: #e0f2fe;
-      color: #0284c7;
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
+    .session-price {
+      font-weight: 600;
+      color: #334155;
     }
 
     .status-container {
@@ -413,56 +505,141 @@ import { BookingService } from '../core/booking.service';
     .action-btn:hover {
       background-color: #dbeafe;
     }
+
+    /* Paginación */
+    .pagination-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid #f0f0f0;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+
+    .pagination-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .btn-secondary {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      background-color: #ffffff;
+      color: #334155;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background-color: #f8fafc;
+      border-color: #cbd5e1;
+    }
+
+    .btn-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .page-number {
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .muted {
+      color: #64748b;
+    }
+
+    @media(max-width: 768px) {
+      .header-section {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      .header-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .pagination-footer {
+        flex-direction: column;
+        gap: 16px;
+      }
+    }
   `]
 })
 export class MyBookingsComponent implements OnInit {
+  bookings: BookingSummary[] = [];
+  currentPage = 0;
+  pageSize = 10;
+  sort: BookingSort = 'DATE_DESC';
+  activity: BookingActivityFilter = 'ALL';
+  totalElements = 0;
+  totalPages = 0;
+  loading = false;
+  error = '';
+
   private bookingService = inject(BookingService);
 
-  reservas = signal<Booking[]>([]);
-  loading = signal<boolean>(true);
-  error = signal<string | null>(null);
-
-  ngOnInit(): void {
-    this.cargarReservas();
+  get firstVisible(): number {
+    return this.totalElements === 0 ? 0 : this.currentPage * this.pageSize + 1;
   }
 
-  cargarReservas(): void {
-    this.loading.set(true);
-    this.error.set(null);
+  get lastVisible(): number {
+    return Math.min((this.currentPage + 1) * this.pageSize, this.totalElements);
+  }
 
-    this.bookingService.getMyBookings().subscribe({
-      next: (data: Booking[]) => {
-        this.reservas.set(data || []);
-        this.loading.set(false);
+  ngOnInit(): void {
+    this.loadPage();
+  }
+
+  loadPage(page = this.currentPage): void {
+    this.loading = true;
+    this.error = '';
+    this.bookingService.listMine(page, this.pageSize, this.sort, this.activity).subscribe({
+      next: (result: BookingPage) => {
+        this.bookings = result.content;
+        this.currentPage = result.page;
+        this.totalElements = result.totalElements;
+        this.totalPages = result.totalPages;
+        this.loading = false;
       },
       error: (err: any) => {
-        const errorMsg = err?.error?.detail || err?.message || 'No fue posible cargar tus reservas.';
-        this.error.set(errorMsg);
-        this.loading.set(false);
+        this.error = err?.error?.detail || err?.message || 'No fue posible cargar tus reservas.';
+        this.loading = false;
       }
     });
   }
 
-  getStatusClass(estado: BookingStatus): string {
+  changePageSize(size: number): void {
+    this.pageSize = Number(size);
+    this.loadPage(0);
+  }
+
+  changeSort(sort: BookingSort): void {
+    this.sort = sort;
+    this.loadPage(0);
+  }
+
+  changeActivity(activity: BookingActivityFilter): void {
+    this.activity = activity;
+    this.loadPage(0);
+  }
+
+  getStatusClass(estado: string): string {
     switch (estado) {
-      case 'Activo':
-      case 'CONFIRMED':
-        return 'status-active';
-      case 'En Proceso':
-      case 'CREATED':
-        return 'status-process';
-      case 'Cancelado':
-      case 'CANCELLED':
-        return 'status-cancelled';
-      case 'Completado':
-      case 'COMPLETED':
-        return 'status-completed';
-      default:
-        return '';
+      case 'CONFIRMED': return 'status-active';
+      case 'CREATED': return 'status-process';
+      case 'CANCELLED': return 'status-cancelled';
+      case 'COMPLETED': return 'status-completed';
+      default: return '';
     }
   }
 
-  getStatusLabel(estado: BookingStatus): string {
+  getStatusLabel(estado: string): string {
     switch (estado) {
       case 'CREATED': return 'En Proceso';
       case 'CONFIRMED': return 'Confirmado';
@@ -472,21 +649,17 @@ export class MyBookingsComponent implements OnInit {
     }
   }
 
-  getProgressBarClass(estado: BookingStatus): string {
+  getProgressBarClass(estado: string): string {
     switch (estado) {
-      case 'Activo':
       case 'CONFIRMED': return 'bg-active';
-      case 'En Proceso':
       case 'CREATED': return 'bg-process';
-      case 'Cancelado':
       case 'CANCELLED': return 'bg-cancelled';
-      case 'Completado':
       case 'COMPLETED': return 'bg-completed';
       default: return 'bg-active';
     }
   }
 
-  getCalculatedProgress(estado: BookingStatus): number {
+  getCalculatedProgress(estado: string): number {
     switch (estado) {
       case 'CREATED': return 25;
       case 'CONFIRMED': return 50;
