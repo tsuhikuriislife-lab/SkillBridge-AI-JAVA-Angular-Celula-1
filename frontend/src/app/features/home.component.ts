@@ -1,28 +1,103 @@
-import { Component, OnInit } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
-import { Offering, OfferingService } from '../core/offering.service';
+import { Component, OnInit, AfterViewInit, HostListener, ElementRef } from '@angular/core';
+import { CurrencyPipe, LowerCasePipe } from '@angular/common';
+import { Router } from '@angular/router';
+import { Offering, OfferingService, CategoryCount } from '../core/offering.service';
+import { AuthService } from '../core/auth.service';
 
 @Component({
   standalone: true,
-  imports: [CurrencyPipe],
-  template: `
-    <section class="hero"><div class="container"><p class="eyebrow">PROYECTO INTEGRADOR</p><h1>Servicios, eventos, caché e IA en una sola solución.</h1><p>Base profesional para practicar arquitectura hexagonal, Angular, Spring Boot y cloud.</p></div></section>
-    <section class="container section">
-      <h2>Servicios disponibles</h2>
-      @if (error) { <p class="error">{{ error }}</p> }
-      <div class="grid">
-        @for (offering of offerings; track offering.id) {
-          <article class="card"><small>{{ offering.category }}</small><h3>{{ offering.title }}</h3><p class="muted">{{ offering.description }}</p><strong>{{ offering.price | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article>
-        }
-      </div>
-    </section>
-  `,
-  styles: [`.hero{padding:70px 0;background:linear-gradient(135deg,#101c35,#27426f);color:white}.hero h1{font-size:clamp(2rem,5vw,4rem);max-width:850px;margin:.3rem 0}.eyebrow{font-weight:800;letter-spacing:.12em}.section{padding:42px 0}`]
+  imports: [CurrencyPipe, LowerCasePipe],
+  templateUrl: './home.component.html',
+  styleUrls: ['./home.component.css']
 })
-
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, AfterViewInit {
   offerings: Offering[] = [];
+  topCategories: (CategoryCount | null)[] = [];
   error = '';
-  constructor(private service: OfferingService) {}
-  ngOnInit(): void { this.service.list().subscribe({ next: r => this.offerings = r, error: () => this.error = 'No fue posible cargar el catálogo.' }); }
+  showBackToTop = false;
+  showLoginToast = false;
+
+  constructor(
+    private service: OfferingService, 
+    private el: ElementRef,
+    private auth: AuthService,
+    private router: Router
+  ) {}
+
+  private initObserver() {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+
+    const elements = this.el.nativeElement.querySelectorAll('.reveal:not(.is-visible)');
+    elements.forEach((el: any) => observer.observe(el));
+  }
+
+  ngOnInit(): void {
+    this.service.list().subscribe({
+      next: r => {
+        this.offerings = r;
+        setTimeout(() => this.initObserver(), 50);
+      },
+      error: () => {
+        this.error = 'No fue posible cargar el catálogo.';
+        setTimeout(() => this.initObserver(), 50);
+      }
+    });
+
+    this.service.getTopCategories(8).subscribe({
+      next: r => {
+        const padded: (CategoryCount | null)[] = [...r];
+        while (padded.length < 8) {
+          padded.push(null);
+        }
+        this.topCategories = padded;
+        setTimeout(() => this.initObserver(), 50);
+      },
+      error: () => {
+        this.topCategories = Array(8).fill(null);
+        setTimeout(() => this.initObserver(), 50);
+      }
+    });
+  }
+
+  ngAfterViewInit(): void {
+    this.initObserver();
+  }
+
+  @HostListener('window:scroll', [])
+  onWindowScroll() {
+    this.showBackToTop = window.scrollY > 350;
+  }
+
+  scrollToTop(event?: Event) {
+    if (event) event.preventDefault();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  scrollToElement(id: string, event: Event) {
+    event.preventDefault();
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  onInscribirse(id: string) {
+    if (this.auth.isLoggedIn()) {
+      this.router.navigate(['/service', id]);
+    } else {
+      this.showLoginToast = true;
+    }
+  }
+
+  goToLogin() {
+    this.showLoginToast = false;
+    this.router.navigate(['/login']);
+  }
 }

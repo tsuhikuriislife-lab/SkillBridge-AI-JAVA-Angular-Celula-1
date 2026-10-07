@@ -1,0 +1,376 @@
+:host {
+    display: block;
+    min-height: 100vh;
+    background-color: #f7f9fd;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    color: rgb(26 26 26);
+
+    --color-white: 255 255 255;
+    --color-background: 15 23 42;
+    --color-primary: 40 97 216;
+    --color-dark: 26 26 26;
+    --color-text: 95 95 95;
+    --color-border: 223 223 223;
+
+    --color-primary-10: rgb(var(--color-primary) / 10%);
+    --color-primary-20: rgb(var(--color-primary) / 20%);
+    --status-active: 16 185 129;
+}
+
+/* ============================================================
+   SECCIÓN 404
+   ============================================================ */
+.error-section {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+
+    min-height: 100vh;
+
+    padding: 40px 20px;
+
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    overflow: hidden;
+}
+
+
+/* ============================================================
+   FORMAS DECORATIVAS DE FONDO (flotan suavemente)
+   ============================================================ */
+.error-section__shape {
+    position: absolute;
+
+    border-radius: 50%;
+
+    filter: blur(2px);
+
+    animation: float 8s ease-in-out infinite;
+
+    pointer-events: none;
+}
+
+.error-section__shape--1 {
+    top: 12%;
+    left: 10%;
+
+    width: 90px;
+    height: 90px;
+
+    background-color: var(--color-primary-10);
+}
+
+.error-section__shape--2 {
+    right: 12%;
+    bottom: 16%;
+
+    width: 140px;
+    height: 140px;
+
+    background-color: rgb(var(--status-active, 16 185 129) / 10%);
+
+    animation-delay: 1.5s;
+}
+
+.error-section__shape--3 {
+    top: 20%;
+    right: 18%;
+
+    width: 46px;
+    height: 46px;
+
+    background-color: var(--color-primary-20);
+
+    animation-delay: 3s;
+}
+
+.error-section__shape--4 {
+    bottom: 22%;
+    left: 16%;
+
+    width: 60px;
+    height: 60px;
+
+    border: 2px dashed rgb(var(--color-primary) / 40%);
+    background: transparent;
+
+    animation-delay: 2s;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-18px); }
+}
+
+
+/* ============================================================
+   CÓDIGO 404 GRANDE
+   ============================================================ */
+.error-section__code {
+    position: relative;
+
+    font-size: clamp(110px, 22vw, 190px);
+    font-weight: 800;
+    letter-spacing: -8px;
+    line-height: 1;
+    margin: 0;
+
+    background: linear-gradient(135deg, #093b8c 0%, #0959db 55%, #2f7cf6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+
+    animation: codeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Sombra suave bajo el código */
+.error-section__code::after {
+    content: "";
+
+    position: absolute;
+    left: 50%;
+    bottom: -18px;
+
+    width: 70%;
+    height: 18px;
+
+    border-radius: 50%;
+
+    background-color: rgb(var(--color-background) / 8%);
+    filter: blur(6px);
+
+    transform: translateX(-50%);
+
+    animation: shadowPulse 8s ease-in-out infinite;
+}
+
+@keyframes codeIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.94);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes shadowPulse {
+    0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 1; }
+    50%      { transform: translateX(-50%) scaleX(0.85); opacity: 0.7; }
+}
+
+
+/* ============================================================
+   TARJETA DE CONTENIDO
+   ============================================================ */
+.error-card {
+    position: relative;
+    z-index: 1;
+
+    display: flex;
+    flex-direction: column;
+
+    max-width: 480px;
+
+    margin-top: 40px;
+
+    padding: 36px 30px;
+
+    gap: 14px;
+    align-items: center;
+
+    background-color: rgb(var(--color-white));
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 24px;
+
+    box-shadow: 0 10px 40px rgb(var(--color-background) / 8%);
+
+    animation: cardIn 0.7s 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes cardIn {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Icono superior */
+.error-card__icon {
+    display: flex;
+
+    width: 68px;
+    height: 68px;
+
+    margin-top: -70px; /* asoma por encima de la tarjeta */
+
+    align-items: center;
+    justify-content: center;
+
+    border: 6px solid #f7f9fd;
+    border-radius: 50%;
+
+    background-color: rgb(var(--color-primary));
+
+    font-size: 30px;
+    color: rgb(var(--color-white));
+
+    box-shadow: 0 8px 20px rgb(var(--color-primary) / 40%);
+
+    animation: iconIn 0.6s 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes iconIn {
+    from {
+        opacity: 0;
+        transform: scale(0.4);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.error-card__title {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    margin: 0;
+}
+
+.error-card__text {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.65;
+    margin: 0;
+
+    color: rgb(var(--color-text));
+}
+
+
+/* ============================================================
+   BOTONES
+   ============================================================ */
+.error-card__actions {
+    display: flex;
+
+    margin-top: 10px;
+
+    gap: 12px;
+
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.error-button {
+    display: flex;
+
+    min-height: 50px;
+    padding: 0 26px;
+
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+
+    border: none;
+    border-radius: 14px;
+
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+
+    text-decoration: none;
+
+    cursor: pointer;
+
+    transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.error-button:active {
+    transform: scale(0.97);
+}
+
+/* Primario: volver al inicio */
+.error-button--primary {
+    background-color: rgb(var(--color-primary));
+    color: rgb(var(--color-white));
+
+    box-shadow: 0 6px 16px rgb(var(--color-primary) / 35%);
+}
+
+.error-button--primary:hover {
+    background-color: rgb(35 84 190);
+
+    box-shadow: 0 8px 22px rgb(var(--color-primary) / 45%);
+}
+
+/* Secundario: ir atrás */
+.error-button--ghost {
+    background-color: transparent;
+    border: 1px solid rgb(var(--color-border));
+    color: rgb(var(--color-text));
+}
+
+.error-button--ghost:hover {
+    background-color: #f4f6fb;
+    color: rgb(var(--color-dark));
+}
+
+
+/* ============================================================
+   ENLACE DE AYUDA
+   ============================================================ */
+.error-section__help {
+    margin-top: 28px;
+
+    font-size: 13px;
+    font-weight: 500;
+
+    color: rgb(var(--color-text));
+
+    animation: cardIn 0.7s 0.5s ease both;
+}
+
+.error-section__help a {
+    font-weight: 700;
+
+    color: rgb(var(--color-primary));
+    text-decoration: none;
+}
+
+.error-section__help a:hover {
+    text-decoration: underline;
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 520px) {
+    .error-section__code {
+        letter-spacing: -4px;
+    }
+
+    .error-card {
+        padding: 32px 22px;
+    }
+
+    .error-card__actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .error-button {
+        width: 100%;
+    }
+}
+
