@@ -12,6 +12,7 @@ import com.riwi.skillbridge.domain.exception.DomainNotFoundException;
 import com.riwi.skillbridge.domain.model.Booking;
 import com.riwi.skillbridge.domain.model.BookingStatus;
 import com.riwi.skillbridge.domain.model.Offering;
+import com.riwi.skillbridge.domain.model.OfferingStatus;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -52,15 +53,15 @@ class BookingServiceTest {
         );
 
         assertThrows(BusinessRuleException.class, () -> service.list(
-            "user@example.com", -1, 10, BookingSort.DATE_DESC, BookingActivityFilter.ALL));
+                "user@example.com", -1, 10, BookingSort.DATE_DESC, BookingActivityFilter.ALL));
         assertThrows(BusinessRuleException.class, () -> service.list(
-            "user@example.com", 0, 0, BookingSort.DATE_DESC, BookingActivityFilter.ALL));
+                "user@example.com", 0, 0, BookingSort.DATE_DESC, BookingActivityFilter.ALL));
         assertThrows(BusinessRuleException.class, () -> service.list(
-            "user@example.com", 0, 101, BookingSort.DATE_DESC, BookingActivityFilter.ALL));
-        }
+                "user@example.com", 0, 101, BookingSort.DATE_DESC, BookingActivityFilter.ALL));
+    }
 
-        @Test
-        void shouldRejectPastBookingWithoutCallingDependencies() {
+    @Test
+    void shouldRejectPastBookingWithoutCallingDependencies() {
         BookingRepositoryPort bookings = mock(BookingRepositoryPort.class);
         OfferingRepositoryPort offerings = mock(OfferingRepositoryPort.class);
         UserAccountPort users = mock(UserAccountPort.class);
@@ -68,30 +69,30 @@ class BookingServiceTest {
         BookingService service = new BookingService(bookings, offerings, users, publisher);
 
         assertThrows(BusinessRuleException.class, () -> service.create(
-            UUID.randomUUID(), Instant.now().minusSeconds(1), "user@example.com"));
+                UUID.randomUUID(), Instant.now().minusSeconds(1), "user@example.com"));
 
         verifyNoInteractions(bookings, offerings, users, publisher);
-        }
+    }
 
-        @Test
-        void shouldRejectInactiveOfferingWithoutSavingOrPublishing() {
+    @Test
+    void shouldRejectInactiveOfferingWithoutSavingOrPublishing() {
         BookingRepositoryPort bookings = mock(BookingRepositoryPort.class);
         OfferingRepositoryPort offerings = mock(OfferingRepositoryPort.class);
         UserAccountPort users = mock(UserAccountPort.class);
         BookingEventPublisherPort publisher = mock(BookingEventPublisherPort.class);
         UUID offeringId = UUID.randomUUID();
         when(offerings.findById(offeringId)).thenReturn(Optional.of(
-            new Offering(offeringId, "Java", "Mentoría", "BACKEND", BigDecimal.TEN, false)));
+                buildOffering(offeringId, OfferingStatus.INACTIVE)));
         BookingService service = new BookingService(bookings, offerings, users, publisher);
 
         assertThrows(BusinessRuleException.class, () -> service.create(
-            offeringId, Instant.now().plusSeconds(3600), "user@example.com"));
+                offeringId, Instant.now().plusSeconds(3600), "user@example.com"));
 
         verifyNoInteractions(bookings, publisher, users);
-        }
+    }
 
-        @Test
-        void shouldRejectUnknownOffering() {
+    @Test
+    void shouldRejectUnknownOffering() {
         BookingRepositoryPort bookings = mock(BookingRepositoryPort.class);
         OfferingRepositoryPort offerings = mock(OfferingRepositoryPort.class);
         UserAccountPort users = mock(UserAccountPort.class);
@@ -101,25 +102,25 @@ class BookingServiceTest {
         BookingService service = new BookingService(bookings, offerings, users, publisher);
 
         assertThrows(DomainNotFoundException.class, () -> service.create(
-            offeringId, Instant.now().plusSeconds(3600), "user@example.com"));
+                offeringId, Instant.now().plusSeconds(3600), "user@example.com"));
 
         verifyNoInteractions(bookings, publisher, users);
-        }
+    }
 
-        @Test
-        void shouldRejectUnknownCustomerWithoutSavingOrPublishing() {
+    @Test
+    void shouldRejectUnknownCustomerWithoutSavingOrPublishing() {
         BookingRepositoryPort bookings = mock(BookingRepositoryPort.class);
         OfferingRepositoryPort offerings = mock(OfferingRepositoryPort.class);
         UserAccountPort users = mock(UserAccountPort.class);
         BookingEventPublisherPort publisher = mock(BookingEventPublisherPort.class);
         UUID offeringId = UUID.randomUUID();
         when(offerings.findById(offeringId)).thenReturn(Optional.of(
-            new Offering(offeringId, "Java", "Mentoría", "BACKEND", BigDecimal.TEN, true)));
+                buildOffering(offeringId, OfferingStatus.ACTIVE)));
         when(users.findIdByEmail("missing@example.com")).thenReturn(Optional.empty());
         BookingService service = new BookingService(bookings, offerings, users, publisher);
 
         assertThrows(DomainNotFoundException.class, () -> service.create(
-            offeringId, Instant.now().plusSeconds(3600), "missing@example.com"));
+                offeringId, Instant.now().plusSeconds(3600), "missing@example.com"));
 
         verifyNoInteractions(bookings, publisher);
     }
@@ -133,7 +134,7 @@ class BookingServiceTest {
 
         UUID offeringId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        Offering offering = new Offering(offeringId, "Java", "Mentoría", "BACKEND", BigDecimal.TEN, true);
+        Offering offering = buildOffering(offeringId, OfferingStatus.ACTIVE);
         when(offerings.findById(offeringId)).thenReturn(Optional.of(offering));
         when(users.findIdByEmail("user@example.com")).thenReturn(Optional.of(userId));
         when(bookings.save(any(Booking.class))).thenAnswer(i -> i.getArgument(0));
@@ -146,5 +147,10 @@ class BookingServiceTest {
         assertEquals(BookingStatus.CREATED, result.status());
         verify(bookings).save(any(Booking.class));
         verify(publisher).bookingCreated(result);
+    }
+
+    private Offering buildOffering(UUID id, OfferingStatus status) {
+        return new Offering(id, "SRV-TEST", "Java", UUID.randomUUID(), BigDecimal.TEN,
+                "Mentoría", null, null, null, null, status, UUID.randomUUID());
     }
 }

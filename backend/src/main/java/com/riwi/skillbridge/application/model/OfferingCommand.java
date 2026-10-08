@@ -1,11 +1,9 @@
-package com.riwi.skillbridge.domain.model;
+package com.riwi.skillbridge.application.model;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-public record Offering(
-        UUID id,
-        String code,
+public record OfferingCommand(
         String name,
         UUID categoryId,
         BigDecimal price,
@@ -13,7 +11,5 @@ public record Offering(
         String detail,
         String learningObjectives,
         String prerequisites,
-        Integer capacity,
-        OfferingStatus status,
-        UUID createdBy
+        Integer capacity
 ) {}

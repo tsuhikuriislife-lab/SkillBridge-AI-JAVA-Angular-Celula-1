@@ -5,6 +5,7 @@ import com.riwi.skillbridge.domain.exception.AiNetworkException;
 import com.riwi.skillbridge.domain.exception.AiQuotaExceededException;
 import com.riwi.skillbridge.domain.exception.BusinessRuleException;
 import com.riwi.skillbridge.domain.exception.DomainNotFoundException;
+import com.riwi.skillbridge.domain.exception.ForbiddenOperationException;
 import com.riwi.skillbridge.domain.exception.InvalidCredentialsException;
 import org.springframework.http.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -30,6 +31,13 @@ public class GlobalExceptionHandler {
     ProblemDetail invalidCredentials(InvalidCredentialsException ex) {
         ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
         p.setTitle("Unauthorized");
+        return p;
+    }
+
+        @ExceptionHandler(ForbiddenOperationException.class)
+    ProblemDetail forbidden(ForbiddenOperationException ex) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        p.setTitle("Forbidden");
         return p;
     }
 

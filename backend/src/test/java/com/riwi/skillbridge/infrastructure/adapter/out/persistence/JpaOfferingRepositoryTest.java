@@ -1,9 +1,12 @@
 package com.riwi.skillbridge.infrastructure.adapter.out.persistence;
 
+
 import com.riwi.skillbridge.infrastructure.adapter.out.persistence.repository.JpaOfferingRepository;
 import com.riwi.skillbridge.infrastructure.adapter.out.persistence.repository.JpaBookingRepository;
 import com.riwi.skillbridge.infrastructure.adapter.out.persistence.entity.BookingEntity;
 import com.riwi.skillbridge.domain.model.BookingStatus;
+import com.riwi.skillbridge.domain.model.OfferingStatus;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -50,7 +53,7 @@ class JpaOfferingRepositoryTest {
 
     @Test
     void flywayShouldSeedThreeActiveOfferings() {
-        assertThat(repository.findByActiveTrueOrderByTitleAsc()).hasSize(3);
+        assertThat(repository.findByStatusOrderByNameAsc(OfferingStatus.ACTIVE)).hasSize(3);
     }
 
         @Test

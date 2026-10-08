@@ -18,6 +18,9 @@ import { AuthService } from './core/auth.service';
             <a routerLink="/login">Ingresar</a>
           } @else {
             <a routerLink="/bookings">Mis reservas</a>
+            @if (auth.isProvider()) {
+              <a routerLink="/provider/offerings">Mis servicios</a>
+            }
             <button class="link-button" (click)="auth.logout()">Salir</button>
           }
         </nav>

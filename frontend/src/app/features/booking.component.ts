@@ -19,7 +19,7 @@ import { apiBase } from '../core/api';
           <select [(ngModel)]="offeringId">
             <option value="" disabled>Selecciona un servicio</option>
             @for (offering of offerings; track offering.id) {
-              <option [value]="offering.id">{{ offering.title }}</option>
+              <option [value]="offering.id">{{ offering.name }}</option>
             }
           </select>
         </label>

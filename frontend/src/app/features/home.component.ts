@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { Offering, OfferingService } from '../core/offering.service';
+import { CategoryService } from '../core/category.service';
 
 @Component({
   standalone: true,
@@ -12,7 +13,12 @@ import { Offering, OfferingService } from '../core/offering.service';
       @if (error) { <p class="error">{{ error }}</p> }
       <div class="grid">
         @for (offering of offerings; track offering.id) {
-          <article class="card"><small>{{ offering.category }}</small><h3>{{ offering.title }}</h3><p class="muted">{{ offering.description }}</p><strong>{{ offering.price | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article>
+          <article class="card">
+            @if (categoryName(offering.categoryId); as category) { <small>{{ category }}</small> }
+            <h3>{{ offering.name }}</h3>
+            <p class="muted">{{ offering.shortDescription }}</p>
+            <strong>{{ offering.price | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
+          </article>
         }
       </div>
     </section>
@@ -22,6 +28,21 @@ import { Offering, OfferingService } from '../core/offering.service';
 export class HomeComponent implements OnInit {
   offerings: Offering[] = [];
   error = '';
-  constructor(private service: OfferingService) {}
-  ngOnInit(): void { this.service.list().subscribe({ next: r => this.offerings = r, error: () => this.error = 'No fue posible cargar el catálogo.' }); }
+  private categories = new Map<string, string>();
+
+  constructor(private service: OfferingService, private categoryService: CategoryService) {}
+
+  ngOnInit(): void {
+    this.service.list().subscribe({
+      next: r => this.offerings = r,
+      error: () => this.error = 'No fue posible cargar el catálogo.'
+    });
+    this.categoryService.list().subscribe({
+      next: list => this.categories = new Map(list.map(c => [c.id, c.name]))
+    });
+  }
+
+  categoryName(id: string): string {
+    return this.categories.get(id) ?? '';
+  }
 }

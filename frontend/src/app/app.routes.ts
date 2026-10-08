@@ -4,7 +4,9 @@ import { LoginComponent } from './features/login.component';
 import { AiComponent } from './features/ai.component';
 import { BookingComponent } from './features/booking.component';
 import { MyBookingsComponent } from './features/my-bookings.component';
+import { ProviderOfferingsComponent } from './features/provider-offerings.component';
 import { authGuard } from './core/auth.guard';
+import { providerGuard } from './core/provider.guard';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent },
@@ -12,5 +14,6 @@ export const routes: Routes = [
   { path: 'ai', component: AiComponent, canActivate: [authGuard] },
   { path: 'book', component: BookingComponent, canActivate: [authGuard] },
   { path: 'bookings', component: MyBookingsComponent, canActivate: [authGuard] },
+  { path: 'provider/offerings', component: ProviderOfferingsComponent, canActivate: [providerGuard] },
   { path: '**', redirectTo: '' }
 ];

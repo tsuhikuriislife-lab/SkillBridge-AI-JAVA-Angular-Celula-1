@@ -11,6 +11,7 @@ import com.riwi.skillbridge.domain.exception.DomainNotFoundException;
 import com.riwi.skillbridge.domain.model.Booking;
 import com.riwi.skillbridge.domain.model.BookingStatus;
 import com.riwi.skillbridge.domain.model.Offering;
+import com.riwi.skillbridge.domain.model.OfferingStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -41,7 +42,7 @@ public class BookingService implements CreateBookingUseCase, ListMyBookingsUseCa
 
         Offering offering = offeringRepository.findById(offeringId)
                 .orElseThrow(() -> new DomainNotFoundException("Servicio no encontrado"));
-        if (!offering.active()) {
+        if (offering.status() != OfferingStatus.ACTIVE) {
             throw new BusinessRuleException("El servicio no está activo");
         }
 

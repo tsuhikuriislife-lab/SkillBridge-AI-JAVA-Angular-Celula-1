@@ -4,11 +4,15 @@ import { apiBase } from './api';
 
 export interface Offering {
   id: string;
-  title: string;
-  description: string;
-  category: string;
+  code: string;
+  name: string;
+  categoryId: string;
   price: number;
-  active: boolean;
+  shortDescription: string | null;
+  detail: string | null;
+  learningObjectives: string | null;
+  prerequisites: string | null;
+  capacity: number | null;
 }
 
 @Injectable({ providedIn: 'root' })

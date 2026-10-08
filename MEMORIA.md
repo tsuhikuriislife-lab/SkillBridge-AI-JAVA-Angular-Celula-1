@@ -34,5 +34,21 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
 
 ## [2026-10-05] Ampliación de pruebas HU-07
 - **Cambios realizados:** El target `make test-back` ahora ejecuta Maven desde el host y se agregó `make test-back-unit` para pruebas unitarias sin Docker. Se ampliaron reglas de reservas, cache miss del catálogo y persistencia/filtros/paginación con PostgreSQL Testcontainers.
-- **Validación:** `make test-back-unit` pasó (9 pruebas). La suite completa compila, pero la integración Testcontainers no se ejecuta en este equipo: el cliente Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION` no modificó ese resultado.
+- **Validación:** `make test-back-unit` pasó (9 pruebas). La suite completa compila, pero la integración Testcontainers no se ejecuta en este equipo: el cliente 
+Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION` no modificó ese resultado.
+
+
+## [2026-10-08] Administrar servicios como proveedor (HU-10) — backend
+- **Agente:** Claude (Sonnet 5.5)
+- **Contexto:** Un proveedor puede crear, editar y activar/desactivar sus propios servicios. Adaptado al nuevo esquema de base de datos del equipo (tablas `services` y `categories`), conservando los nombres existentes (`Offering`, `/api/offerings`).
+- **Cambios realizados:**
+  - Dominio: `Offering` ampliado (código, categoría, precio, descripciones, capacidad, estado y creador), enum `OfferingStatus` (ACTIVE/INACTIVE) y `ForbiddenOperationException`.
+  - Persistencia: `OfferingEntity` mapeada a `services`; consultas paginadas por proveedor con orden fijo (nombre y fecha de creación, ascendente/descendente); `CategoryPort` y `CategoryPersistenceAdapter` (existencia y listado de categorías activas).
+  - Aplicación: `ProviderOfferingService` con validaciones, verificación de propiedad, código automático `SRV-XXXXXXXX` e invalidación del caché de Redis después de guardar; `CategoryService` para listar categorías.
+  - REST: `ProviderOfferingController` en `/api/provider/offerings` (POST, PUT, PATCH estado, GET paginado), `CategoryController` en `/api/categories`, DTOs con validación, regla `hasRole("PROVIDER")` en `SecurityConfiguration` y mapeo de 403 en `GlobalExceptionHandler`.
+  - Seguridad de datos: el catálogo público ahora responde con `OfferingPublicResponse`, sin `createdBy` ni `status`.
+  - Se ajustaron `BookingService` (comparación con `OfferingStatus.ACTIVE`) y `GeminiAiAdapter` (usa `name` y `shortDescription`) al nuevo modelo.
+  - Documentación: `docs/API.md` actualizado con los endpoints y reglas del proveedor.
+- **Validación:** Pasaron las pruebas unitarias de `ProviderOfferingServiceTest`, `ProviderOfferingControllerTest`, `OfferingServiceTest` y `BookingServiceTest`. `JpaOfferingRepositoryTest` y la prueba real contra la base quedan pendientes de la migración Flyway del nuevo esquema (tablas `services`/`categories`) que entrega otro integrante del equipo.
+- **Pendiente:** Frontend de HU-10 ("Mis servicios"), migración SQL del equipo (`services.code` UNIQUE, `created_by` → `app_users`) y adaptar reservas (`BookingEntity`, `JpaBookingRepository`) al nuevo esquema.
 
