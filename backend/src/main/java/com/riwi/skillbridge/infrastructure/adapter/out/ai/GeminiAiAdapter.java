@@ -50,6 +50,14 @@ public class GeminiAiAdapter implements AiRecommendationPort {
             throw ex;
         } catch (RuntimeException ex) {
             String msg = (ex.getMessage() != null) ? ex.getMessage().toLowerCase() : "";
+            Throwable cause = ex.getCause();
+            while (cause != null) {
+                if (cause.getMessage() != null) {
+                    msg += " " + cause.getMessage().toLowerCase();
+                }
+                cause = cause.getCause();
+            }
+
             if (msg.contains("401") || msg.contains("403") || msg.contains("api_key") || msg.contains("unauthorized") || msg.contains("api key")) {
                 throw new AiConfigurationException("Error de configuración: La API Key de Gemini es inválida o no está configurada.");
             } else if (msg.contains("429") || msg.contains("quota") || msg.contains("too many requests") || msg.contains("exhausted")) {
