@@ -11,7 +11,7 @@ spring:
         api-key: ${GEMINI_API_KEY:}
         chat:
           options:
-            model: ${GEMINI_MODEL:gemini-3.8-flash}
+            model: ${GEMINI_MODEL:gemini-3.1-flash-lite}
             temperature: 0.2
             max-output-tokens: 800
   datasource:

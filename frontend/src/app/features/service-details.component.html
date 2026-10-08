@@ -64,6 +64,19 @@
 
             </div>
 
+            <div class="assessment-banner-callout">
+                <div class="assessment-banner-callout__icon">
+                    <i class="bx bx-brain"></i>
+                </div>
+                <div class="assessment-banner-callout__text">
+                    <h4>¿Dudas sobre tus conocimientos previos?</h4>
+                    <p>Evalúa tus prerrequisitos en 2 minutos con un mini-test de 3 preguntas generado por nuestra IA.</p>
+                </div>
+                <button class="assessment-banner-callout__btn" type="button" (click)="startAssessment()">
+                    <i class="bx bx-play"></i> Evaluar nivel
+                </button>
+            </div>
+
         </div>
 
 
@@ -114,6 +127,14 @@
         <button class="buy-card__button" type="button" [routerLink]="['/checkout', offering?.id]">
             <i class="bx bx-rocket"></i> Inscríbete Ahora
         </button>
+
+        <button class="buy-card__assessment-button" type="button" (click)="startAssessment()">
+            <i class="bx bx-brain"></i> Test Diagnóstico con IA
+        </button>
+
+        <div class="buy-card__assessment-hint">
+            <i class="bx bx-check-shield"></i> Evalúa tus prerrequisitos en 2 min
+        </div>
 
         <div class="buy-card__guarantees">
             <span><i class="bx bx-shield-quarter"></i> Garantía de satisfacción 100%</span>
@@ -172,5 +193,145 @@
 
 </section>
 
+<!-- ============================================================
+     MODAL DIAGNÓSTICO TÉCNICO CON IA
+============================================================ -->
+@if (showAssessmentModal) {
+  <div class="assessment-modal__backdrop" (click)="closeAssessment()">
+    <div class="assessment-modal__content" (click)="$event.stopPropagation()">
+      <div class="assessment-modal__header">
+        <div class="assessment-modal__title-box">
+          <span class="assessment-modal__badge"><i class="bx bx-brain"></i> IA Assessment</span>
+          <h2>Diagnóstico Técnico de Prerrequisitos</h2>
+          <p class="assessment-modal__subtitle">{{ offering?.title }}</p>
+        </div>
+        <button class="assessment-modal__close" type="button" (click)="closeAssessment()" aria-label="Cerrar">
+          <i class="bx bx-x"></i>
+        </button>
+      </div>
+
+      <div class="assessment-modal__body">
+        @if (assessmentLoading) {
+          <div class="assessment-loading">
+            <div class="assessment-spinner"></div>
+            <h3>Generando diagnóstico con IA...</h3>
+            <p>Gemini está analizando los prerrequisitos de esta mentoría para preparar un test a tu medida.</p>
+          </div>
+        } @else if (assessmentError) {
+          <div class="assessment-error">
+            <i class="bx bx-error-circle"></i>
+            <p>{{ assessmentError }}</p>
+            <button class="btn-assessment-action" type="button" (click)="retryAssessment()">Reintentar</button>
+          </div>
+        } @else if (evaluationResult) {
+          <!-- Pantalla de Resultados -->
+          <div class="assessment-results">
+            <div class="assessment-results__score-badge" [class.passed]="evaluationResult.passed" [class.failed]="!evaluationResult.passed">
+              <i class="bx" [ngClass]="evaluationResult.passed ? 'bx-check-circle' : 'bx-info-circle'"></i>
+              <span>{{ evaluationResult.score }} / {{ evaluationResult.totalQuestions }} respuestas correctas</span>
+            </div>
+
+            <h3 class="assessment-results__title">
+              {{ evaluationResult.passed ? '¡Nivel adecuado para esta mentoría!' : 'Te sugerimos reforzar prerrequisitos' }}
+            </h3>
+
+            <p class="assessment-results__feedback">{{ evaluationResult.feedback }}</p>
+            <p class="assessment-results__recommendation">{{ evaluationResult.recommendation }}</p>
+
+            <div class="assessment-results__breakdown">
+              <h4>Detalle de las preguntas:</h4>
+              @for (q of evaluationResult.questionsFeedback; track q.questionId; let i = $index) {
+                <div class="result-question-card" [class.correct]="q.isCorrect" [class.incorrect]="!q.isCorrect">
+                  <div class="result-question-header">
+                    <span class="question-number">Pregunta {{ i + 1 }}</span>
+                    <span class="status-indicator">
+                      <i class="bx" [ngClass]="q.isCorrect ? 'bx-check' : 'bx-x'"></i>
+                      {{ q.isCorrect ? 'Correcta' : 'A reforzar' }}
+                    </span>
+                  </div>
+                  <p class="result-question-text">{{ q.question }}</p>
+                  <p class="result-explanation">
+                    <strong>Explicación:</strong> {{ q.explanation }}
+                  </p>
+                </div>
+              }
+            </div>
+
+            <div class="assessment-results__actions">
+              <button class="btn-proceed" type="button" (click)="closeAssessment(); onInscribirse()">
+                <i class="bx bx-rocket"></i> Continuar a la Reserva
+              </button>
+              <button class="btn-retry" type="button" (click)="retryAssessment()">
+                <i class="bx bx-refresh"></i> Repetir Evaluación
+              </button>
+            </div>
+          </div>
+        } @else if (assessment) {
+          <!-- Cuestionario Interactivo -->
+          <div class="assessment-quiz">
+            <div class="assessment-progress">
+              <div class="assessment-progress__bar">
+                <div class="assessment-progress__fill" [style.width.%]="((currentQuestionIndex + 1) / assessment.questions.length) * 100"></div>
+              </div>
+              <span class="assessment-progress__label">
+                Pregunta {{ currentQuestionIndex + 1 }} de {{ assessment.questions.length }}
+              </span>
+            </div>
+
+            @if (assessment.questions[currentQuestionIndex]; as currentQ) {
+              <div class="assessment-question">
+                <h3 class="question-text">{{ currentQ.question }}</h3>
+                <div class="options-list">
+                  @for (option of currentQ.options; track $index) {
+                    <button
+                      type="button"
+                      class="option-card"
+                      [class.selected]="isOptionSelected(currentQ.id, $index)"
+                      (click)="selectOption(currentQ.id, $index)">
+                      <span class="option-marker">{{ ['A', 'B', 'C', 'D'][$index] }}</span>
+                      <span class="option-text">{{ option }}</span>
+                      @if (isOptionSelected(currentQ.id, $index)) {
+                        <i class="bx bx-check-circle option-check"></i>
+                      }
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+
+            <div class="assessment-quiz__nav">
+              <button
+                type="button"
+                class="btn-nav secondary"
+                [disabled]="currentQuestionIndex === 0"
+                (click)="prevQuestion()">
+                <i class="bx bx-chevron-left"></i> Anterior
+              </button>
+
+              @if (currentQuestionIndex < assessment.questions.length - 1) {
+                <button
+                  type="button"
+                  class="btn-nav primary"
+                  [disabled]="selectedAnswers[assessment.questions[currentQuestionIndex].id] === undefined"
+                  (click)="nextQuestion()">
+                  Siguiente <i class="bx bx-chevron-right"></i>
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="btn-nav submit"
+                  [disabled]="!allQuestionsAnswered() || evaluationLoading"
+                  (click)="submitAssessment()">
+                  {{ evaluationLoading ? 'Evaluando...' : 'Finalizar y Calificar' }}
+                  <i class="bx bx-check-double"></i>
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
 
 }
