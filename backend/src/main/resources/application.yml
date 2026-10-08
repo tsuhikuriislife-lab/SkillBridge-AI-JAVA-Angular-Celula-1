@@ -64,6 +64,8 @@ springdoc:
     path: /swagger-ui.html
 
 app:
+  notifications:
+    retention-days: ${NOTIFICATION_RETENTION_DAYS:90}
   jwt:
     secret: ${JWT_SECRET:change-this-to-a-long-random-secret-at-least-32-characters}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:120}

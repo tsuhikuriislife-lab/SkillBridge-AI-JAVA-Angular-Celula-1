@@ -23,6 +23,7 @@ import { HistoryService } from './core/history.service';
             <a routerLink="/login">Ingresar</a>
           } @else {
             <a routerLink="/bookings">Mis reservas</a>
+            <a routerLink="/notifications">Notificaciones</a>
             <button class="link-button" (click)="auth.logout()">Salir</button>
           }
         </nav>
