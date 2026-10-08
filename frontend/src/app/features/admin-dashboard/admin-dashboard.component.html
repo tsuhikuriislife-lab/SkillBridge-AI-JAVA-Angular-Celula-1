@@ -1,0 +1,173 @@
+<div class="dashboard-container">
+  <!-- Encabezado de la vista -->
+  <header class="dashboard-header">
+    <div>
+      <h1 class="title">Panel de Administración</h1>
+      <p class="subtitle">Gestiona y consulta usuarios, proveedores y servicios del sistema.</p>
+    </div>
+    <button class="btn-primary">+ Nuevo Registro</button>
+  </header>
+
+  <!-- Pestañas de selección -->
+  <div class="tabs-container">
+    <button 
+      class="tab-button" 
+      [class.active]="selectedTab() === 'usuarios'" 
+      (click)="setTab('usuarios')">
+      Usuarios
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="selectedTab() === 'proveedores'" 
+      (click)="setTab('proveedores')">
+      Proveedores
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="selectedTab() === 'servicios'" 
+      (click)="setTab('servicios')">
+      Servicios
+    </button>
+  </div>
+
+  <!-- Barra de Filtros y Control de Paginación Superior -->
+  <div class="filters-card">
+    <div class="filter-group">
+      <input 
+        type="text" 
+        class="select-input search-input" 
+        placeholder="Buscar..." 
+        [value]="searchTerm()"
+        (input)="searchTerm.set($any($event.target).value)" 
+      />
+    </div>
+
+    <div class="filter-group right">
+      <label for="pageSize">Mostrar</label>
+      <select id="pageSize" class="select-input" [value]="pageSize()" (change)="onPageSizeChange($event)">
+        <option [value]="5">5</option>
+        <option [value]="10">10</option>
+        <option [value]="20">20</option>
+      </select>
+      <span class="label-suffix">por página</span>
+    </div>
+  </div>
+
+  <!-- Tabla Dinámica -->
+  <div class="table-wrapper">
+    <table class="custom-table">
+      <thead>
+        @switch (selectedTab()) {
+          @case ('usuarios') {
+            <tr>
+              <th>USUARIO</th>
+              <th>EMAIL</th>
+              <th>ROL</th>
+              <th>ESTADO</th>
+              <th class="text-right">ACCIÓN</th>
+            </tr>
+          }
+          @case ('proveedores') {
+            <tr>
+              <th>EMPRESA</th>
+              <th>CATEGORÍA</th>
+              <th>SERVICIOS</th>
+              <th>ESTADO</th>
+              <th class="text-right">ACCIÓN</th>
+            </tr>
+          }
+          @case ('servicios') {
+            <tr>
+              <th>SERVICIO</th>
+              <th>PRECIO</th>
+              <th>PROVEEDOR</th>
+              <th>ESTADO</th>
+              <th class="text-right">ACCIÓN</th>
+            </tr>
+          }
+        }
+      </thead>
+      <tbody>
+        @for (item of paginatedData(); track item.id) {
+          @switch (selectedTab()) {
+            @case ('usuarios') {
+              <tr>
+                <td>
+                  <div class="item-with-icon">
+                    <span class="icon-avatar">👤</span>
+                    <div>
+                      <div class="item-title">{{ $any(item).nombre }}</div>
+                      <div class="item-sub">ID: {{ item.id }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>{{ $any(item).email }}</td>
+                <td>{{ $any(item).rol }}</td>
+                <td><span class="badge" [ngClass]="getStatusClass($any(item).estado)">{{ $any(item).estado }}</span></td>
+                <td class="text-right">
+                  <button class="icon-btn btn-view" title="Ver detalles">👁</button>
+                  <button class="icon-btn btn-delete" title="Eliminar">✕</button>
+                </td>
+              </tr>
+            }
+            @case ('proveedores') {
+              <tr>
+                <td>
+                  <div class="item-with-icon">
+                    <span class="icon-avatar">🏢</span>
+                    <div>
+                      <div class="item-title">{{ $any(item).nombreEmpresa }}</div>
+                      <div class="item-sub">ID: {{ item.id }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>{{ $any(item).categoria }}</td>
+                <td>{{ $any(item).serviciosOfrecidos }} activos</td>
+                <td><span class="badge" [ngClass]="getStatusClass($any(item).estado)">{{ $any(item).estado }}</span></td>
+                <td class="text-right">
+                  <button class="icon-btn btn-view" title="Ver detalles">👁</button>
+                  <button class="icon-btn btn-delete" title="Eliminar">✕</button>
+                </td>
+              </tr>
+            }
+            @case ('servicios') {
+              <tr>
+                <td>
+                  <div class="item-with-icon">
+                    <span class="icon-avatar blue">⚡</span>
+                    <div>
+                      <div class="item-title">{{ $any(item).titulo }}</div>
+                      <div class="item-sub">ID: {{ item.id }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="font-bold">${{ $any(item).precio | number:'1.0-0' }}</td>
+                <td>{{ $any(item).proveedor }}</td>
+                <td><span class="badge" [ngClass]="getStatusClass($any(item).estado)">{{ $any(item).estado }}</span></td>
+                <td class="text-right">
+                  <button class="icon-btn btn-view" title="Ver detalles">👁</button>
+                  <button class="icon-btn btn-delete" title="Eliminar">✕</button>
+                </td>
+              </tr>
+            }
+          }
+        } @empty {
+          <tr>
+            <td colspan="5" class="empty-state">No se encontraron registros en esta categoría.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Controles de Paginación Inferior -->
+  <div class="pagination-footer">
+    <span class="page-info">
+      Página <strong>{{ currentPage() }}</strong> de <strong>{{ totalPages() }}</strong>
+    </span>
+    <div class="pagination-buttons">
+      <button class="btn-pagination" [disabled]="currentPage() === 1" (click)="prevPage()">Anterior</button>
+      <button class="btn-pagination" [disabled]="currentPage() === totalPages()" (click)="nextPage()">Siguiente</button>
+    </div>
+  </div>
+</div>
