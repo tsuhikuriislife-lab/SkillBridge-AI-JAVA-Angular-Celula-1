@@ -24,6 +24,17 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
 - **Cambios realizados:** El componente de ingreso ahora escucha cambios en los parámetros de consulta y muestra el aviso de inicio de sesión cuando el guard redirige con `authRequired=true`, incluso si la vista de ingreso ya estaba abierta.
 - **Validación:** `cd frontend && npm run build` completado correctamente.
 
+
+## [2026-10-06] Implementación de Detalle de Servicio y Toast de Autenticación
+- **Agente:** Antigravity
+- **Contexto:** HU/Tarea - Implementar la vista de Detalles de Servicio y lógica de "Inscribirse".
+- **Cambios realizados:**
+  - Creación del componente standalone `ServiceDetailsComponent` en frontend integrando HTML/CSS de diseños (`DetalleServicio.html`).
+  - Lógica añadida en `HomeComponent` para validar el estado de sesión antes de redirigir a `/service/:id` al presionar "Inscribirse".
+  - Se agregó un "Toast" modal en `home.component.html` (y estilos) que pide al usuario iniciar sesión si no está autenticado, con botones para cancelar o ir a Login.
+  - Se agregó el método `getById(id)` en `OfferingService` del frontend.
+  - Se agregó el endpoint `GET /api/offerings/{id}` en `OfferingController.java` del backend, y configuración correspondiente en `SecurityConfiguration.java` para permitir acceso público.
+  - Reconstrucción de contenedores de backend y frontend.
 ## [2026-10-05] Listado paginado de reservas propias
 - **Cambios realizados:** Se agregó `GET /api/bookings/me` con paginación desde base de datos, filtro por el usuario autenticado y nombre del servicio en el resultado. Angular incorpora la ruta protegida `/bookings`, la vista de reservas y controles de página/tamaño.
 - **Validación:** `mvn -Dtest=BookingServiceTest test` pasó (3 pruebas) y `npm run build` del frontend completó. La suite completa del backend sigue bloqueada por la versión de API Docker requerida por el test de persistencia existente.
@@ -46,3 +57,29 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
 - **Cambios realizados:** Se renombraron la entidad JPA, el repositorio, la proyección y el adaptador a `BookingNotification*`, y la tabla a `booking_notifications`, manteniendo el modelo de dominio `BookingNotification`.
 - **Migración:** Se añadió V3 para renombrar la tabla, restricciones e índices creados por V2; V2 se conserva inmutable para instalaciones que ya la ejecutaron.
 - **Validación:** Las pruebas enfocadas de persistencia, notificaciones y reservas pasaron; `mvn -DskipTests package` y `git diff --check` completaron correctamente.
+
+## [2026-10-07] Implementación de Vista de Checkout (Placeholder)
+- **Agente:** Antigravity (Gemini 3.1 Pro)
+- **Contexto:** Tarea - Implementar la vista de Checkout en el frontend desde el diseño base.
+- **Cambios realizados:**
+  - Creación del componente standalone `CheckoutComponent` (`checkout.component.ts`, `checkout.component.html`, `checkout.component.css`) en `frontend/src/app/features/`.
+  - Extracción de HTML y CSS de la sección superior de `CheckoutYRegistros.html` (ignorando "Mis registros").
+  - Mapeo de la lógica básica en TS para el cambio visual entre opciones de pago y vista de éxito, sin funcionalidad real transaccional.
+  - Copia de las imágenes del diseño a la carpeta `frontend/public/images/` y actualización del placeholder de imagen en el componente para usar una de ellas.
+  - Inclusión de la ruta `/checkout` en `app.routes.ts`.
+  - Inclusión del CDN de `boxicons-brands` en `index.html` para soportar el ícono de PayPal.
+
+## [2026-10-07] Conexión de Checkout
+- **Agente:** Antigravity (Gemini 3.1 Pro)
+- **Contexto:** Tarea - Conectar la vista de Checkout desde el botón "Inscribirse ahora" de un servicio específico.
+- **Cambios realizados:**
+  - Actualización del componente `ServiceDetailsComponent` (`service-details.component.html`) añadiendo `routerLink="/checkout"` al botón "Inscribirse Ahora" para redirigir a la nueva vista.
+
+## [2026-10-07] Funcionalidad Real de Reserva en Checkout
+- **Agente:** Antigravity (Gemini 3.1 Pro)
+- **Contexto:** Conectar la vista de Checkout con el backend real para ejecutar la reserva.
+- **Cambios realizados:**
+  - `BookingService`: Se agregó el método `create()` para consumir el endpoint `POST /api/bookings`.
+  - `app.routes.ts`: Se cambió la ruta a `/checkout/:id` para recibir el ID del servicio.
+  - `CheckoutComponent`: Ahora lee el `:id` de la ruta, carga los datos del servicio con `OfferingService` (mostrando su título, categoría y precio en la tarjeta) y al hacer clic en "Pagar", llama a `BookingService.create()`.
+  - Muestra un estado de "Procesando..." y, si la respuesta es exitosa (200/201), avanza a la vista de éxito.

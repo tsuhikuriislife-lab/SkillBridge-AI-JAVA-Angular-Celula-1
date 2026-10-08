@@ -1,6 +1,7 @@
 package com.riwi.skillbridge.domain.model;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import java.util.UUID;
 
 public record Offering(
@@ -9,5 +10,10 @@ public record Offering(
         String description,
         String category,
         BigDecimal price,
-        boolean active
+        boolean active,
+        UUID providerId,
+        LocalTime startTime,
+        LocalTime endTime,
+        String endDay,
+        String photoUrl
 ) {}
