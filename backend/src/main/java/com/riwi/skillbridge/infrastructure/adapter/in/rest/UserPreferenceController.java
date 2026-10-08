@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/users/{userId}/preferences")
+@RequestMapping("/api/users/{userId}/preferences")
 public class UserPreferenceController {
 
     private final ManageUserPreferenceUseCase manageUseCase;

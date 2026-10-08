@@ -27,4 +27,9 @@ public class BookingHistoryService implements RecordBookingsHistoryUseCase, Retr
     public List<BookingHistory> getHistory(UUID userId, UUID serviceId) {
         return bookingHistoryPort.findByUserIdAndServiceId(userId, serviceId);
     }
+
+    @Override
+    public com.riwi.skillbridge.domain.model.PageResult<BookingHistory> getMyHistory(UUID userId, int page, int size) {
+        return bookingHistoryPort.findByUserId(userId, page, size);
+    }
 }

@@ -1,4 +1,5 @@
 -- Reemplaza el stack viejo (offerings/bookings) por el nuevo esquema
+DROP TABLE IF EXISTS booking_notifications;
 DROP TABLE IF EXISTS bookings;
 DROP TABLE IF EXISTS offerings;
 

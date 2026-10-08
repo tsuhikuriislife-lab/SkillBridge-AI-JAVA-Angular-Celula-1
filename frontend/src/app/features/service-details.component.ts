@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CurrencyPipe, CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { apiBase } from '../core/api';
 import { Offering, OfferingService } from '../core/offering.service';
 import { AuthService } from '../core/auth.service';
 import { AssessmentService, ClientAssessmentResponse, AssessmentEvaluation } from '../core/assessment.service';
@@ -16,6 +18,7 @@ export class ServiceDetailsComponent implements OnInit {
   offering: Offering | null = null;
   loading = true;
   error = '';
+  isEnrolled = false;
 
   // Mini-Assessment state
   showAssessmentModal = false;
@@ -27,21 +30,27 @@ export class ServiceDetailsComponent implements OnInit {
   evaluationLoading = false;
   evaluationResult: AssessmentEvaluation | null = null;
 
+  viewOnly = false;
+
   constructor(
     private route: ActivatedRoute,
     private service: OfferingService,
     private auth: AuthService,
     private assessmentService: AssessmentService,
-    private router: Router
+    private router: Router,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
+    this.viewOnly = this.route.snapshot.queryParamMap.get('viewOnly') === 'true';
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.service.getById(id).subscribe({
         next: data => {
           this.offering = data;
           this.loading = false;
+          this.checkEnrollmentStatus(id);
         },
         error: () => {
           this.error = 'No se pudo cargar el servicio.';
@@ -54,6 +63,16 @@ export class ServiceDetailsComponent implements OnInit {
     }
   }
 
+  checkEnrollmentStatus(serviceId: string): void {
+    if (!this.auth.isLoggedIn()) return;
+    this.http.get<any>(`${apiBase()}/enrollments/me?size=100`).subscribe({
+      next: (res) => {
+        const list = res.content || [];
+        this.isEnrolled = list.some((e: any) => e.serviceId === serviceId && e.status === 'ACTIVE');
+      }
+    });
+  }
+
   goBack(): void {
     this.router.navigate(['/']);
   }
@@ -63,7 +82,10 @@ export class ServiceDetailsComponent implements OnInit {
       this.router.navigate(['/login'], { queryParams: { returnUrl: `/service/${this.offering?.id}` } });
       return;
     }
-    this.router.navigate(['/booking'], { queryParams: { offeringId: this.offering?.id } });
+    if (this.isEnrolled) {
+      return;
+    }
+    this.router.navigate(['/checkout', this.offering?.id]);
   }
 
   startAssessment(): void {

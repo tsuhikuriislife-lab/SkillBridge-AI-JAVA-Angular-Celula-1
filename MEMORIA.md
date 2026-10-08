@@ -112,3 +112,18 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - `app.routes.ts`: Se cambió la ruta a `/checkout/:id` para recibir el ID del servicio.
   - `CheckoutComponent`: Ahora lee el `:id` de la ruta, carga los datos del servicio con `OfferingService` (mostrando su título, categoría y precio en la tarjeta) y al hacer clic en "Pagar", llama a `BookingService.create()`.
   - Muestra un estado de "Procesando..." y, si la respuesta es exitosa (200/201), avanza a la vista de éxito.
+## [2026-10-08] Comportamiento Estricto de Expiración de Token
+- **Agente:** Antigravity
+- **Contexto:** Al expirar el token, el usuario debe ver un modal a pantalla completa que bloquee cualquier otra interacción, en lugar de un toast descartable.
+- **Cambios realizados:**
+  - `AuthService`: Agregado el estado `sessionExpired` y el método `forceLogout()` para limpiar la sesión y redirigir al `/login`.
+  - `auth.interceptor.ts`: Al recibir 401/403, se llama a `triggerSessionExpired()` en lugar del `ToastService`.
+  - `app.component.ts`: Se añadió el overlay modal con el estado de expiración, con un alto `z-index` y fondo opaco, forzando el botón "Ir al login" para recuperar el estado limpio.
+  - Reconstrucción de `frontend` y reinicio del contenedor `skillbridge-ai-frontend-1`.
+## [2026-10-08] Corrección de Paginación en Notificaciones
+- **Agente:** Antigravity
+- **Contexto:** La vista de mis notificaciones mostraba "NaN de NaN" en el indicador de paginación.
+- **Cambios realizados:**
+  - Se identificó que el backend (`BookingHistoryController`) estaba devolviendo la página actual bajo la propiedad `number` (debido a la estructura del `PageResult` de Java) en lugar de `page` que esperaba el frontend.
+  - Se actualizó la interfaz `NotificationPage` en `frontend/src/app/core/notification.service.ts` para aceptar `number` o `page`.
+  - Se modificó la asignación en `MyNotificationsComponent` (`my-notifications.component.ts`) para utilizar prioritariamente `result.number ?? result.page ?? 0`, asegurando que `currentPage` contenga un valor numérico y el cálculo visual se realice correctamente.

@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface JpaBookingHistoryRepository extends JpaRepository<BookingHistoryEntity, UUID> {
     List<BookingHistoryEntity> findByUserIdAndServiceIdOrderByCreatedAtAsc(UUID userId, UUID serviceId);
+    org.springframework.data.domain.Page<BookingHistoryEntity> findByUserIdOrderByCreatedAtDesc(UUID userId, org.springframework.data.domain.Pageable pageable);
 }

@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/catalog")
+@RequestMapping("/api/catalog")
 public class CatalogItemController {
 
     private final RetrieveCatalogItemUseCase retrieveUseCase;

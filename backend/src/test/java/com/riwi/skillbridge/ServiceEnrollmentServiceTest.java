@@ -48,11 +48,11 @@ class ServiceEnrollmentServiceTest {
     }
 
     private void stubEnrollable(int capacity) {
-        when(userAccountPort.findById(userId)).thenReturn(Optional.of(mock(UserAccount.class)));
-        when(offeringPort.findById(serviceId)).thenReturn(Optional.of(offering(capacity, BigDecimal.TEN)));
-        when(schedulePort.findByServiceId(serviceId)).thenReturn(List.of(schedule()));
-        when(enrollmentPort.findByUserIdAndServiceId(userId, serviceId)).thenReturn(Optional.empty());
-        when(enrollmentPort.save(any())).thenAnswer(i -> i.getArgument(0));
+        lenient().when(userAccountPort.findById(userId)).thenReturn(Optional.of(mock(UserAccount.class)));
+        lenient().when(offeringPort.findById(serviceId)).thenReturn(Optional.of(offering(capacity, BigDecimal.TEN)));
+        lenient().when(schedulePort.findByServiceId(serviceId)).thenReturn(List.of(schedule()));
+        lenient().when(enrollmentPort.findByUserIdAndServiceId(userId, serviceId)).thenReturn(Optional.empty());
+        lenient().when(enrollmentPort.save(any())).thenAnswer(i -> i.getArgument(0));
     }
 
     @Test
@@ -67,6 +67,7 @@ class ServiceEnrollmentServiceTest {
 
     @Test
     void enroll_rejectsWhenServiceNotActive() {
+        when(userAccountPort.findById(userId)).thenReturn(Optional.of(mock(UserAccount.class)));
         when(offeringPort.findById(serviceId)).thenReturn(Optional.of(
                 new Offering(serviceId, "S", UUID.randomUUID(), BigDecimal.ONE, null, null, null,
                         null, 5, "C", ServiceStatus.DRAFT, providerId, null, null)));

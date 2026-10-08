@@ -10,5 +10,7 @@ public interface BookingHistoryPort {
     BookingHistory save(BookingHistory bookingHistory);
 
     List<BookingHistory> findByUserIdAndServiceId(UUID userId, UUID serviceId);
+    
+    com.riwi.skillbridge.domain.model.PageResult<BookingHistory> findByUserId(UUID userId, int page, int size);
 
 }

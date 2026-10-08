@@ -7,6 +7,7 @@ import com.riwi.skillbridge.domain.model.PageResult;
 import com.riwi.skillbridge.infrastructure.adapter.in.rest.dto.OfferingOut;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 import java.util.UUID;
 
 /** Catálogo público de servicios: solo ACTIVE con cupo disponible. */
@@ -16,10 +17,13 @@ public class OfferingController {
 
     private final CatalogOfferingUseCase catalog;
     private final RetrieveOfferingUseCase retrieve;
+    private final com.riwi.skillbridge.application.port.in.serviceschedule.ManageServiceScheduleUseCase schedules;
 
-    public OfferingController(CatalogOfferingUseCase catalog, RetrieveOfferingUseCase retrieve) {
+    public OfferingController(CatalogOfferingUseCase catalog, RetrieveOfferingUseCase retrieve,
+                              com.riwi.skillbridge.application.port.in.serviceschedule.ManageServiceScheduleUseCase schedules) {
         this.catalog = catalog;
         this.retrieve = retrieve;
+        this.schedules = schedules;
     }
 
     @GetMapping
@@ -45,6 +49,17 @@ public class OfferingController {
     public ResponseEntity<OfferingOut> getById(@PathVariable UUID id) {
         return retrieve.getOfferingById(id).map(o -> ResponseEntity.ok(toOut(o)))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/schedules")
+    public List<com.riwi.skillbridge.infrastructure.adapter.in.rest.dto.ServiceScheduleOut> getSchedules(
+            @PathVariable UUID id
+    ) {
+        return schedules.getSchedulesByService(id).stream()
+                .map(s -> new com.riwi.skillbridge.infrastructure.adapter.in.rest.dto.ServiceScheduleOut(
+                        s.id(), s.serviceId(), s.startDay(), s.sessionDuration(),
+                        s.frequency(), s.numberOfSessions(), s.startDate()))
+                .toList();
     }
 
     private PageResult<OfferingOut> toOutPage(PageResult<Offering> p) {

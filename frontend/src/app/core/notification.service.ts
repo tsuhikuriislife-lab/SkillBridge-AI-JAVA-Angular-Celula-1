@@ -1,27 +1,24 @@
-import { inject, Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { apiBase } from './api';
-
-export type NotificationStatus = 'PENDING' | 'PROCESSED' | 'FAILED';
-export type NotificationType = 'IN_APP';
 
 export interface NotificationSummary {
     id: string;
-    bookingId: string;
-    eventType: string;
-    type: NotificationType;
-    status: NotificationStatus;
-    title: string;
+    type: string;
     message: string;
+    status: string;
     createdAt: string;
-    processedAt: string | null;
+    readAt?: string;
+    title?: string;
+    bookingId?: string;
 }
 
 export interface NotificationPage {
     content: NotificationSummary[];
-    page: number;
-    size: number;
+    page?: number;
+    number?: number;
+    size?: number;
     totalElements: number;
     totalPages: number;
 }
@@ -30,10 +27,16 @@ export interface NotificationPage {
 export class NotificationService {
     private readonly http = inject(HttpClient);
 
-    listMine(page: number, size: number): Observable<NotificationPage> {
-        const params = new HttpParams()
-            .set('page', page)
-            .set('size', size);
-        return this.http.get<NotificationPage>(`${apiBase()}/notifications/me`, { params });
+    // Backend implementation was deleted in fix/crud-completo branch.
+    // Mocking to avoid breaking the frontend.
+    listMine(page: number, size: number, unreadOnly?: boolean): Observable<NotificationPage> {
+        let params = new HttpParams()
+            .set('page', page.toString())
+            .set('size', size.toString());
+        return this.http.get<NotificationPage>(`${apiBase()}/history/me`, { params });
+    }
+
+    markAsRead(id: string): Observable<void> {
+        return of(void 0);
     }
 }

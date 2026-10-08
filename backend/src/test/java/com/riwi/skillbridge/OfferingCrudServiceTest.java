@@ -40,12 +40,12 @@ class OfferingCrudServiceTest {
     }
 
     private void stubOk() {
-        when(catalogItemPort.findById(categoryId)).thenReturn(Optional.of(
+        lenient().when(catalogItemPort.findById(categoryId)).thenReturn(Optional.of(
                 new CatalogItem(categoryId, "Backend", "CAT-BACK", null, CatalogType.CATEGORY, Status.ACTIVE)));
-        when(userAccountPort.findById(providerId)).thenReturn(Optional.of(
+        lenient().when(userAccountPort.findById(providerId)).thenReturn(Optional.of(
                 new UserAccount(providerId, "P", "p@x.com", Role.PROVIDER, null, "hash",
                         null, null, Status.ACTIVE, null, null)));
-        when(offeringPort.save(any())).thenAnswer(i -> i.getArgument(0));
+        lenient().when(offeringPort.save(any())).thenAnswer(i -> i.getArgument(0));
     }
 
     @Test

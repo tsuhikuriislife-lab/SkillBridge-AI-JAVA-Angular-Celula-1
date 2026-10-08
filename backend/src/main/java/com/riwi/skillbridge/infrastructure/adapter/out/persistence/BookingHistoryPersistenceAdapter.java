@@ -29,6 +29,14 @@ public class BookingHistoryPersistenceAdapter implements BookingHistoryPort {
                 .stream().map(this::toDomain).toList();
     }
 
+    @Override
+    public com.riwi.skillbridge.domain.model.PageResult<BookingHistory> findByUserId(UUID userId, int page, int size) {
+        var p = repository.findByUserIdOrderByCreatedAtDesc(userId, org.springframework.data.domain.PageRequest.of(page, size));
+        return new com.riwi.skillbridge.domain.model.PageResult<>(
+                p.getContent().stream().map(this::toDomain).toList(),
+                p.getTotalPages(), p.getTotalElements(), p.getNumber());
+    }
+
     private BookingHistory toDomain(BookingHistoryEntity e) {
         return new BookingHistory(e.getId(), e.getUserId(), e.getServiceId(),
                 e.getStatus(), e.getCreatedAt(), e.getExpiresAt());

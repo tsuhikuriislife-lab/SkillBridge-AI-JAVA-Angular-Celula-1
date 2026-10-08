@@ -43,6 +43,16 @@ import { HistoryService } from './core/history.service';
         </div>
       </div>
     }
+
+    @if (auth.sessionExpired()) {
+      <div class="modal-overlay-blocking">
+        <div class="modal-card-blocking">
+          <h2>Sesión expirada</h2>
+          <p>Tu sesión ha expirado y debes volver a iniciar sesión para continuar.</p>
+          <button class="toast-btn primary" (click)="auth.forceLogout()">Ir al login</button>
+        </div>
+      </div>
+    }
   `,
   styles: [`
     .nav{background:#fff;border-bottom:1px solid #e7ebf0;position:sticky;top:0;z-index:5}
@@ -94,6 +104,28 @@ import { HistoryService } from './core/history.service';
       from { transform: translateY(100px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
+    .modal-overlay-blocking {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .modal-card-blocking {
+      background: #fff;
+      color: #333;
+      padding: 32px;
+      border-radius: 12px;
+      text-align: center;
+      max-width: 400px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .modal-card-blocking h2 { margin-top: 0; margin-bottom: 16px; font-size: 1.5rem; color: #1e293b; }
+    .modal-card-blocking p { margin-bottom: 24px; color: #475569; }
+    .modal-card-blocking .toast-btn { color: #333; border-color: #cbd5e1; }
+    .modal-card-blocking .toast-btn.primary { color: #fff; }
   `]
 })
 export class AppComponent {

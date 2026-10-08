@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface RetrieveBookingHistoryUseCase {
     List<BookingHistory> getHistory(UUID userId, UUID serviceId);
+    com.riwi.skillbridge.domain.model.PageResult<BookingHistory> getMyHistory(UUID userId, int page, int size);
 }

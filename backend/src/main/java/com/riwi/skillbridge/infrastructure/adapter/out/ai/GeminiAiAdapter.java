@@ -22,7 +22,7 @@ public class GeminiAiAdapter implements AiRecommendationPort {
     @Override
     public String recommend(String goal, List<Offering> offerings) {
         String catalog = offerings.stream()
-                .map(o -> "- %s [%s]: %s".formatted(o.name(), o.categoryId(), o.shortDescription()))
+                .map(o -> "- %s [%s]: %s".formatted(o.name(), o.code(), o.shortDescription()))
                 .reduce("", (a, b) -> a + "\n" + b);
 
         String prompt = """

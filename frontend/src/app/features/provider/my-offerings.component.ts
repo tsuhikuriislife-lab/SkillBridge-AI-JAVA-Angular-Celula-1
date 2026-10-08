@@ -128,7 +128,8 @@ export class MyOfferingsComponent implements OnInit {
 
   update() {
     if (this.form.invalid || !this.editItem) return;
-    this.offeringService.update(this.editItem.id, this.form.value as any).subscribe(() => {
+    const updates = { ...this.form.value, categoryId: this.editItem.categoryId } as any;
+    this.offeringService.update(this.editItem.id, updates).subscribe(() => {
       this.editItem = null;
       this.load(this.page);
     });
