@@ -50,5 +50,16 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Se ajustaron `BookingService` (comparación con `OfferingStatus.ACTIVE`) y `GeminiAiAdapter` (usa `name` y `shortDescription`) al nuevo modelo.
   - Documentación: `docs/API.md` actualizado con los endpoints y reglas del proveedor.
 - **Validación:** Pasaron las pruebas unitarias de `ProviderOfferingServiceTest`, `ProviderOfferingControllerTest`, `OfferingServiceTest` y `BookingServiceTest`. `JpaOfferingRepositoryTest` y la prueba real contra la base quedan pendientes de la migración Flyway del nuevo esquema (tablas `services`/`categories`) que entrega otro integrante del equipo.
-- **Pendiente:** Frontend de HU-10 ("Mis servicios"), migración SQL del equipo (`services.code` UNIQUE, `created_by` → `app_users`) y adaptar reservas (`BookingEntity`, `JpaBookingRepository`) al nuevo esquema.
+- **Pendiente:** Migración SQL del equipo (`services.code` UNIQUE, `created_by` → `app_users`) y adaptar reservas (`BookingEntity`, `JpaBookingRepository`) al nuevo esquema.
 
+## [2026-10-08] Administrar servicios como proveedor (HU-10) — frontend y usuario actual
+- **Agente:** Claude (Sonnet 5.5)
+- **Contexto:** Pantalla para que el proveedor administre sus servicios y ajustes del backend necesarios para mostrarla.
+- **Cambios realizados:**
+  - Backend: `GET /api/users/me` (`CurrentUser`, `GetCurrentUserUseCase`, `CurrentUserService`, `UserController`) que devuelve nombre, correo y rol leído de la base de datos, sin contraseña. `GET /api/categories` pasó a ser público en `SecurityConfiguration`.
+  - Angular: el catálogo (`home` y `booking`) se adaptó al nuevo formato de `Offering` (`name`, `shortDescription`, `categoryId`) y muestra la categoría por nombre. `AuthService` carga el perfil desde `/users/me` al abrir la app y después de ingresar; nuevo `providerGuard` que consulta el rol antes de entrar a la ruta.
+  - Nueva pantalla `/provider/offerings` ("Mis servicios"): lista paginada con orden fijo (nombre y fecha, ascendente/descendente), formulario de crear y editar con validaciones, y activar/desactivar con confirmación. El enlace del menú solo aparece si el rol es PROVIDER, sin necesidad de cerrar sesión.
+  - Servicios de Angular: `provider-offering.service.ts` y `category.service.ts`.
+  - Documentación: `docs/API.md` actualizado.
+- **Validación:** pasaron las pruebas unitarias de `CurrentUserServiceTest` y `UserControllerTest`, y `npm run build` del frontend completa sin errores. La prueba completa en el navegador queda pendiente de la migración Flyway del nuevo esquema (`services`/`categories`) que entrega otro integrante.
+- **Pendiente:** Probar de punta a punta con la base de datos del equipo y adaptar reservas (`BookingEntity`, `JpaBookingRepository`) y `JpaOfferingRepositoryTest` al nuevo esquema.

@@ -6,6 +6,7 @@ Base path: `/api`
 |---|---|---|---|
 | POST | `/auth/register` | Public | Register CUSTOMER and return JWT |
 | POST | `/auth/login` | Public | Login and return JWT |
+| GET | `/users/me` | Bearer JWT | Authenticated user's name, email and current role, read from the database |
 | GET | `/offerings` | Public | Active catalog; Redis-backed |
 | GET | `/categories` | Public | Active categories (`id`, `name`) for service forms and catalog labels |
 | POST | `/bookings` | Bearer JWT | Persist booking and publish event |
@@ -17,6 +18,8 @@ Base path: `/api`
 | POST | `/ai/recommendations` | Bearer JWT | Generate catalog-grounded recommendation |
 
 `GET /bookings/me` defaults to page `0`, size `10`, sort `DATE_DESC`, and activity `ALL`. Page numbering starts at zero; sizes from 1 to 100 are accepted. `sort` accepts `TITLE_ASC`, `TITLE_DESC`, `DATE_ASC`, `DATE_DESC`, `PRICE_ASC`, or `PRICE_DESC`. `activity` accepts `ALL`, `ACTIVE` (created or confirmed), or `INACTIVE` (cancelled or completed). Results include `content`, `page`, `size`, `totalElements`, and `totalPages`; each row includes offering title, price, status, and active flag. The customer is resolved from the JWT, never from a client-supplied ID.
+
+`GET /users/me` returns `name`, `email` and `role` of the authenticated user. The role is read from the database on every call (not from the JWT), so a role change made by an administrator is visible to the frontend without issuing a new token. It never returns the password or its hash.
 
 ## Public catalog
 
