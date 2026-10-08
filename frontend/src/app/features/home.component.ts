@@ -1,8 +1,9 @@
-import { Component, OnInit, AfterViewInit, HostListener, ElementRef } from '@angular/core';
+import { Component, OnInit, AfterViewInit, HostListener, ElementRef, inject } from '@angular/core';
 import { CurrencyPipe, LowerCasePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { Offering, OfferingService, CategoryCount } from '../core/offering.service';
 import { AuthService } from '../core/auth.service';
+import { ToastService } from '../core/toast.service';
 
 @Component({
   standalone: true,
@@ -15,7 +16,8 @@ export class HomeComponent implements OnInit, AfterViewInit {
   topCategories: (CategoryCount | null)[] = [];
   error = '';
   showBackToTop = false;
-  showLoginToast = false;
+
+  private toastService = inject(ToastService);
 
   constructor(
     private service: OfferingService, 
@@ -92,12 +94,10 @@ export class HomeComponent implements OnInit, AfterViewInit {
     if (this.auth.isLoggedIn()) {
       this.router.navigate(['/service', id]);
     } else {
-      this.showLoginToast = true;
+      this.toastService.show('Primero debes iniciar sesión para inscribirte en un servicio.', [
+        { label: 'Login', primary: true, action: () => this.router.navigate(['/login']) },
+        { label: 'Cancelar', action: () => {} }
+      ]);
     }
-  }
-
-  goToLogin() {
-    this.showLoginToast = false;
-    this.router.navigate(['/login']);
   }
 }
