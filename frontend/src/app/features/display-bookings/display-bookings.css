@@ -1,0 +1,332 @@
+.booking-container {
+      background-color: #ffffff;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      max-width: 1100px;
+      margin: 30px auto;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .header-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .header-section h2 {
+      margin: 0;
+      color: #0f172a;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      margin: 4px 0 0 0;
+      color: #64748b;
+      font-size: 0.875rem;
+    }
+
+    .btn-primary {
+      background-color: #2563eb;
+      color: #ffffff;
+      text-decoration: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      transition: background-color 0.2s;
+      display: inline-block;
+    }
+
+    .btn-primary:hover {
+      background-color: #1d4ed8;
+    }
+
+    .booking-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding: 16px;
+      background-color: #f8fafc;
+      border-radius: 8px;
+      align-items: center;
+    }
+
+    .filter-control, .page-size {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #475569;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    select {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 6px 12px;
+      background: #fff;
+      color: #1e293b;
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    select:focus {
+      border-color: #2563eb;
+    }
+
+    select:disabled {
+      background-color: #f1f5f9;
+      cursor: not-allowed;
+    }
+
+    /* Estados de Carga, Error y Vacío */
+    .state-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .empty-state .empty-icon-wrapper {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background-color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .state-icon {
+      width: 32px;
+      height: 32px;
+      color: #64748b;
+    }
+
+    .error-icon {
+      color: #ef4444;
+      margin-bottom: 12px;
+    }
+
+    .empty-state h3, .error-state h3 {
+      font-size: 1.25rem;
+      color: #1e293b;
+      margin: 0 0 8px 0;
+    }
+
+    .empty-state p, .error-state p {
+      color: #64748b;
+      max-width: 400px;
+      margin: 0 0 20px 0;
+      font-size: 0.95rem;
+    }
+
+    .btn-retry {
+      padding: 8px 16px;
+      background-color: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      color: #334155;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-retry:hover:not(:disabled) {
+      background-color: #e2e8f0;
+    }
+
+    .btn-retry:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Tabla */
+    .table-responsive {
+      overflow-x: auto;
+    }
+
+    .booking-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .booking-table th {
+      padding: 16px 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #6c757d;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table-row {
+      border-bottom: 1px solid #f8f9fa;
+      transition: background-color 0.2s ease;
+    }
+
+    .table-row:hover {
+      background-color: #fafbfc;
+    }
+
+    .booking-table td {
+      padding: 20px 12px;
+      vertical-align: middle;
+    }
+
+    .service-cell {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .service-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background-color: #e0f2fe;
+      color: #0284c7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .service-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .service-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #1e293b;
+    }
+
+    .service-subtitle {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .category-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background-color: #e0f2fe;
+      color: #0284c7;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .status-container {
+      display: inline-flex;
+      align-items: center;
+      font-weight: 600;
+      font-size: 0.875rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    .status-active { color: #10b981; background-color: #ecfdf5; }
+    .status-process { color: #f59e0b; background-color: #fffbeb; }
+    .status-cancelled { color: #ef4444; background-color: #fef2f2; }
+    .status-completed { color: #64748b; background-color: #f8fafc; }
+
+    .session-date {
+      color: #475569;
+      font-weight: 500;
+      font-size: 0.875rem;
+    }
+
+    .progress-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 130px;
+    }
+
+    .progress-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background-color: #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    }
+
+    .bg-active { background-color: #10b981; }
+    .bg-process { background-color: #f59e0b; }
+    .bg-cancelled { background-color: #ef4444; }
+    .bg-completed { background-color: #10b981; }
+
+    .text-center { text-align: center; }
+
+    .action-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: none;
+      background-color: #eff6ff;
+      color: #2563eb;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .action-btn:hover {
+      background-color: #dbeafe;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    .pagination-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
