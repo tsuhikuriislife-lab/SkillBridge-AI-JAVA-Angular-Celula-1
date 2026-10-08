@@ -154,3 +154,10 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Documentación: `docs/API.md` actualizado.
 - **Validación:** pasaron las pruebas unitarias de `CurrentUserServiceTest` y `UserControllerTest`, y `npm run build` del frontend completa sin errores. La prueba completa en el navegador queda pendiente de la migración Flyway del nuevo esquema (`services`/`categories`) que entrega otro integrante.
 - **Pendiente:** Probar de punta a punta con la base de datos del equipo y adaptar reservas (`BookingEntity`, `JpaBookingRepository`) y `JpaOfferingRepositoryTest` al nuevo esquema.
+## [2026-10-08] Fusión de rama feat/implementar-rol-proveedor
+- **Agente:** Antigravity
+- **Contexto:** Resolución de conflictos de la rama `feat/implementar-rol-proveedor`.
+- **Cambios realizados:** 
+  - Se completó la fusión priorizando el código de `fix/crud-completo` que ya tenía implementado el panel de proveedor (`ServiceManagementController`, Angular views en `provider/`, `OfferingCrudService`) y el nuevo esquema de la base de datos (`ServiceStatus`, UUID categoryId). 
+  - Se descartaron las implementaciones duplicadas (`ProviderOfferingService`, `ProviderOfferingController`, etc.) para mantener la coherencia con la arquitectura hexagonal limpia introducida en HEAD.
+  - La memoria de agentes fue unificada.
