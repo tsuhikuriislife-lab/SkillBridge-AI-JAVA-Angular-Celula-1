@@ -1,9 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { Offering, OfferingService } from '../core/offering.service';
-import { apiBase } from '../core/api';
+import { BookingService } from '../core/booking.service';
 
 @Component({
   standalone: true,
@@ -11,9 +10,9 @@ import { apiBase } from '../core/api';
   template: `
     <section class="container section">
       <div class="card booking-card">
-        <p class="eyebrow">EVENT-DRIVEN FLOW</p>
-        <h1>Reservar una sesión</h1>
-        <p class="muted">Al confirmar, Spring persiste la reserva y publica un evento <code>BookingCreated</code> en RabbitMQ.</p>
+        <p class="eyebrow">NUEVA INSCRIPCIÓN</p>
+        <h1>Inscribirse a un servicio</h1>
+        <p class="muted">Al confirmar, quedarás inscrito en el servicio.</p>
 
         <label class="field">
           Servicio
@@ -25,13 +24,8 @@ import { apiBase } from '../core/api';
           </select>
         </label>
 
-        <label class="field">
-          Fecha y hora
-          <input type="datetime-local" [(ngModel)]="scheduledLocal">
-        </label>
-
         <button class="btn" [disabled]="loading" (click)="book()">
-          {{ loading ? 'Creando...' : 'Crear reserva' }}
+          {{ loading ? 'Inscribiendo...' : 'Confirmar Inscripción' }}
         </button>
 
         @if (error) { <p class="error">{{ error }}</p> }
@@ -44,14 +38,13 @@ import { apiBase } from '../core/api';
 export class BookingComponent implements OnInit {
   offerings: Offering[] = [];
   offeringId = '';
-  scheduledLocal = '';
   loading = false;
   error = '';
   success = '';
 
   constructor(
     private offeringsService: OfferingService,
-    private http: HttpClient,
+    private bookingService: BookingService,
     private route: ActivatedRoute
   ) {}
 
@@ -75,21 +68,20 @@ export class BookingComponent implements OnInit {
   book(): void {
     this.error = '';
     this.success = '';
-    if (!this.offeringId || !this.scheduledLocal) {
-      this.error = 'Selecciona un servicio y una fecha.';
+    if (!this.offeringId) {
+      this.error = 'Selecciona un servicio.';
       return;
     }
 
     this.loading = true;
-    const scheduledAt = new Date(this.scheduledLocal).toISOString();
-    this.http.post<{id: string}>(`${apiBase()}/bookings`, { offeringId: this.offeringId, scheduledAt })
+    this.bookingService.create({ offeringId: this.offeringId, scheduledAt: '' })
       .subscribe({
-        next: booking => {
-          this.success = `Reserva creada: ${booking.id}`;
+        next: () => {
+          this.success = 'Inscripción creada exitosamente.';
           this.loading = false;
         },
         error: e => {
-          this.error = e?.error?.detail || 'No fue posible crear la reserva. Inicia sesión y verifica la fecha.';
+          this.error = e?.error?.detail || 'No fue posible crear la inscripción. Verifica tu sesión.';
           this.loading = false;
         }
       });

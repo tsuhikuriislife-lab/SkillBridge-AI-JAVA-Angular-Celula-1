@@ -22,7 +22,7 @@ public class GeminiAiAdapter implements AiRecommendationPort {
     @Override
     public String recommend(String goal, List<Offering> offerings) {
         String catalog = offerings.stream()
-                .map(o -> "- %s [%s]: %s".formatted(o.title(), o.category(), o.description()))
+                .map(o -> "- %s [%s]: %s".formatted(o.name(), o.code(), o.shortDescription()))
                 .reduce("", (a, b) -> a + "\n" + b);
 
         String prompt = """
@@ -60,24 +60,12 @@ public class GeminiAiAdapter implements AiRecommendationPort {
 
             if (msg.contains("401") || msg.contains("403") || msg.contains("api_key") || msg.contains("unauthorized") || msg.contains("api key")) {
                 throw new AiConfigurationException("Error de configuración: La API Key de Gemini es inválida o no está configurada.");
-            } else if (msg.contains("429") || msg.contains("quota") || msg.contains("too many requests") || msg.contains("exhausted") || msg.contains("token") || msg.contains("rate limit") || msg.contains("rate_limit")) {
-                throw new AiQuotaExceededException("Se ha excedido el límite de solicitudes o tokens de Google Gemini (429 Too Many Requests). Por favor, espera unos instantes antes de volver a intentar o revisa tu cuota en Google AI Studio.");
+            } else if (msg.contains("429") || msg.contains("quota") || msg.contains("too many requests") || msg.contains("exhausted")) {
+                throw new AiQuotaExceededException("Se ha excedido la cuota del proveedor de IA. Por favor, intenta más tarde.");
             } else if (msg.contains("timeout") || msg.contains("network") || msg.contains("connection") || msg.contains("ioexception") || msg.contains("503") || msg.contains("502") || msg.contains("504")) {
                 throw new AiNetworkException("Error de red: El proveedor de IA no está disponible o hubo un problema de conexión.");
             }
             throw new BusinessRuleException("Ocurrió un error inesperado al comunicarse con Gemini: " + ex.getClass().getSimpleName());
         }
-    }
-
-    private String extractErrorDetails(Throwable throwable) {
-        StringBuilder sb = new StringBuilder();
-        Throwable current = throwable;
-        while (current != null) {
-            if (current.getMessage() != null) {
-                sb.append(" ").append(current.getMessage().toLowerCase());
-            }
-            current = current.getCause();
-        }
-        return sb.toString();
     }
 }
