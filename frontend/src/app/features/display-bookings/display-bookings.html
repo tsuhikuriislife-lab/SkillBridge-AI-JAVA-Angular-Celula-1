@@ -1,0 +1,184 @@
+<div class="booking-container">
+      <div class="header-section">
+        <div>
+          <h2>Mis Reservas</h2>
+          <p class="subtitle">Gestiona y consulta tus sesiones programadas</p>
+        </div>
+        <a routerLink="/book" class="btn-primary">Nueva Reserva</a>
+      </div>
+
+      <section class="booking-filters" aria-label="Filtros de reservas">
+        <label class="filter-control">
+          Ordenar por
+          <select [ngModel]="sort()" (ngModelChange)="changeSort($event)" [disabled]="loading()">
+            <option value="TITLE_ASC">Nombre A–Z</option>
+            <option value="TITLE_DESC">Nombre Z–A</option>
+            <option value="DATE_DESC">Fecha más reciente</option>
+            <option value="DATE_ASC">Fecha más antigua</option>
+            <option value="PRICE_ASC">Precio menor a mayor</option>
+            <option value="PRICE_DESC">Precio mayor a menor</option>
+          </select>
+        </label>
+        <label class="filter-control">
+          Estado
+          <select [ngModel]="activity()" (ngModelChange)="changeActivity($event)" [disabled]="loading()">
+            <option value="ALL">Todas</option>
+            <option value="ACTIVE">Activas</option>
+            <option value="INACTIVE">No activas</option>
+          </select>
+        </label>
+        <label class="page-size" style="margin-left: auto;">
+          Mostrar
+          <select [ngModel]="pageSize()" (ngModelChange)="changePageSize($event)" [disabled]="loading()">
+            <option [ngValue]="10">10</option>
+            <option [ngValue]="25">25</option>
+            <option [ngValue]="50">50</option>
+          </select>
+          por página
+        </label>
+      </section>
+
+      <!-- ESTADO DE CARGA -->
+      @if (loading()) {
+        <div class="state-container">
+          <div class="spinner"></div>
+          <p>Cargando tus reservas...</p>
+        </div>
+      }
+
+      <!-- ESTADO DE ERROR -->
+      @else if (error()) {
+        <div class="state-container error-state">
+          <svg class="state-icon error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <h3>Ocurrió un error</h3>
+          <p>{{ error() }}</p>
+          <button class="btn-retry" (click)="loadPage()">Reintentar</button>
+        </div>
+      }
+
+      <!-- ESTADO VACÍO -->
+      @else if (reservas().length === 0) {
+        <div class="state-container empty-state">
+          <div class="empty-icon-wrapper">
+            <svg class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          @if (totalElements() === 0 && activity() === 'ALL') {
+            <h3>Aún no tienes reservas</h3>
+            <p>Explora nuestro catálogo de mentorías y servicios para programar tu primera sesión.</p>
+            <a routerLink="/book" class="btn-primary">Explorar Servicios</a>
+          } @else {
+            <h3>No hay reservas que coincidan</h3>
+            <p>Prueba con otro estado o criterio de orden.</p>
+          }
+        </div>
+      }
+
+      <!-- ESTADO CON DATOS -->
+      @else {
+        <div class="table-responsive">
+          <table class="booking-table">
+            <thead>
+              <tr>
+                <th>SERVICIO</th>
+                <th>PRECIO</th>
+                <th>ESTADO</th>
+                <th>FECHA / SESIÓN</th>
+                <th>PROGRESO</th>
+                <th class="text-center">ACCIÓN</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (reserva of reservas(); track reserva.id) {
+                <tr class="table-row">
+                  <!-- Servicio -->
+                  <td>
+                    <div class="service-cell">
+                      <div class="service-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M22 12.5V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4.5"/>
+                          <path d="M2 12a10 10 0 0 1 10-10 10 10 0 0 1 10 10"/>
+                          <path d="M12 2v10"/>
+                        </svg>
+                      </div>
+                      <div class="service-info">
+                        <span class="service-title">{{ reserva.offeringTitle || ('Reserva #' + reserva.id.substring(0, 8)) }}</span>
+                        <span class="service-subtitle">ID: {{ reserva.id.substring(0, 8) }}</span>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Precio -->
+                  <td>
+                    <span class="category-badge" style="background-color: #f1f5f9; color: #475569;">
+                      {{ reserva.price | currency:'COP':'symbol-narrow':'1.0-0':'es-CO' }}
+                    </span>
+                  </td>
+
+                  <!-- Estado -->
+                  <td>
+                    <div class="status-container" [ngClass]="getStatusClass(reserva.status)">
+                      <span class="status-text">{{ getStatusLabel(reserva.status) }}</span>
+                    </div>
+                  </td>
+
+                  <!-- Fecha -->
+                  <td>
+                    <span class="session-date">{{ formatearFecha(reserva.scheduledAt) }}</span>
+                  </td>
+
+                  <!-- Progreso -->
+                  <td>
+                    <div class="progress-container">
+                      <span class="progress-label">{{ getCalculatedProgress(reserva.status) }}%</span>
+                      <div class="progress-bar-bg">
+                        <div 
+                          class="progress-bar-fill" 
+                          [style.width.%]="getCalculatedProgress(reserva.status)"
+                          [ngClass]="getProgressBarClass(reserva.status)"
+                        ></div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Acción -->
+                  <td class="text-center" style="display: flex; justify-content: center; gap: 8px;">
+                    <button class="action-btn" (click)="verDetalle(reserva.id)" title="Ver Detalle">
+                      <i class="bx bx-eye-big"></i>
+                    </button>
+                    <button class="action-btn" (click)="confirmarCancelacion(reserva.id)" title="Cancelar Reserva" style="background-color: #f87171; color: white;">
+                      <i class="bx bx-x"></i>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <footer class="pagination">
+          <span class="muted" style="color: #64748b; font-size: 0.875rem;">
+            {{ firstVisible() }}–{{ lastVisible() }} de {{ totalElements() }}
+          </span>
+          <div class="pagination-actions">
+            <button class="btn-retry" style="padding: 6px 12px; font-size: 0.8rem;" type="button" (click)="loadPage(currentPage() - 1)" [disabled]="loading() || currentPage() === 0">
+              Anterior
+            </button>
+            <span class="page-number" style="color: #475569; font-weight: 500; font-size: 0.875rem;">
+              {{ currentPage() + 1 }} / {{ totalPages() }}
+            </span>
+            <button class="btn-retry" style="padding: 6px 12px; font-size: 0.8rem;" type="button" (click)="loadPage(currentPage() + 1)" [disabled]="loading() || currentPage() + 1 >= totalPages()">
+              Siguiente
+            </button>
+          </div>
+        </footer>
+      }
+    </div>

@@ -27,12 +27,12 @@ export class LoginComponent {
   // Textos dinámicos para el encabezado de la SPA
   readonly TEXTS = {
     login: {
-      title: 'Bienvenido de nuevo a la plataforma integradora.',
-      description: 'Accede a tus servicios, configuraciones de arquitectura y asistente de IA en un entorno profesional diseñado para desarrolladores.'
+      title: 'Aprende tecnología con el servicio ideal',
+      description: 'Inicia sesión para explorar servicios de formación tecnológica, recibir recomendaciones con IA y evaluar tus conocimientos.'
     },
     register: {
-      title: 'Crea tu cuenta y empieza a construir.',
-      description: 'Regístrate para acceder a las herramientas de arquitectura Hex y al asistente de IA, todo en un solo lugar.'
+      title: 'Tu próximo paso en la tecnología empieza aquí',
+      description: 'Crea tu cuenta gratis y descubre servicios de formación ofrecidos por terceros, adaptados a tus objetivos.'
     }
   };
 

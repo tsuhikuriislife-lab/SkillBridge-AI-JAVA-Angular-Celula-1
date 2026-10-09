@@ -1,0 +1,69 @@
+{
+  "title": "SkillBridge - Notificaciones",
+  "uid": "skillbridge-notifications",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Notificaciones persistidas por minuto",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(skillbridge_notifications_processed_total[5m])) * 60",
+          "legendFormat": "Procesadas/min",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Entregas repetidas por minuto",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(skillbridge_notifications_duplicate_total[5m])) * 60",
+          "legendFormat": "Duplicadas/min",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Intentos fallidos por minuto",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(skillbridge_notifications_failed_attempts_total[5m])) * 60",
+          "legendFormat": "Fallidos/min",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Tiempo medio de procesamiento",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(skillbridge_notifications_processing_seconds_sum[5m]) / rate(skillbridge_notifications_processing_seconds_count[5m])",
+          "legendFormat": "Segundos",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

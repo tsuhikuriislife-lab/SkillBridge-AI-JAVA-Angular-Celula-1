@@ -1,4 +1,4 @@
-FROM node:22-alpine AS builder
+FROM public.ecr.aws/docker/library/node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --no-audit --no-fund
@@ -7,7 +7,7 @@ ARG API_URL=/api
 ENV API_URL=$API_URL
 RUN npm run build
 
-FROM nginx:stable-alpine
+FROM public.ecr.aws/docker/library/nginx:stable-alpine
 ENV BACKEND_URL=http://backend:8080
 ENV NGINX_ENVSUBST_FILTER=BACKEND_URL
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
