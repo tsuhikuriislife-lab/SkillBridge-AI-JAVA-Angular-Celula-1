@@ -70,7 +70,7 @@ public class GeminiAiAssessmentAdapter implements AiAssessmentPort {
                     "explanation": "Explicación de la respuesta correcta..."
                   }
                 ]
-                """.formatted(offering.title(), offering.category(), offering.description());
+                """.formatted(offering.name(), offering.categoryId().toString(), offering.detail());
 
         try {
             String response = chatClient.prompt()
@@ -113,15 +113,14 @@ public class GeminiAiAssessmentAdapter implements AiAssessmentPort {
         }
 
         String cleaned = rawResponse.trim();
-        if (cleaned.startsWith("```json")) {
-            cleaned = cleaned.substring(7);
-        } else if (cleaned.startsWith("```")) {
-            cleaned = cleaned.substring(3);
+        int start = cleaned.indexOf('[');
+        int end = cleaned.lastIndexOf(']');
+        
+        if (start != -1 && end != -1 && end > start) {
+            cleaned = cleaned.substring(start, end + 1);
+        } else {
+            throw new BusinessRuleException("La respuesta de Gemini no contiene un arreglo JSON válido.");
         }
-        if (cleaned.endsWith("```")) {
-            cleaned = cleaned.substring(0, cleaned.length() - 3);
-        }
-        cleaned = cleaned.trim();
 
         try {
             List<AssessmentQuestion> questions = objectMapper.readValue(cleaned, new TypeReference<List<AssessmentQuestion>>() {});

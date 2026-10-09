@@ -4,7 +4,7 @@ import com.riwi.skillbridge.application.port.in.EvaluateAssessmentUseCase;
 import com.riwi.skillbridge.application.port.in.GenerateAssessmentUseCase;
 import com.riwi.skillbridge.application.port.out.AiAssessmentPort;
 import com.riwi.skillbridge.application.port.out.AssessmentSessionCachePort;
-import com.riwi.skillbridge.application.port.out.OfferingRepositoryPort;
+import com.riwi.skillbridge.application.port.out.OfferingPort;
 import com.riwi.skillbridge.domain.exception.DomainNotFoundException;
 import com.riwi.skillbridge.domain.model.*;
 import org.springframework.stereotype.Service;
@@ -18,11 +18,11 @@ import java.util.UUID;
 @Service
 public class AssessmentService implements GenerateAssessmentUseCase, EvaluateAssessmentUseCase {
 
-    private final OfferingRepositoryPort offeringRepository;
+    private final OfferingPort offeringRepository;
     private final AiAssessmentPort aiAssessmentPort;
     private final AssessmentSessionCachePort cachePort;
 
-    public AssessmentService(OfferingRepositoryPort offeringRepository,
+    public AssessmentService(OfferingPort offeringRepository,
                              AiAssessmentPort aiAssessmentPort,
                              AssessmentSessionCachePort cachePort) {
         this.offeringRepository = offeringRepository;
@@ -39,7 +39,7 @@ public class AssessmentService implements GenerateAssessmentUseCase, EvaluateAss
         TechnicalAssessment assessment = new TechnicalAssessment(
                 UUID.randomUUID(),
                 offering.id(),
-                offering.title(),
+                offering.name(),
                 questions,
                 Instant.now()
         );

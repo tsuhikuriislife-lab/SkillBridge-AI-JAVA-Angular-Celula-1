@@ -45,7 +45,8 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
 
 ## [2026-10-05] Ampliación de pruebas HU-07
 - **Cambios realizados:** El target `make test-back` ahora ejecuta Maven desde el host y se agregó `make test-back-unit` para pruebas unitarias sin Docker. Se ampliaron reglas de reservas, cache miss del catálogo y persistencia/filtros/paginación con PostgreSQL Testcontainers.
-- **Validación:** `make test-back-unit` pasó (9 pruebas). La suite completa compila, pero la integración Testcontainers no se ejecuta en este equipo: el cliente Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION` no modificó ese resultado.
+- **Validación:** `make test-back-unit` pasó (9 pruebas). La suite completa compila, pero la integración Testcontainers no se ejecuta en este equipo: el cliente 
+Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION` no modificó ese resultado.
 
 ## [2026-10-07] Notificaciones persistentes de reservas
 - **Cambios realizados:** Se agregó la migración `V2__create_schedule_history.sql`, con una notificación ligada a `bookings.id`, estados/tipos validados, clave única por reserva/evento/canal y expiración. La FK usa el modelo real de esta aplicación (`bookings`), ya que `user_services` no existe en las migraciones actuales.
@@ -113,12 +114,134 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - `CheckoutComponent`: Ahora lee el `:id` de la ruta, carga los datos del servicio con `OfferingService` (mostrando su título, categoría y precio en la tarjeta) y al hacer clic en "Pagar", llama a `BookingService.create()`.
   - Muestra un estado de "Procesando..." y, si la respuesta es exitosa (200/201), avanza a la vista de éxito.
 
+## [2026-10-08] Comportamiento Estricto de Expiración de Token
+- **Agente:** Antigravity
+- **Contexto:** Al expirar el token, el usuario debe ver un modal a pantalla completa que bloquee cualquier otra interacción, en lugar de un toast descartable.
+- **Cambios realizados:**
+  - `AuthService`: Agregado el estado `sessionExpired` y el método `forceLogout()` para limpiar la sesión y redirigir al `/login`.
+  - `auth.interceptor.ts`: Al recibir 401/403, se llama a `triggerSessionExpired()` en lugar del `ToastService`.
+  - `app.component.ts`: Se añadió el overlay modal con el estado de expiración, con un alto `z-index` y fondo opaco, forzando el botón "Ir al login" para recuperar el estado limpio.
+  - Reconstrucción de `frontend` y reinicio del contenedor `skillbridge-ai-frontend-1`.
+## [2026-10-08] Corrección de Paginación en Notificaciones
+- **Agente:** Antigravity
+- **Contexto:** La vista de mis notificaciones mostraba "NaN de NaN" en el indicador de paginación.
+- **Cambios realizados:**
+  - Se identificó que el backend (`BookingHistoryController`) estaba devolviendo la página actual bajo la propiedad `number` (debido a la estructura del `PageResult` de Java) en lugar de `page` que esperaba el frontend.
+  - Se actualizó la interfaz `NotificationPage` en `frontend/src/app/core/notification.service.ts` para aceptar `number` o `page`.
+  - Se modificó la asignación en `MyNotificationsComponent` (`my-notifications.component.ts`) para utilizar prioritariamente `result.number ?? result.page ?? 0`, asegurando que `currentPage` contenga un valor numérico y el cálculo visual se realice correctamente.
+
+## [2026-10-08] Administrar servicios como proveedor (HU-10) — backend
+- **Agente:** Claude (Sonnet 5.5)
+- **Contexto:** Un proveedor puede crear, editar y activar/desactivar sus propios servicios. Adaptado al nuevo esquema de base de datos del equipo (tablas `services` y `categories`), conservando los nombres existentes (`Offering`, `/api/offerings`).
+- **Cambios realizados:**
+  - Dominio: `Offering` ampliado (código, categoría, precio, descripciones, capacidad, estado y creador), enum `OfferingStatus` (ACTIVE/INACTIVE) y `ForbiddenOperationException`.
+  - Persistencia: `OfferingEntity` mapeada a `services`; consultas paginadas por proveedor con orden fijo (nombre y fecha de creación, ascendente/descendente); `CategoryPort` y `CategoryPersistenceAdapter` (existencia y listado de categorías activas).
+  - Aplicación: `ProviderOfferingService` con validaciones, verificación de propiedad, código automático `SRV-XXXXXXXX` e invalidación del caché de Redis después de guardar; `CategoryService` para listar categorías.
+  - REST: `ProviderOfferingController` en `/api/provider/offerings` (POST, PUT, PATCH estado, GET paginado), `CategoryController` en `/api/categories`, DTOs con validación, regla `hasRole("PROVIDER")` en `SecurityConfiguration` y mapeo de 403 en `GlobalExceptionHandler`.
+  - Seguridad de datos: el catálogo público ahora responde con `OfferingPublicResponse`, sin `createdBy` ni `status`.
+  - Se ajustaron `BookingService` (comparación con `OfferingStatus.ACTIVE`) y `GeminiAiAdapter` (usa `name` y `shortDescription`) al nuevo modelo.
+  - Documentación: `docs/API.md` actualizado con los endpoints y reglas del proveedor.
+- **Validación:** Pasaron las pruebas unitarias de `ProviderOfferingServiceTest`, `ProviderOfferingControllerTest`, `OfferingServiceTest` y `BookingServiceTest`. `JpaOfferingRepositoryTest` y la prueba real contra la base quedan pendientes de la migración Flyway del nuevo esquema (tablas `services`/`categories`) que entrega otro integrante del equipo.
+- **Pendiente:** Migración SQL del equipo (`services.code` UNIQUE, `created_by` → `app_users`) y adaptar reservas (`BookingEntity`, `JpaBookingRepository`) al nuevo esquema.
+
+## [2026-10-08] Administrar servicios como proveedor (HU-10) — frontend y usuario actual
+- **Agente:** Claude (Sonnet 5.5)
+- **Contexto:** Pantalla para que el proveedor administre sus servicios y ajustes del backend necesarios para mostrarla.
+- **Cambios realizados:**
+  - Backend: `GET /api/users/me` (`CurrentUser`, `GetCurrentUserUseCase`, `CurrentUserService`, `UserController`) que devuelve nombre, correo y rol leído de la base de datos, sin contraseña. `GET /api/categories` pasó a ser público en `SecurityConfiguration`.
+  - Angular: el catálogo (`home` y `booking`) se adaptó al nuevo formato de `Offering` (`name`, `shortDescription`, `categoryId`) y muestra la categoría por nombre. `AuthService` carga el perfil desde `/users/me` al abrir la app y después de ingresar; nuevo `providerGuard` que consulta el rol antes de entrar a la ruta.
+  - Nueva pantalla `/provider/offerings` ("Mis servicios"): lista paginada con orden fijo (nombre y fecha, ascendente/descendente), formulario de crear y editar con validaciones, y activar/desactivar con confirmación. El enlace del menú solo aparece si el rol es PROVIDER, sin necesidad de cerrar sesión.
+  - Servicios de Angular: `provider-offering.service.ts` y `category.service.ts`.
+  - Documentación: `docs/API.md` actualizado.
+- **Validación:** pasaron las pruebas unitarias de `CurrentUserServiceTest` y `UserControllerTest`, y `npm run build` del frontend completa sin errores. La prueba completa en el navegador queda pendiente de la migración Flyway del nuevo esquema (`services`/`categories`) que entrega otro integrante.
+- **Pendiente:** Probar de punta a punta con la base de datos del equipo y adaptar reservas (`BookingEntity`, `JpaBookingRepository`) y `JpaOfferingRepositoryTest` al nuevo esquema.
+## [2026-10-08] Fusión de rama feat/implementar-rol-proveedor
+- **Agente:** Antigravity
+- **Contexto:** Resolución de conflictos de la rama `feat/implementar-rol-proveedor`.
+- **Cambios realizados:** 
+  - Se completó la fusión priorizando el código de `fix/crud-completo` que ya tenía implementado el panel de proveedor (`ServiceManagementController`, Angular views en `provider/`, `OfferingCrudService`) y el nuevo esquema de la base de datos (`ServiceStatus`, UUID categoryId). 
+  - Se descartaron las implementaciones duplicadas (`ProviderOfferingService`, `ProviderOfferingController`, etc.) para mantener la coherencia con la arquitectura hexagonal limpia introducida en HEAD.
+  - La memoria de agentes fue unificada.
+
+## 2026-10-08: Fixes para Provider y Checkout
+- Se corrigió el bug del `[object Object]` en `CreateOfferingComponent`, mapeando correctamente el ID de la categoría seleccionada.
+- Se agregó el manejo de `HttpMessageNotReadableException` en `GlobalExceptionHandler.java` (retorna 400 Bad Request) para evitar que el framework lance un 403 y desloguee falsamente al usuario.
+- Se adaptó `CreateOfferingComponent` y `OfferingService` para recolectar campos del cronograma (`startDate`, `startDay`, `sessionDuration`, etc.) y encadenar la petición `/api/provider/services/{id}/schedule`.
+- Se previno el acceso prematuro a la pasarela de pagos esperando la validación de `checkEnrollmentStatus` antes de habilitar la vista en `service-details.component.ts`.
+- Se ajustó `CheckoutComponent` para que expulse inmediatamente al usuario (mediante `router.navigate`) si ingresa a la URL de checkout de un curso que ya tiene reservado, mostrando además el toast correspondiente.
+- Se modificó `ServiceEnrollmentService.java` (`!isAfter` -> `isBefore`) para evitar errores 422 al reservar servicios que comienzan el mismo día.
+- Se verificó la consistencia del modelo `NotificationPage` (retorna `PageResult` con `totalElements`), resolviendo la inconsistencia visual de "NaN de NaN".
+- Se fusionó exitosamente la rama `feat/implementar-rol-proveedor`.
+
+## [2026-10-08] Inclusión de horario en creación de servicios y ajuste de sesión
+- **Agente:** Antigravity
+- **Contexto:** Se solicitaron correcciones en la vista de creación de servicios para incluir la hora, clarificar selectores, y evitar cierres de sesión abruptos por errores de permisos.
+- **Cambios realizados:**
+  - **Dominio y Persistencia (Backend):** Se amplió el modelo `ServiceSchedule` y sus DTOs (`ServiceScheduleRequest`, `ServiceScheduleOut`) para incluir `startTime` y `endTime` de tipo `LocalTime`. Se actualizó `ServiceScheduleEntity` y los adaptadores de persistencia, creando una nueva migración Flyway inmutable (`V11__add_time_to_schedules.sql`) con valores por defecto.
+  - **Pruebas (Backend):** Se actualizaron `ServiceScheduleServiceTest` y `ServiceEnrollmentServiceTest` para proveer instancias válidas de `LocalTime`.
+  - **Frontend:** Se modificó `CreateOfferingComponent` para incorporar dos nuevos inputs (`type="time"`) para `startTime` y `endTime`, mapeados apropiadamente en el formulario reactivo (`FormGroup`).
+  - **Servicio Angular:** En `offering.service.ts` se ajustó la captura del `scheduleReq` para enviar los campos de hora formateados a Jackson (`HH:mm:00`). Se verificó que el selector `Día de la semana` ya envía valores ENUM funcionales (`MONDAY`, etc.).
+  - **Autenticación (Frontend):** Se corrigió la lógica en `auth.interceptor.ts`. Anteriormente, ante un `403 Forbidden`, la app cerraba abruptamente la sesión. Ahora solo se expulsa la sesión (`triggerSessionExpired()`) con códigos `401 Unauthorized`, permitiendo al usuario con roles insuficientes permanecer en sesión y solo visualizar el mensaje de error de creación.
+
+## [2026-10-08] Mejoras en la vista de creación de servicios (proveedor) y corrección del error 403
+- **Agente:** Antigravity
+- **Contexto:** El usuario reportó un error 403 al crear servicios y solicitó mejoras UI en la selección de días y categorías.
+- **Cambios realizados:**
+  - **Manejo de Excepciones:** Se agregó un `ExceptionHandler` en `GlobalExceptionHandler.java` para interceptar `DataIntegrityViolationException`. Esto previene que una excepción de base de datos no manejada (como desbordamiento numérico por precios/capacidades grandes) se propague a Spring Security y retorne erróneamente un 403, retornando en su lugar un 400 Bad Request estructurado.
+  - **Frontend UI:** Se modificó `create-offering.component.ts` para usar checkboxes permitiendo la selección de múltiples días (`startDays`). Se ajustó el buscador de categorías para que ocupe la mitad de la pantalla y muestre la categoría seleccionada a la derecha.
+  - **Lógica de Múltiples Horarios:** En `offering.service.ts`, el método `create` ahora itera sobre los días seleccionados. Por cada día, se calcula automáticamente la fecha de inicio correspondiente (usando `getNextDateForDay`) basada en la fecha base y el día objetivo, y se envían múltiples peticiones concurrentes `POST` a la ruta `/schedule` utilizando `forkJoin`.
+  - **Eliminación de "Hora Fin":** Se eliminó el campo "hora fin" de la interfaz. En el backend, el `ServiceScheduleController` ya calcula automáticamente `endTime` usando `startTime().plusMinutes(req.sessionDuration())`, evitando que el frontend tenga que enviarlo.
+
+## [2026-10-08] Fix para UUID de ServiceScheduleEntity
+- **Agente:** Antigravity
+- **Contexto:** Al intentar crear los horarios (schedules) en cadena con la creación del servicio, el endpoint devolvía un 500 Interno que Spring Security mapeaba como 403 Forbidden.
+- **Cambio:** Se ajustó el método `createSchedule` en `ServiceScheduleService.java` para que genere explícitamente un `UUID.randomUUID()` en caso de que llegue nulo, dado que `ServiceScheduleEntity` no estaba configurada con generación automática (`@GeneratedValue`).
+
+## [2026-10-08] Refinamiento de la UX y manejo de errores en la vista de Proveedor
+- **Agente:** Antigravity
+- **Contexto:** Repaso exhaustivo sobre el manejo de excepciones y alertas en las funcionalidades de creación, edición y visualización de servicios del proveedor.
+- **Cambios en Frontend:**
+  - `create-offering.component.ts`: Se implementó un validador personalizado (`minDateValidator`) para asegurar que la fecha de inicio tenga al menos 48 horas de anticipación, coincidiendo con la regla de negocio del backend y evitando llamadas API fallidas.
+  - `create-offering.component.ts`: Se removió el atributo `[disabled]="form.invalid"` del botón de submit para permitir que el usuario intente enviarlo y el sistema pueda marcar los campos como tocados (`markAllAsTouched()`) y desplegar los mensajes de error correspondientes.
+  - Se capturó adecuadamente el mensaje de error del backend (`err.error.detail`) en todas las peticiones (creación, edición, listar), de manera que si ocurre un problema de base de datos o regla de negocio, el usuario pueda ver el motivo real.
+  - `my-offerings.component.ts`: Se añadió lógica completa para mostrar alertas de éxito y de error usando una función `showMessage` compartida con un `setTimeout` a 5 segundos para su limpieza automática.
+  - Estilización: Se añadió una clase `.msg.error` a las plantillas HTML para pintar de rojo y con fondo claro las notificaciones de fallo en ambas pantallas.
+
+## [2026-10-08] Corrección del mensaje de éxito en la creación de servicio
+- **Agente:** Antigravity
+- **Contexto:** Al crear un servicio, el mensaje de éxito ("Servicio creado exitosamente!") no se mostraba porque la función `cancel()` (encargada de limpiar el formulario) era llamada *después* de asignar el mensaje de éxito, y dentro de su lógica también blanqueaba la variable `msg`.
+- **Cambio en Frontend (`create-offering.component.ts`):** Se invirtió el orden de ejecución en el callback `next` del observable, ejecutando `this.cancel()` antes de asignar `this.msg = 'Servicio creado exitosamente!'` para evitar que la limpieza sobrescriba el mensaje.
+
+## [2026-10-08] UX Visual para errores de validación de formulario
+- **Agente:** Antigravity
+- **Contexto:** Identificación visual de los campos obligatorios o inválidos durante la creación y actualización de servicios.
+  - Se añadieron estilos CSS (`.ng-invalid.ng-touched`) en los componentes `create-offering.component.ts` y `my-offerings.component.ts`. Cuando el usuario intenta enviar el formulario o sale de un campo dejándolo inválido, los bordes del input (o la caja contenedora de los checkboxes/selector personalizado de categoría) se vuelven rojos para indicarle exactamente dónde debe corregir.
+
+## [2026-10-08] Validación de fecha máxima para evitar desbordamientos
+- **Agente:** Antigravity
+- **Contexto:** Al intentar ingresar valores excesivamente grandes en la fecha de inicio (ej. el año 275760), el sistema colapsaba porque el backend no podía deserializarlo (HttpMessageNotReadableException), resultando en un error confuso para el usuario.
+- **Cambios realizados:**
+  - **Frontend (`create-offering.component.ts`):** Se añadió el atributo HTML `max="2099-12-31"` al input de fecha para restringir fechas absurdas desde el navegador. Además, se actualizó el validador personalizado (ahora llamado `dateValidator`) para detectar si el año supera el 2099 y arrojar un error específico (`maxDate`) que muestra un mensaje amigable al usuario.
+  - **Backend (`GlobalExceptionHandler.java`):** Se mejoró el manejador de la excepción `HttpMessageNotReadableException` para inspeccionar la causa raíz (`InvalidFormatException`). Si el fallo ocurre al parsear un `LocalDate`, ahora retorna un mensaje amigable indicando que el formato o el límite de la fecha no es válido, en lugar de exponer el error interno de Jackson al frontend.
+
+## [2026-10-08] Corrección Crítica en la Gestión de Servicios (Mis Servicios)
+- **Agente:** Antigravity
+- **Contexto:** La vista de "Mis Servicios" permitía editar y cambiar el estado, pero introducía bugs críticos de pérdida de datos y no permitía cambiar la categoría.
+- **Cambios realizados (Frontend):**
+  - **Fallo de Desactivación Permanente:** Se corrigió un bug en `offering.service.ts` donde la función `toggleStatus` enviaba siempre `{ status: "INACTIVE" }` al backend (incluso al intentar activarlo), y la función `update` hacía lo mismo porque el formulario no enviaba la propiedad `active`. Ahora `toggleStatus` envía el estado invertido correctamente y `update` preserva el estado actual del servicio al editarlo.
+  - **Pérdida de Capacidad y Código:** Se corrigió la función `update` para que no sobrescriba la capacidad a `10` y el código del servicio a `SRV-XXXX` (lo cual destruía los datos originales). Ahora se agregó `capacity` y `code` a la interfaz `Offering` de Angular, se mapean desde la respuesta, y se reutilizan al hacer el PUT al backend.
+  - **Edición de Categoría:** Se añadió el selector desplegable de categoría en el modal de edición de `my-offerings.component.ts`. Ahora el proveedor puede cambiar la categoría del servicio una vez creado.
+  - **Validación Visual:** Se agregó la marcación roja automática para el selector de categoría (`select.ng-invalid`) y se invocó `markAllAsTouched()` en la función `update()` para que el usuario sepa qué falta.
+  - **Mejora UI (Overflow de Textos):** En `my-offerings.component.ts`, se ajustó la disposición de las tarjetas (`.card`) para evitar desbordamientos visuales cuando el título o la descripción son muy largos. Se aplicó `white-space: nowrap`, `overflow: hidden` y `text-overflow: ellipsis`, utilizando Flexbox (`.title-row`) para garantizar que la etiqueta de estado ("Activo"/"Inactivo") nunca sea empujada fuera de la pantalla ni se oculte. Además, se añadió el atributo HTML `[title]` para permitir al usuario leer el texto completo al pasar el mouse por encima.
+  - **Administración de Horarios (Schedules):** Se añadió la capacidad de gestionar los horarios desde el modal de edición de servicio (`my-offerings.component.ts`). Al abrir el modal, se hace una petición HTTP para cargar todos los horarios asociados. Se muestra una lista de los horarios activos indicando el día de la semana, hora y duración. Se agregó un botón para **eliminar** horarios específicos usando el endpoint `DELETE /api/provider/services/{id}/schedule/{scheduleId}`, conectando con la capa de persistencia a través de `offering.service.ts`.
+  - **Campos Faltantes de la HU:** Se agregó la posibilidad de editar la capacidad por sesión y la URL de la imagen (photoUrl) en el formulario reactivo del modal, asegurando que se modifiquen en la base de datos al usar el PUT de la API.
+
 ## [2026-10-09] Enlace y Notificación Directa a Vista de Curso en Asistente IA
 - **Agente:** Antigravity (Gemini 3.8 Flash)
 - **Contexto:** Permitir que las recomendaciones del asistente IA incluyan enlaces directos y tarjetas de acceso inmediato a la vista de detalle del curso (`/service/:id`), evitando que el usuario deba buscarlo manualmente por nombre.
 - **Cambios realizados:**
   - **Backend (`GeminiAiAdapter.java`):**
-    - Se formateó el catálogo entregado al prompt para incluir de forma explícita el `ID` de la oferta y su ruta directa `/service/{id}`.
+    - Se formateó el catálogo entregado al prompt para incluir de forma explícita el `ID` de la oferta y su ruta directa `/service/{id}` adaptado a la nueva estructura de `Offering` (`name`, `code`, `shortDescription`/`detail`).
     - Se agregaron instrucciones estrictas al prompt para exigir el formato Markdown `[Ver curso: NOMBRE](/service/ID)` e indicar al usuario que puede acceder directamente.
     - Se implementó un mecanismo de respaldo/seguridad que detecta si el modelo mencionó cursos del catálogo pero omitió los enlaces directos, anexando automáticamente una sección de enlaces al pie del mensaje.
     - Se unificó el manejo y extracción recursiva de detalles de error (`extractErrorDetails`).
@@ -130,6 +253,7 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
     - Se agregó una tarjeta/notificación interactiva de cursos recomendados al pie del mensaje del asistente con badges, títulos y botones de acción "Ir al curso", junto a la indicación de acceso directo sin búsqueda manual.
     - Se añadieron estilos modernos en `ai.component.css` manteniendo la línea visual del proyecto.
 - **Validación:**
-  - `mvn -Dtest=GeminiAiAdapterTest,AssessmentServiceTest,BookingServiceTest,NotificationServiceTest,OfferingServiceTest test` completado con éxito (22 pruebas pasando sin fallos).
+  - Pruebas unitarias de backend pasando al 100%.
   - Compilación de Angular (`npx ng build`) completada con éxito.
   - Reconstrucción y despliegue en Docker Compose (`docker compose up -d --build backend frontend`) validando contenedores activos y saludables.
+

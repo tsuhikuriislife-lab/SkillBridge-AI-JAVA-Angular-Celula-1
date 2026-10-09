@@ -13,17 +13,25 @@ import java.util.List;
 
 @Component
 public class GeminiAiAdapter implements AiRecommendationPort {
-        private final ChatClient chatClient;
+    private final ChatClient chatClient;
 
-        public GeminiAiAdapter(ChatClient.Builder chatClientBuilder) {
-                this.chatClient = chatClientBuilder.build();
+    public GeminiAiAdapter(ChatClient.Builder chatClientBuilder) {
+        this.chatClient = chatClientBuilder.build();
     }
 
     @Override
     public String recommend(String goal, List<Offering> offerings) {
         String catalog = offerings.stream()
-                .map(o -> "- ID: %s | Título: \"%s\" | Categoría: %s | Enlace directo: /service/%s | Descripción: %s"
-                        .formatted(o.id(), o.title(), o.category(), o.id(), o.description()))
+                .map(o -> "- ID: %s | Título: \"%s\" [%s] | Enlace directo: /service/%s | Descripción: %s"
+                        .formatted(
+                                o.id(),
+                                o.name(),
+                                o.code(),
+                                o.id(),
+                                o.shortDescription() != null && !o.shortDescription().isBlank()
+                                        ? o.shortDescription()
+                                        : (o.detail() != null ? o.detail() : "Sin descripción")
+                        ))
                 .reduce("", (a, b) -> a + "\n" + b);
 
         String prompt = """
@@ -34,7 +42,7 @@ public class GeminiAiAdapter implements AiRecommendationPort {
                 INSTRUCCIONES OBLIGATORIAS DE ENLACES DIRECTOS:
                 1. Por cada servicio o curso que recomiendes del catálogo, es OBLIGATORIO que incluyas su enlace directo en formato Markdown exactamente así:
                    [Ver curso: NOMBRE DEL CURSO](/service/ID)
-                   (utilizando el ID y el Título exactos del catálogo).
+                   (utilizando el ID y el Nombre exactos del catálogo).
                 2. Al final de tu recomendación, añade siempre una nota destacada recordando al usuario que puede hacer clic directamente en el enlace o en la notificación de abajo para ir a la vista detallada del curso e iniciar su inscripción sin tener que buscarlo manualmente por nombre.
 
                 Objetivo del usuario:
@@ -53,11 +61,11 @@ public class GeminiAiAdapter implements AiRecommendationPort {
                 throw new BusinessRuleException("Gemini no devolvió una respuesta válida");
             }
 
-            // Respaldo de seguridad: si Gemini mencionó el título de un curso pero omitió el enlace directo /service/ID,
+            // Respaldo de seguridad: si Gemini mencionó el nombre de un curso pero omitió el enlace directo /service/ID,
             // garantizamos que se anexe al final para asegurar la navegación directa sin búsqueda manual.
             String finalResponse = response;
             List<Offering> mentionedWithoutLink = offerings.stream()
-                    .filter(o -> finalResponse.toLowerCase().contains(o.title().toLowerCase()))
+                    .filter(o -> finalResponse.toLowerCase().contains(o.name().toLowerCase()))
                     .filter(o -> !finalResponse.contains("/service/" + o.id()))
                     .toList();
 
@@ -65,7 +73,7 @@ public class GeminiAiAdapter implements AiRecommendationPort {
                 StringBuilder appendix = new StringBuilder();
                 appendix.append("\n\n---\n**Enlaces directos a los cursos recomendados:**\n");
                 for (Offering o : mentionedWithoutLink) {
-                    appendix.append("- [Ver curso: %s](/service/%s)\n".formatted(o.title(), o.id()));
+                    appendix.append("- [Ver curso: %s](/service/%s)\n".formatted(o.name(), o.id()));
                 }
                 appendix.append("\n*Haz clic en el enlace para ir directamente a la vista del curso sin tener que buscarlo manualmente por su nombre.*");
                 response += appendix.toString();

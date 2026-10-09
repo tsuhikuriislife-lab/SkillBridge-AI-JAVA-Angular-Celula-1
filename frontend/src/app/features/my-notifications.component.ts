@@ -124,7 +124,7 @@ export class MyNotificationsComponent implements OnInit {
         this.notificationService.listMine(page, this.pageSize).subscribe({
             next: (result: NotificationPage) => {
                 this.notifications = result.content;
-                this.currentPage = result.page;
+                this.currentPage = result.number !== undefined ? result.number : (result.page ?? 0);
                 this.totalElements = result.totalElements;
                 this.totalPages = result.totalPages;
                 this.loading = false;

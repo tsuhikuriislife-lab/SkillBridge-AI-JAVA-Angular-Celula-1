@@ -9,9 +9,16 @@ import com.riwi.skillbridge.domain.exception.InvalidCredentialsException;
 import org.springframework.http.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail dataIntegrity(DataIntegrityViolationException ex) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Los datos enviados exceden los límites permitidos o violan una restricción.");
+        p.setTitle("Data Integrity Violation");
+        return p;
+    }
     @ExceptionHandler(DomainNotFoundException.class)
     ProblemDetail notFound(DomainNotFoundException ex) {
         ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
@@ -40,6 +47,19 @@ public class GlobalExceptionHandler {
                 .findFirst().orElse("Solicitud inválida");
         ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
         p.setTitle("Validation error");
+        return p;
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    ProblemDetail notReadable(org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        String detail = "El formato de los datos enviados no es válido. Verifica que los campos, como las fechas o números, tengan un formato correcto y razonable.";
+        if (ex.getCause() instanceof com.fasterxml.jackson.databind.exc.InvalidFormatException formatEx) {
+             if (formatEx.getTargetType() != null && formatEx.getTargetType().equals(java.time.LocalDate.class)) {
+                 detail = "La fecha proporcionada tiene un formato no válido o excede los límites permitidos.";
+             }
+        }
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
+        p.setTitle("Bad Request");
         return p;
     }
 
