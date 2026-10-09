@@ -113,6 +113,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - `app.routes.ts`: Se cambió la ruta a `/checkout/:id` para recibir el ID del servicio.
   - `CheckoutComponent`: Ahora lee el `:id` de la ruta, carga los datos del servicio con `OfferingService` (mostrando su título, categoría y precio en la tarjeta) y al hacer clic en "Pagar", llama a `BookingService.create()`.
   - Muestra un estado de "Procesando..." y, si la respuesta es exitosa (200/201), avanza a la vista de éxito.
+
 ## [2026-10-08] Comportamiento Estricto de Expiración de Token
 - **Agente:** Antigravity
 - **Contexto:** Al expirar el token, el usuario debe ver un modal a pantalla completa que bloquee cualquier otra interacción, en lugar de un toast descartable.
@@ -234,3 +235,25 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - **Mejora UI (Overflow de Textos):** En `my-offerings.component.ts`, se ajustó la disposición de las tarjetas (`.card`) para evitar desbordamientos visuales cuando el título o la descripción son muy largos. Se aplicó `white-space: nowrap`, `overflow: hidden` y `text-overflow: ellipsis`, utilizando Flexbox (`.title-row`) para garantizar que la etiqueta de estado ("Activo"/"Inactivo") nunca sea empujada fuera de la pantalla ni se oculte. Además, se añadió el atributo HTML `[title]` para permitir al usuario leer el texto completo al pasar el mouse por encima.
   - **Administración de Horarios (Schedules):** Se añadió la capacidad de gestionar los horarios desde el modal de edición de servicio (`my-offerings.component.ts`). Al abrir el modal, se hace una petición HTTP para cargar todos los horarios asociados. Se muestra una lista de los horarios activos indicando el día de la semana, hora y duración. Se agregó un botón para **eliminar** horarios específicos usando el endpoint `DELETE /api/provider/services/{id}/schedule/{scheduleId}`, conectando con la capa de persistencia a través de `offering.service.ts`.
   - **Campos Faltantes de la HU:** Se agregó la posibilidad de editar la capacidad por sesión y la URL de la imagen (photoUrl) en el formulario reactivo del modal, asegurando que se modifiquen en la base de datos al usar el PUT de la API.
+
+## [2026-10-09] Enlace y Notificación Directa a Vista de Curso en Asistente IA
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Permitir que las recomendaciones del asistente IA incluyan enlaces directos y tarjetas de acceso inmediato a la vista de detalle del curso (`/service/:id`), evitando que el usuario deba buscarlo manualmente por nombre.
+- **Cambios realizados:**
+  - **Backend (`GeminiAiAdapter.java`):**
+    - Se formateó el catálogo entregado al prompt para incluir de forma explícita el `ID` de la oferta y su ruta directa `/service/{id}` adaptado a la nueva estructura de `Offering` (`name`, `code`, `shortDescription`/`detail`).
+    - Se agregaron instrucciones estrictas al prompt para exigir el formato Markdown `[Ver curso: NOMBRE](/service/ID)` e indicar al usuario que puede acceder directamente.
+    - Se implementó un mecanismo de respaldo/seguridad que detecta si el modelo mencionó cursos del catálogo pero omitió los enlaces directos, anexando automáticamente una sección de enlaces al pie del mensaje.
+    - Se unificó el manejo y extracción recursiva de detalles de error (`extractErrorDetails`).
+    - Se crearon pruebas unitarias completas en `GeminiAiAdapterTest` validando enlaces directos, respaldo de seguridad y excepciones de configuración, cuota y red.
+  - **Frontend (`AiComponent`):**
+    - Se actualizó el modelo de mensaje `ChatMessage` para soportar `SafeHtml` y lista de `courses` recomendados.
+    - Se implementó pre-carga de ofertas con `OfferingService` y extracción dinámica de IDs y cursos recomendados (`extractCourses`).
+    - Se agregaron formateo de Markdown interactivo para enlaces `/service/:id` y captura de eventos de clic en la burbuja para navegar con el `Router` de Angular sin recargar la página.
+    - Se agregó una tarjeta/notificación interactiva de cursos recomendados al pie del mensaje del asistente con badges, títulos y botones de acción "Ir al curso", junto a la indicación de acceso directo sin búsqueda manual.
+    - Se añadieron estilos modernos en `ai.component.css` manteniendo la línea visual del proyecto.
+- **Validación:**
+  - Pruebas unitarias de backend pasando al 100%.
+  - Compilación de Angular (`npx ng build`) completada con éxito.
+  - Reconstrucción y despliegue en Docker Compose (`docker compose up -d --build backend frontend`) validando contenedores activos y saludables.
+
