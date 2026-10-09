@@ -9,12 +9,14 @@ export interface Offering {
   title: string;
   description: string;
   category: string;
-  categoryId?: string; // Add categoryId
+  categoryId?: string;
   price: number;
   active: boolean;
-  startTime?: string;
-  endTime?: string;
-  endDay?: string;
+  startDate?: string;
+  startDay?: string;
+  sessionDuration?: number;
+  frequency?: string;
+  numberOfSessions?: number;
   photoUrl?: string;
   createdBy?: string;
 }
@@ -96,7 +98,7 @@ export class OfferingService {
     );
   }
   
-  create(offering: Partial<Offering>): Observable<Offering> {
+  create(offering: any): Observable<Offering> {
     const req = {
       name: offering.title,
       categoryId: offering.categoryId || offering.category,
@@ -110,7 +112,18 @@ export class OfferingService {
     return this.resolveCategories().pipe(
       switchMap(catMap => 
         this.http.post<any>(`${apiBase()}/provider/services`, req).pipe(
-          map(o => this.mapToFrontend(o, catMap))
+          switchMap(createdService => {
+            const scheduleReq = {
+              startDay: offering.startDay,
+              sessionDuration: offering.sessionDuration,
+              frequency: offering.frequency,
+              numberOfSessions: offering.numberOfSessions,
+              startDate: offering.startDate
+            };
+            return this.http.post<any>(`${apiBase()}/provider/services/${createdService.id}/schedule`, scheduleReq).pipe(
+              map(() => this.mapToFrontend(createdService, catMap))
+            );
+          })
         )
       )
     );

@@ -15,5 +15,15 @@ export const routes: Routes = [
   { path: 'notifications', component: MyNotificationsComponent, canActivate: [authGuard] },
   { path: 'service/:id', loadComponent: () => import('./features/service-details.component').then(m => m.ServiceDetailsComponent), canActivate: [authGuard] },
   { path: 'checkout/:id', loadComponent: () => import('./features/checkout.component').then(m => m.CheckoutComponent), canActivate: [authGuard] },
+  { 
+    path: 'provider', 
+    loadComponent: () => import('./features/provider/provider-dashboard.component').then(m => m.ProviderDashboardComponent),
+    canActivate: [authGuard],
+    children: [
+      { path: 'new', loadComponent: () => import('./features/provider/create-offering.component').then(m => m.CreateOfferingComponent) },
+      { path: 'services', loadComponent: () => import('./features/provider/my-offerings.component').then(m => m.MyOfferingsComponent) },
+      { path: '', redirectTo: 'services', pathMatch: 'full' }
+    ]
+  },
   { path: '**', component: NotFoundComponent, data: { is404: true } }
 ];

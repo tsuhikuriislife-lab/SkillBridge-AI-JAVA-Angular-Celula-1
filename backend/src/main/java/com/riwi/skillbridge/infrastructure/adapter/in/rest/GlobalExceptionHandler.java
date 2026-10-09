@@ -43,6 +43,13 @@ public class GlobalExceptionHandler {
         return p;
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    ProblemDetail notReadable(org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Formato de solicitud inválido: " + ex.getMessage());
+        p.setTitle("Bad Request");
+        return p;
+    }
+
     @ExceptionHandler(AiConfigurationException.class)
     ProblemDetail aiConfiguration(AiConfigurationException ex) {
         ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
