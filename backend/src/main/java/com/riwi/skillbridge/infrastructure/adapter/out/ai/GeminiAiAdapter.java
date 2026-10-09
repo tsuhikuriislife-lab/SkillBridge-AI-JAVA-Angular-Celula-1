@@ -22,13 +22,20 @@ public class GeminiAiAdapter implements AiRecommendationPort {
     @Override
     public String recommend(String goal, List<Offering> offerings) {
         String catalog = offerings.stream()
-                .map(o -> "- %s [%s]: %s".formatted(o.title(), o.category(), o.description()))
+                .map(o -> "- ID: %s | Título: \"%s\" | Categoría: %s | Enlace directo: /service/%s | Descripción: %s"
+                        .formatted(o.id(), o.title(), o.category(), o.id(), o.description()))
                 .reduce("", (a, b) -> a + "\n" + b);
 
         String prompt = """
-                Eres el asistente de SkillBridge AI. Recomienda como máximo 3 servicios del catálogo
-                que ayuden al usuario a lograr su objetivo. Explica brevemente por qué y propone un
-                siguiente paso. No inventes servicios que no estén en el catálogo.
+                Eres el asistente virtual experto de SkillBridge AI. Recomienda como máximo 3 cursos o servicios del catálogo
+                que ayuden al usuario a lograr su objetivo. Explica de forma clara, motivadora y concisa por qué cada curso le conviene
+                y propone un siguiente paso práctico. No inventes cursos ni servicios que no estén en el catálogo disponible.
+
+                INSTRUCCIONES OBLIGATORIAS DE ENLACES DIRECTOS:
+                1. Por cada servicio o curso que recomiendes del catálogo, es OBLIGATORIO que incluyas su enlace directo en formato Markdown exactamente así:
+                   [Ver curso: NOMBRE DEL CURSO](/service/ID)
+                   (utilizando el ID y el Título exactos del catálogo).
+                2. Al final de tu recomendación, añade siempre una nota destacada recordando al usuario que puede hacer clic directamente en el enlace o en la notificación de abajo para ir a la vista detallada del curso e iniciar su inscripción sin tener que buscarlo manualmente por nombre.
 
                 Objetivo del usuario:
                 %s
@@ -45,18 +52,30 @@ public class GeminiAiAdapter implements AiRecommendationPort {
             if (response == null || response.isBlank()) {
                 throw new BusinessRuleException("Gemini no devolvió una respuesta válida");
             }
+
+            // Respaldo de seguridad: si Gemini mencionó el título de un curso pero omitió el enlace directo /service/ID,
+            // garantizamos que se anexe al final para asegurar la navegación directa sin búsqueda manual.
+            String finalResponse = response;
+            List<Offering> mentionedWithoutLink = offerings.stream()
+                    .filter(o -> finalResponse.toLowerCase().contains(o.title().toLowerCase()))
+                    .filter(o -> !finalResponse.contains("/service/" + o.id()))
+                    .toList();
+
+            if (!mentionedWithoutLink.isEmpty()) {
+                StringBuilder appendix = new StringBuilder();
+                appendix.append("\n\n---\n**Enlaces directos a los cursos recomendados:**\n");
+                for (Offering o : mentionedWithoutLink) {
+                    appendix.append("- [Ver curso: %s](/service/%s)\n".formatted(o.title(), o.id()));
+                }
+                appendix.append("\n*Haz clic en el enlace para ir directamente a la vista del curso sin tener que buscarlo manualmente por su nombre.*");
+                response += appendix.toString();
+            }
+
             return response;
         } catch (BusinessRuleException ex) {
             throw ex;
         } catch (RuntimeException ex) {
-            String msg = (ex.getMessage() != null) ? ex.getMessage().toLowerCase() : "";
-            Throwable cause = ex.getCause();
-            while (cause != null) {
-                if (cause.getMessage() != null) {
-                    msg += " " + cause.getMessage().toLowerCase();
-                }
-                cause = cause.getCause();
-            }
+            String msg = extractErrorDetails(ex);
 
             if (msg.contains("401") || msg.contains("403") || msg.contains("api_key") || msg.contains("unauthorized") || msg.contains("api key")) {
                 throw new AiConfigurationException("Error de configuración: La API Key de Gemini es inválida o no está configurada.");

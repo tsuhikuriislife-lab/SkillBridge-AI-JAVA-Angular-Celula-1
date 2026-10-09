@@ -258,6 +258,191 @@
     font-size: 14px;
     font-weight: 500;
     line-height: 1.55;
+    word-break: break-word;
+}
+
+/* Contenedor del contenido del mensaje (burbuja + tarjetas) */
+.message__content-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 100%;
+}
+
+.message--assistant .message__content-wrap {
+    align-items: flex-start;
+}
+
+.message--user .message__content-wrap {
+    align-items: flex-end;
+}
+
+/* Enlaces directos a cursos dentro de la burbuja */
+.message__bubble .chat-service-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #1d4ed8;
+    background-color: rgba(37, 99, 235, 0.08);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    text-decoration: none;
+    border: 1px solid rgba(37, 99, 235, 0.22);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 2px 2px 2px 0;
+    vertical-align: middle;
+}
+
+.message__bubble .chat-service-link:hover {
+    background-color: rgba(37, 99, 235, 0.16);
+    color: #1e40af;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.15);
+}
+
+.message__bubble .chat-service-link i {
+    font-size: 13px;
+}
+
+.message__bubble .chat-divider {
+    border: none;
+    border-top: 1px solid rgb(var(--color-border));
+    margin: 10px 0;
+}
+
+/* ============================================================
+   TARJETA / NOTIFICACIÓN DE ACCESO DIRECTO AL CURSO RECOMENDADO
+   ============================================================ */
+.message__courses-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    background-color: #ffffff;
+    border: 1px solid rgba(40, 97, 216, 0.22);
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(40, 97, 216, 0.08);
+    width: 100%;
+    margin-top: 2px;
+}
+
+.message__courses-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: rgb(var(--color-primary));
+}
+
+.message__courses-header i {
+    font-size: 16px;
+}
+
+.message__courses-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.message__course-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background-color: #f8faff;
+    border: 1px solid rgba(40, 97, 216, 0.18);
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.message__course-btn:hover {
+    background-color: rgba(40, 97, 216, 0.08);
+    border-color: rgb(var(--color-primary));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(40, 97, 216, 0.12);
+}
+
+.message__course-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.message__course-badge {
+    display: inline-block;
+    align-self: flex-start;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    background-color: rgba(40, 97, 216, 0.12);
+    color: rgb(var(--color-primary));
+    border-radius: 6px;
+}
+
+.message__course-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: rgb(var(--color-dark));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.message__course-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #ffffff;
+    background-color: rgb(var(--color-primary));
+    border-radius: 8px;
+    white-space: nowrap;
+    transition: background-color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.message__course-btn:hover .message__course-action {
+    background-color: #1d4ed8;
+}
+
+.message__course-action i {
+    font-size: 16px;
+    transition: transform 0.2s ease;
+}
+
+.message__course-btn:hover .message__course-action i {
+    transform: translateX(3px);
+}
+
+.message__courses-tip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: rgb(var(--color-text));
+    line-height: 1.4;
+}
+
+.message__courses-tip i {
+    font-size: 15px;
+    color: rgb(var(--color-primary));
+    flex-shrink: 0;
 }
 
 /* Mensaje de bienvenida especial */
