@@ -57,17 +57,17 @@ export class CheckoutComponent implements OnInit {
   }
 
   private handleAlreadyEnrolled(): void {
-    this.error = 'Ya estás inscrito en este servicio.';
     this.toastService.show('Ya tienes una reserva activa para este servicio.', [
       {
-        label: 'Regresar al servicio',
+        label: 'Ver mis reservas',
         primary: true,
         action: () => {
           this.toastService.clear();
-          this.router.navigate(['/service', this.offeringId]);
+          this.router.navigate(['/bookings']);
         }
       }
     ]);
+    this.router.navigate(['/service', this.offeringId]);
   }
 
   private loadServiceData(): void {

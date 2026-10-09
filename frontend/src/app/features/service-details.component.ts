@@ -49,7 +49,6 @@ export class ServiceDetailsComponent implements OnInit {
       this.service.getById(id).subscribe({
         next: data => {
           this.offering = data;
-          this.loading = false;
           this.checkEnrollmentStatus(id);
         },
         error: () => {
@@ -64,11 +63,18 @@ export class ServiceDetailsComponent implements OnInit {
   }
 
   checkEnrollmentStatus(serviceId: string): void {
-    if (!this.auth.isLoggedIn()) return;
+    if (!this.auth.isLoggedIn()) {
+      this.loading = false;
+      return;
+    }
     this.http.get<any>(`${apiBase()}/enrollments/me?size=100`).subscribe({
       next: (res) => {
         const list = res.content || [];
         this.isEnrolled = list.some((e: any) => e.serviceId === serviceId && e.status === 'ACTIVE');
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
       }
     });
   }

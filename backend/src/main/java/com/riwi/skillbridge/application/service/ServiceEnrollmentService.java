@@ -62,7 +62,7 @@ public class ServiceEnrollmentService implements EnrollUserUseCase, RetrieveEnro
         ServiceSchedule schedule = schedulePort.findByServiceId(service.id()).stream()
                 .findFirst()
                 .orElseThrow(() -> new BusinessRuleException("El servicio no tiene horario definido"));
-        if (!schedule.startDate().isAfter(LocalDate.now()))
+        if (schedule.startDate().isBefore(LocalDate.now()))
             throw new BusinessRuleException("El servicio ya comenzó, no admite inscripciones");
 
         enrollmentPort.findByUserIdAndServiceId(request.userId(), service.id())
