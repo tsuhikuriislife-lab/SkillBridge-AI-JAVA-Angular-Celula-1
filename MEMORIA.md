@@ -257,3 +257,22 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Compilación de Angular (`npx ng build`) completada con éxito.
   - Reconstrucción y despliegue en Docker Compose (`docker compose up -d --build backend frontend`) validando contenedores activos y saludables.
 
+
+## [2026-10-09] Fusión de funcionalidades de la vista de proveedor
+- **Agente:** Antigravity
+- **Contexto:** La rama actual (`fix/frontend-details`) tenía una implementación muy básica y desactualizada de la vista de proveedor en comparación con la rama `develop`, la cual contenía funcionalidades avanzadas de la HU-13 (gestión de horarios, validaciones complejas de fechas, manejo de categorías por objeto, entre otras).
+- **Acción:** Se realizó un merge (fusión) de los cambios de `origin/develop` hacia la rama actual, priorizando los cambios de `develop` (estrategia `-X theirs`) para resolver automáticamente los conflictos en favor de la implementación más completa.
+- **Resultado:** La rama actual ahora tiene la versión más robusta de los componentes `create-offering.component.ts` y `my-offerings.component.ts`, alineada con las funcionalidades desarrolladas en `develop`.
+
+## [2026-10-09] Mejora visual y descriptiva en notificaciones
+- **Agente:** Antigravity
+- **Contexto:** La vista de notificaciones en Angular estaba solo mostrando de manera estática el cambio de estado de la reserva, sin permitir ir al detalle del servicio ni comparar claramente el estado anterior.
+- **Acción (Frontend):** Se modificó la plantilla de `my-notifications.component.ts` agregando un ancla `<a>` con la directiva `[routerLink]` que envuelve al título (`notification.title`). Ahora enlaza a `/service/:bookingId` usando clases para estilizar.
+- **Acción (Backend):** En `BookingHistoryController.java` se mejoró la generación del texto de la notificación para que busque en el `BookingHistory` del usuario cuál era su estado anterior. Ahora ensambla dinámicamente el mensaje: `"El/la estado del servicio fue modificado. Antes: [antes], despues [despues]"`. Si es el primer evento en la historia, el "Antes" queda catalogado como "Ninguno".
+- **Validación:** Se recompiló la imagen `backend` en Docker y se verificó que arranca satisfactoriamente.
+
+## [2026-10-09] Corrección de Fallo de CI por Límite de Peticiones en Docker Hub
+- **Agente:** Antigravity
+- **Contexto:** Al empujar los últimos cambios, las pruebas en GitHub Actions (`docker/build-push-action`) fallaron con un error `429 Too Many Requests` proveniente de `registry-1.docker.io`. Esto ocurre porque las IPs públicas de GitHub Actions suelen sobrepasar el límite de descargas anónimas impuesto por Docker Hub para imágenes oficiales.
+- **Acción:** Se modificaron los archivos `backend/Dockerfile` y `frontend/Dockerfile` para sustituir las imágenes base de Docker Hub (`maven`, `eclipse-temurin`, `node`, `nginx`) por sus réplicas oficiales en el registro público de Amazon ECR (`public.ecr.aws/docker/library/...`), el cual no impone límites estrictos de peticiones anónimas.
+- **Resultado:** Los Dockerfiles mantienen las mismas versiones (ej. `node:22-alpine`, `maven:3.9.16-eclipse-temurin-21`), pero descargadas desde un espejo (mirror) confiable, lo que garantiza estabilidad en los pipelines de integración continua.
