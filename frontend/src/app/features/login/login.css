@@ -541,3 +541,31 @@
         padding: 40px 8%;
     }
 }
+
+/* ---------- Mensaje de error / alerta ---------- */
+
+.login-form__alert{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    width: 100%;
+    padding: 12px 16px;
+
+    background-color: rgb(239 68 68 / 8%);
+    border: 1px solid rgb(239 68 68 / 25%);
+    border-radius: 12px;
+
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+    text-align: center;
+
+    color: #ef4444;
+}
+
+.login-form__alert i{
+    font-size: 17px;
+    flex-shrink: 0;
+}

@@ -1,24 +1,28 @@
+<!-- ============================================================
+     SECCIÓN 1: HERO
+============================================================ -->
 <section class="hero" id="inicio">
 
-    <span class="hero__shape hero__shape--1"></span>
-    <span class="hero__shape hero__shape--2"></span>
-    <span class="hero__shape hero__shape--3"></span>
+    <span class="hero__shape hero__shape--1" aria-hidden="true"></span>
+    <span class="hero__shape hero__shape--2" aria-hidden="true"></span>
+    <span class="hero__shape hero__shape--3" aria-hidden="true"></span>
 
     <!-- Contenido -->
     <div class="hero__content">
 
         <span class="hero__badge">
-            <i class="bx bx-rocket"></i> PROYECTO INTEGRADOR 2024
+            <i class="bx bx-rocket"></i> STEELBRIDGE AI · PLATAFORMA DE FORMACIÓN
         </span>
 
         <h1 class="hero__title">
-            Servicios, eventos, caché e<br>
-            <span>IA en una sola solución.</span>
+            Tu próximo paso en<br>
+            <span>la tecnología empieza aquí</span>
         </h1>
 
         <p class="hero__subtitle">
-            Plataforma profesional para la práctica e integración de arquitectura
-            hexagonal, Angular, Spring Boot y servicios Cloud.
+            SteelBridge AI conecta tu perfil, tus objetivos y tus conocimientos con servicios
+            de formación tecnológica ofrecidos por terceros, para que elijas tu próximo
+            paso con claridad.
         </p>
 
         <div class="hero__actions">
@@ -30,10 +34,16 @@
             </a>
         </div>
 
+        <div class="hero__trust">
+            <span><i class="bx bx-shield-quarter"></i> Servicios verificados</span>
+            <span><i class="bx bx-sparkles-alt"></i> Recomendaciones con IA</span>
+            <span><i class="bx bx-bolt"></i> Evaluación inicial gratis</span>
+        </div>
+
     </div>
 
     <!-- Mockup decorativo -->
-    <div class="hero__visual">
+    <div class="hero__visual" aria-hidden="true">
         <div class="hero-mockup">
 
             <div class="hero-mockup__float hero-mockup__float--1">
@@ -51,8 +61,23 @@
             </div>
 
             <div class="hero-mockup__row">
-                <div class="hero-mockup__card"></div>
-                <div class="hero-mockup__card"></div>
+                <div class="hero-mockup__card">
+                    <i class="bx bx-code-alt"></i>
+                    <span>Frontend</span>
+                </div>
+                <div class="hero-mockup__card">
+                    <i class="bx bx-data"></i>
+                    <span>Bases de datos</span>
+                </div>
+            </div>
+
+            <div class="hero-mockup__chart">
+                <span style="--h: 40%"></span>
+                <span style="--h: 65%"></span>
+                <span style="--h: 50%"></span>
+                <span style="--h: 85%"></span>
+                <span style="--h: 70%"></span>
+                <span style="--h: 95%"></span>
             </div>
 
             <div class="hero-mockup__big">
@@ -70,47 +95,45 @@
 
 
 <!-- ============================================================
-     SECCIÓN 2: PILARES TÉCNICOS
+     SECCIÓN 2: PILARES
 ============================================================ -->
 <section class="section" id="pilares">
 
     <div class="section__header reveal">
-        <h2 class="section__title">Pilares Técnicos</h2>
-        <p class="section__subtitle">Infraestructura de vanguardia diseñada para la escalabilidad.</p>
+        <span class="section__kicker"><i class="bx bx-gem"></i> 01 · Nuestra propuesta de valor</span>
+        <h2 class="section__title">¿Por qué SteelBridge AI?</h2>
+        <p class="section__subtitle">Una plataforma diseñada para que encuentres el servicio de formación ideal, sin vueltas.</p>
     </div>
 
     <div class="section__grid">
 
         <article class="pillar reveal">
-            <div class="pillar__icon pillar__icon--blue">
-                <i class="bx bx-layer"></i>
+            <div class="pillar__icon pillar__icon--red">
+                <i class="bx bx-compass"></i>
             </div>
-            <h3 class="pillar__title">Arquitectura Hexagonal</h3>
+            <h3 class="pillar__title">Encuentra tu próximo objetivo</h3>
             <p class="pillar__text">
-                Dominio desacoplado e independencia de frameworks para una
-                lógica de negocio pura y testeable.
+                Explora un catálogo de servicios de Frontend, Backend, bases de datos y otras especialidades tecnológicas ofrecidos por terceros.
             </p>
         </article>
 
         <article class="pillar reveal" style="transition-delay: 0.12s">
-            <div class="pillar__icon pillar__icon--red">
-                <i class="bx bx-bolt-circle"></i>
+            <div class="pillar__icon pillar__icon--blue">
+                <i class="bx bx-brain-circuit"></i>
             </div>
-            <h3 class="pillar__title">Caché &amp; Eventos</h3>
+            <h3 class="pillar__title">Recomendaciones con IA</h3>
             <p class="pillar__text">
-                Integración nativa con Redis para respuestas inmediatas y
-                procesamiento asíncrono robusto.
+                Recibe sugerencias basadas en tus intereses, necesidades y los servicios disponibles en la plataforma.
             </p>
         </article>
 
         <article class="pillar reveal" style="transition-delay: 0.24s">
             <div class="pillar__icon pillar__icon--purple">
-                <i class="bx bx-sparkles-alt"></i>
+                <i class="bx bx-clipboard-check"></i>
             </div>
-            <h3 class="pillar__title">Módulos de IA</h3>
+            <h3 class="pillar__title">Evalúa tus conocimientos</h3>
             <p class="pillar__text">
-                Asistencia inteligente integrada para optimizar procesos y
-                mejorar la experiencia del desarrollador.
+                Realiza una evaluación inicial para conocer tu preparación antes de comenzar cualquier servicio.
             </p>
         </article>
 
@@ -122,35 +145,30 @@
 <!-- ============================================================
      SECCIÓN 3: MISIÓN / VISIÓN + ESTADÍSTICAS
 ============================================================ -->
-<section class="section">
+<section class="section section--alt">
 
     <div class="section__grid section__grid--2">
 
         <article class="mv-card reveal">
             <div class="mv-card__icon mv-card__icon--blue">
-                <i class="bx bx-target-lock"></i>
+                <i class="bx bx-flag-alt"></i>
             </div>
             <div>
                 <h3 class="mv-card__title">Nuestra Misión</h3>
                 <p class="mv-card__text">
-                    Proporcionar una infraestructura robusta y escalable que optimice
-                    la gestión de servicios y la capacitación técnica mediante
-                    inteligencia artificial, permitiendo a los equipos enfocarse
-                    en el valor real.
+                    Conectar a las personas con servicios de formación tecnológica ofrecidos por terceros, usando inteligencia artificial para ayudarles a identificar sus necesidades y elegir su próximo paso de aprendizaje.
                 </p>
             </div>
         </article>
 
         <article class="mv-card reveal" style="transition-delay: 0.12s">
             <div class="mv-card__icon mv-card__icon--dark">
-                <i class="bx bx-show"></i>
+                <i class="bx bx-reading-glass"></i>
             </div>
             <div>
                 <h3 class="mv-card__title">Nuestra Visión</h3>
                 <p class="mv-card__text">
-                    Ser el punto de referencia e integración tecnológica para
-                    desarrolladores y organizaciones en soluciones distribuidas
-                    en la nube, marcando el estándar en arquitecturas modernas.
+                    Ser la plataforma de referencia para descubrir y acceder a formación tecnológica personalizada, haciendo que el aprendizaje sea más claro, accesible y alineado con los objetivos de cada persona.
                 </p>
             </div>
         </article>
@@ -159,20 +177,20 @@
 
     <div class="stats reveal">
         <div class="stat">
-            <span class="stat__number">99.9%</span>
+            <span class="stat__number">25+</span>
             <div class="stat__texts">
-                <span class="stat__label">Uptime</span>
-                <span class="stat__label">Garantizado</span>
+                <span class="stat__label">Servicios tech</span>
+                <span class="stat__label">Por descubrir</span>
             </div>
         </div>
         <div class="stat stat--center">
             <span class="stat__hint">
-                <i class="bx bx-bolt"></i> Respuesta en tiempo real con Redis Cache
+                <i class="bx bx-bolt"></i> Recomendaciones personalizadas con IA
             </span>
         </div>
         <div class="stat stat--center">
             <span class="stat__hint">
-                <i class="bx bx-shield-quarter"></i> Seguridad nativa en microservicios
+                <i class="bx bx-shield-quarter"></i> Evaluaciones adaptadas a tus objetivos
             </span>
         </div>
     </div>
@@ -186,8 +204,9 @@
 <section class="section">
 
     <div class="section__header reveal">
-        <h2 class="section__title">Lo que dicen los expertos</h2>
-        <p class="section__subtitle">Desarrolladores y arquitectos que ya confían en SkillBridge AI.</p>
+        <span class="section__kicker"><i class="bx bx-message-square-dots"></i> 02 · Comunidad</span>
+        <h2 class="section__title">Aprende con una dirección clara</h2>
+        <p class="section__subtitle">Historias de quienes ya encontraron su servicio ideal a través de la plataforma.</p>
     </div>
 
     <div class="section__grid">
@@ -197,15 +216,14 @@
                 <i class="bx bxs-star"></i><i class="bx bxs-star"></i><i class="bx bxs-star"></i><i class="bx bxs-star"></i><i class="bx bxs-star"></i>
             </div>
             <p class="testimonial__quote">
-                "La facilidad con la que pude integrar el módulo de caché Redis
-                en mi flujo hexagonal fue increíble. Ahorramos semanas de
-                desarrollo base."
+                "Encontré una formación de backend que se ajustaba exactamente a mi nivel.
+                Las recomendaciones de IA me ahorraron semanas buscando entre opciones."
             </p>
             <div class="testimonial__author">
                 <span class="testimonial__avatar testimonial__avatar--1">CM</span>
                 <div>
                     <div class="testimonial__name">Carlos Méndez</div>
-                    <div class="testimonial__role">Lead Backend Engineer</div>
+                    <div class="testimonial__role">Desarrollador Backend</div>
                 </div>
             </div>
         </article>
@@ -215,15 +233,14 @@
                 <i class="bx bxs-star"></i><i class="bx bxs-star"></i><i class="bx bxs-star"></i><i class="bx bxs-star"></i><i class="bx bxs-star"></i>
             </div>
             <p class="testimonial__quote">
-                "El asistente de IA no es solo un chat, realmente entiende el
-                contexto de la arquitectura Spring Boot. Una herramienta
-                indispensable."
+                "La evaluación inicial me mostró qué conocimientos reforzar antes de contratar
+                un servicio. Ahora decido con mucha más claridad."
             </p>
             <div class="testimonial__author">
                 <span class="testimonial__avatar testimonial__avatar--2">ER</span>
                 <div>
                     <div class="testimonial__name">Elena Rodríguez</div>
-                    <div class="testimonial__role">Cloud Architect</div>
+                    <div class="testimonial__role">Arquitecta Cloud</div>
                 </div>
             </div>
         </article>
@@ -233,9 +250,8 @@
                 <i class="bx bxs-star"></i><i class="bx bxs-star"></i><i class="bx bxs-star"></i><i class="bx bxs-star"></i><i class="bx bxs-star"></i>
             </div>
             <p class="testimonial__quote">
-                "Rendimiento impecable. La gestión de eventos en tiempo real
-                transformó nuestra aplicación de monitoreo industrial en tiempo
-                récord."
+                "En minutos pasé de no saber qué aprender a tener un plan claro con el
+                servicio ideal para mi equipo. La plataforma hace todo sencillo."
             </p>
             <div class="testimonial__author">
                 <span class="testimonial__avatar testimonial__avatar--3">MS</span>
@@ -251,13 +267,13 @@
 </section>
 
 
-
 <!-- ============================================================
      SECCIÓN 5: EXPLORA POR CATEGORÍA
 ============================================================ -->
-<section class="section" id="categorias">
+<section class="section section--alt" id="categorias">
 
     <div class="section__header reveal">
+        <span class="section__kicker"><i class="bx bx-category"></i> 03 · Catálogo</span>
         <h2 class="section__title">Explora por Categoría</h2>
         <p class="section__subtitle">Encuentra el servicio perfecto según tu especialidad o interés.</p>
     </div>
@@ -266,14 +282,15 @@
         @for (cat of topCategories; track $index) {
             @if (cat) {
             <a href="#" class="category-card reveal" style="--cat: var(--category-{{cat.name | lowercase}}, 128 128 128); transition-delay: {{ $index * 0.08 }}s;">
-                <span class="category-card__icon"><i class="bx bx-category"></i></span>
+                <span class="category-card__icon"><i [class]="getIcono(cat.name)"></i></span>
                 <div>
                     <div class="category-card__name">{{ cat.name }}</div>
                     <div class="category-card__count">{{ cat.count }} servicios</div>
                 </div>
+                <i class="bx bx-right-arrow-alt category-card__arrow"></i>
             </a>
             } @else {
-            <div class="category-card reveal" style="--cat: 128 128 128; opacity: 0.6; cursor: default; transition-delay: {{ $index * 0.08 }}s;">
+            <div class="category-card category-card--empty reveal" style="--cat: 128 128 128; transition-delay: {{ $index * 0.08 }}s;">
                 <span class="category-card__icon"><i class="bx bx-layer"></i></span>
                 <div>
                     <div class="category-card__name">Próximamente</div>
@@ -293,17 +310,18 @@
 <section class="section" id="servicios">
 
     <div class="section__header reveal">
+        <span class="section__kicker"><i class="bx bx-sparkles-alt"></i> 04 · Más solicitados</span>
         <h2 class="section__title">Servicios Destacados</h2>
-        <p class="section__subtitle">Los programas más solicitados por nuestra comunidad de desarrolladores.</p>
+        <p class="section__subtitle">Los programas más solicitados por nuestra comunidad.</p>
     </div>
 
     <div class="service-grid">
         @for (offering of offerings; track offering.id) {
         <article class="service-card reveal" style="transition-delay: {{ $index * 0.12 }}s">
-            <div class="service-card__image">
-                <span class="service-card__tag" style="--cat: var(--category-{{offering.category | lowercase}});"><i class="bx bx-tag"></i> {{ offering.category }}</span>
-                <i class="bx bx-server"></i>
-                <span class="service-card__rating"><i class="bx bxs-star"></i> 5.0</span>
+            <div class="service-card__image" style="--cat: var(--category-{{offering.category | lowercase}});">
+                <span class="service-card__tag"><i [class]="getIcono(offering.category)"></i> {{ offering.category }}</span>
+                <i [class]="getIcono(offering.category)"></i>
+                <span class="service-card__rating"><i class="bx bx-sparkles-alt"></i> 5.0</span>
             </div>
             <div class="service-card__body">
                 <h3 class="service-card__title">{{ offering.title }}</h3>
@@ -318,10 +336,10 @@
         </article>
         }
         @empty {
-            <div class="service-card reveal" style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; border: 1px dashed rgb(var(--color-border)); cursor: default;">
-                <i class="bx bx-server" style="font-size: 48px; color: rgb(var(--color-text)); margin-bottom: 16px; opacity: 0.5;"></i>
-                <h3 class="service-card__title" style="margin-bottom: 8px;">No se pudieron cargar los servicios destacados</h3>
-                <p style="color: rgb(var(--color-text));">
+            <div class="service-card service-card--empty reveal">
+                <i class="bx bx-server"></i>
+                <h3 class="service-card__title">No se pudieron cargar los servicios destacados</h3>
+                <p>
                     {{ error ? error : 'Actualmente no hay servicios disponibles en el catálogo.' }}
                 </p>
             </div>
@@ -334,9 +352,10 @@
 <!-- ============================================================
      SECCIÓN 7: CÓMO FUNCIONA
 ============================================================ -->
-<section class="section" id="como-funciona">
+<section class="section section--alt" id="como-funciona">
 
     <div class="section__header reveal">
+        <span class="section__kicker"><i class="bx bx-list-ol"></i> 05 · Proceso</span>
         <h2 class="section__title">Cómo Funciona</h2>
         <p class="section__subtitle">Empieza a aprender en tres pasos simples.</p>
     </div>
@@ -347,8 +366,8 @@
             <span class="step-card__number">1</span>
             <h3 class="step-card__title">Explora el catálogo</h3>
             <p class="step-card__text">
-                Navega por las categorías y encuentra el servicio o tutoría
-                que se ajuste a tus objetivos de aprendizaje.
+                Navega por las categorías y encuentra el servicio que se
+                ajuste a tus objetivos de aprendizaje.
             </p>
         </article>
 
@@ -365,7 +384,7 @@
             <span class="step-card__number">3</span>
             <h3 class="step-card__title">Aprende con IA</h3>
             <p class="step-card__text">
-                Asiste a tus sesiones y resuelve dudas en tiempo real con
+                Realiza tu servicio y resuelve dudas en tiempo real con
                 el asistente inteligente integrado en la plataforma.
             </p>
         </article>
@@ -381,14 +400,14 @@
 <section class="section">
 
     <div class="cta reveal">
-        <span class="cta__shape cta__shape--1"></span>
-        <span class="cta__shape cta__shape--2"></span>
+        <span class="cta__shape cta__shape--1" aria-hidden="true"></span>
+        <span class="cta__shape cta__shape--2" aria-hidden="true"></span>
 
-        <h2 class="cta__title">¿Listo para llevar tu arquitectura<br>al siguiente nivel?</h2>
+        <h2 class="cta__title">¿Listo para dar el siguiente paso<br>en tu aprendizaje?</h2>
 
         <p class="cta__text">
-            Únete a cientos de desarrolladores que ya están construyendo
-            soluciones modernas con SkillBridge AI.
+            Únete a quienes ya encontraron su servicio ideal
+            con SteelBridge AI.
         </p>
 
         <a (click)="scrollToTop($event)" href="#" class="cta__button">
@@ -402,11 +421,6 @@
 <!-- ============================================================
      BOTÓN VOLVER ARRIBA
 ============================================================ -->
-
-<!-- ============================================================
-     BOTÓN VOLVER ARRIBA
-============================================================ -->
 <button class="back-to-top" id="back-to-top" aria-label="Volver arriba" [class.is-visible]="showBackToTop" (click)="scrollToTop()">
-    <i class="bx bx-up-arrow-alt"></i>
+    <i class="bx bx-chevron-up"></i>
 </button>
-
