@@ -3,7 +3,8 @@ import { HomeComponent } from './features/home.component';
 import { AiComponent } from './features/ai.component';
 import { BookingComponent } from './features/booking.component';
 import { NotFoundComponent } from './features/not-found.component';
-import { authGuard } from './core/auth.guard';
+import { authGuard } from './guards/auth.guard';
+import { adminGuard } from './guards/admin.guard';
 
 import { ServiceDetailsComponent } from './features/service-details.component';
 
@@ -14,7 +15,7 @@ export const routes: Routes = [
   { path: 'book', component: BookingComponent, canActivate: [authGuard] },
   { path: 'bookings', loadComponent: () => import('./features/display-bookings/display-bookings').then(m => m.DisplayBookingsComponent), canActivate: [authGuard] },
   { path: 'service/:id', loadComponent: () => import('./features/service-details.component').then(m => m.ServiceDetailsComponent), canActivate: [authGuard] },
-  { path: 'admin', loadComponent: () => import('./features/admin-dashboard/admin-dashboard.component').then(m => m.AdminDashboardComponent) },
+  { path: 'admin', loadComponent: () => import('./features/admin-dashboard/admin-dashboard.component').then(m => m.AdminDashboardComponent), canActivate: [adminGuard] },
   { path: 'checkout/:id', loadComponent: () => import('./features/checkout.component').then(m => m.CheckoutComponent), canActivate: [authGuard] },
   { path: '**', component: NotFoundComponent, data: { is404: true } }
 ];

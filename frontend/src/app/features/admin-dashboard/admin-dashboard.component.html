@@ -3,9 +3,9 @@
   <header class="dashboard-header">
     <div>
       <h1 class="title">Panel de Administración</h1>
-      <p class="subtitle">Gestiona y consulta usuarios, proveedores y servicios del sistema.</p>
+      <p class="subtitle">Gestiona y consulta usuarios y servicios del sistema.</p>
     </div>
-    <button class="btn-primary">+ Nuevo Registro</button>
+    <button class="btn-primary" (click)="openCreate()">+ Nuevo Registro</button>
   </header>
 
   <!-- Pestañas de selección -->
@@ -15,12 +15,6 @@
       [class.active]="selectedTab() === 'usuarios'" 
       (click)="setTab('usuarios')">
       Usuarios
-    </button>
-    <button 
-      class="tab-button" 
-      [class.active]="selectedTab() === 'proveedores'" 
-      (click)="setTab('proveedores')">
-      Proveedores
     </button>
     <button 
       class="tab-button" 
@@ -53,8 +47,16 @@
     </div>
   </div>
 
+  <!-- Estado de carga -->
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Cargando información del servidor...</p>
+    </div>
+  }
+
   <!-- Tabla Dinámica -->
-  <div class="table-wrapper">
+  <div class="table-wrapper" [class.dimmed]="isLoading()">
     <table class="custom-table">
       <thead>
         @switch (selectedTab()) {
@@ -67,20 +69,11 @@
               <th class="text-right">ACCIÓN</th>
             </tr>
           }
-          @case ('proveedores') {
-            <tr>
-              <th>EMPRESA</th>
-              <th>CATEGORÍA</th>
-              <th>SERVICIOS</th>
-              <th>ESTADO</th>
-              <th class="text-right">ACCIÓN</th>
-            </tr>
-          }
           @case ('servicios') {
             <tr>
               <th>SERVICIO</th>
               <th>PRECIO</th>
-              <th>PROVEEDOR</th>
+              <th>CATEGORÍA</th>
               <th>ESTADO</th>
               <th class="text-right">ACCIÓN</th>
             </tr>
@@ -105,28 +98,8 @@
                 <td>{{ $any(item).rol }}</td>
                 <td><span class="badge" [ngClass]="getStatusClass($any(item).estado)">{{ $any(item).estado }}</span></td>
                 <td class="text-right">
-                  <button class="icon-btn btn-view" title="Ver detalles">👁</button>
-                  <button class="icon-btn btn-delete" title="Eliminar">✕</button>
-                </td>
-              </tr>
-            }
-            @case ('proveedores') {
-              <tr>
-                <td>
-                  <div class="item-with-icon">
-                    <span class="icon-avatar">🏢</span>
-                    <div>
-                      <div class="item-title">{{ $any(item).nombreEmpresa }}</div>
-                      <div class="item-sub">ID: {{ item.id }}</div>
-                    </div>
-                  </div>
-                </td>
-                <td>{{ $any(item).categoria }}</td>
-                <td>{{ $any(item).serviciosOfrecidos }} activos</td>
-                <td><span class="badge" [ngClass]="getStatusClass($any(item).estado)">{{ $any(item).estado }}</span></td>
-                <td class="text-right">
-                  <button class="icon-btn btn-view" title="Ver detalles">👁</button>
-                  <button class="icon-btn btn-delete" title="Eliminar">✕</button>
+                  <button class="icon-btn btn-view" title="Ver detalles" (click)="openDetail(item)">👁</button>
+                  <button class="icon-btn btn-delete" title="Eliminar" (click)="openDelete(item)">✕</button>
                 </td>
               </tr>
             }
@@ -143,10 +116,24 @@
                 </td>
                 <td class="font-bold">${{ $any(item).precio | number:'1.0-0' }}</td>
                 <td>{{ $any(item).proveedor }}</td>
-                <td><span class="badge" [ngClass]="getStatusClass($any(item).estado)">{{ $any(item).estado }}</span></td>
+                <td>
+                  <span 
+                    class="badge clickable-badge" 
+                    [ngClass]="getStatusClass($any(item).estado)" 
+                    (click)="toggleOfferingStatus($any(item))"
+                    title="Clic para alternar estado (Publicado / Pausado)">
+                    {{ $any(item).estado }} ⟳
+                  </span>
+                </td>
                 <td class="text-right">
-                  <button class="icon-btn btn-view" title="Ver detalles">👁</button>
-                  <button class="icon-btn btn-delete" title="Eliminar">✕</button>
+                  <button class="icon-btn btn-view" title="Ver detalles" (click)="openDetail(item)">👁</button>
+                  <button class="icon-btn" 
+                    [title]="$any(item).estado === 'Publicado' ? 'Pausar servicio (ocultar de usuarios)' : 'Publicar servicio (mostrar a usuarios)'"
+                    (click)="toggleOfferingStatus($any(item))">
+                    {{ $any(item).estado === 'Publicado' ? '⏸️' : '▶️' }}
+                  </button>
+                  <button class="icon-btn btn-edit" title="Modificar servicio" (click)="openEditService(item)">✏️</button>
+                  <button class="icon-btn btn-delete" title="Eliminar servicio" (click)="openDelete(item)">✕</button>
                 </td>
               </tr>
             }
@@ -171,3 +158,196 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: Ver Detalles -->
+@if (showDetailModal() && detailItem()) {
+  <div class="modal-overlay" (click)="closeDetail()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Detalles del Registro</h3>
+        <button class="close-btn" (click)="closeDetail()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-row">
+          <span class="detail-label">ID:</span>
+          <span class="detail-val">{{ detailItem().id }}</span>
+        </div>
+        @if (selectedTab() === 'usuarios') {
+          <div class="detail-row">
+            <span class="detail-label">Nombre:</span>
+            <span class="detail-val font-bold">{{ detailItem().nombre }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Email:</span>
+            <span class="detail-val">{{ detailItem().email }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Rol del Sistema:</span>
+            <span class="detail-val"><span class="badge badge-neutral">{{ detailItem().rol }}</span></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Estado:</span>
+            <span class="detail-val"><span class="badge" [ngClass]="getStatusClass(detailItem().estado)">{{ detailItem().estado }}</span></span>
+          </div>
+        }
+        @if (selectedTab() === 'servicios') {
+          <div class="detail-row">
+            <span class="detail-label">Título:</span>
+            <span class="detail-val font-bold">{{ detailItem().titulo }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Precio:</span>
+            <span class="detail-val font-bold text-primary">${{ detailItem().precio | number:'1.0-0' }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Categoría:</span>
+            <span class="detail-val">{{ detailItem().proveedor }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Estado:</span>
+            <span class="detail-val"><span class="badge" [ngClass]="getStatusClass(detailItem().estado)">{{ detailItem().estado }}</span></span>
+          </div>
+          @if (detailItem().descripcion) {
+            <div class="detail-row column">
+              <span class="detail-label">Descripción:</span>
+              <p class="detail-desc">{{ detailItem().descripcion }}</p>
+            </div>
+          }
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeDetail()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal: Confirmar Eliminación -->
+@if (showDeleteModal() && itemToDelete()) {
+  <div class="modal-overlay" (click)="closeDelete()">
+    <div class="modal-card modal-confirm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Confirmar Eliminación</h3>
+        <button class="close-btn" (click)="closeDelete()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-message">
+          ¿Estás seguro de que deseas eliminar este registro?
+        </p>
+        <p class="confirm-target">
+          <strong>{{ itemToDelete().nombre || itemToDelete().titulo }}</strong>
+        </p>
+        <p class="confirm-warning">
+          Esta acción retirará el registro del catálogo y base de datos del sistema.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeDelete()">Cancelar</button>
+        <button class="btn-danger" (click)="confirmDelete()">Eliminar Registro</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal: Modificar Servicio -->
+@if (showEditServiceModal()) {
+  <div class="modal-overlay" (click)="closeEditService()">
+    <div class="modal-card modal-form" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Modificar Servicio</h3>
+        <button class="close-btn" (click)="closeEditService()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Título del Servicio</label>
+          <input type="text" class="form-input" [(ngModel)]="serviceToEdit.title" placeholder="Título del servicio" />
+        </div>
+        <div class="form-group">
+          <label>Categoría</label>
+          <select class="form-input" [(ngModel)]="serviceToEdit.category">
+            <option value="BACKEND">BACKEND</option>
+            <option value="FRONTEND">FRONTEND</option>
+            <option value="CLOUD">CLOUD</option>
+            <option value="MOBILE">MOBILE</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Precio ($ COP)</label>
+          <input type="number" class="form-input" [(ngModel)]="serviceToEdit.price" />
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea class="form-input textarea" [(ngModel)]="serviceToEdit.description" rows="3" placeholder="Descripción detallada del servicio"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeEditService()">Cancelar</button>
+        <button class="btn-primary" (click)="submitEditService()">Actualizar Servicio</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal: Nuevo Registro -->
+@if (showCreateModal()) {
+  <div class="modal-overlay" (click)="closeCreate()">
+    <div class="modal-card modal-form" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Nuevo Registro ({{ selectedTab() | uppercase }})</h3>
+        <button class="close-btn" (click)="closeCreate()">✕</button>
+      </div>
+      <div class="modal-body">
+        @if (selectedTab() === 'usuarios') {
+          <div class="form-group">
+            <label>Nombre Completo</label>
+            <input type="text" class="form-input" [(ngModel)]="newUser.name" placeholder="Ej: Juan Pérez" />
+          </div>
+          <div class="form-group">
+            <label>Correo Electrónico</label>
+            <input type="email" class="form-input" [(ngModel)]="newUser.email" placeholder="correo@ejemplo.com" />
+          </div>
+          <div class="form-group">
+            <label>Contraseña Temporal</label>
+            <input type="password" class="form-input" [(ngModel)]="newUser.password" placeholder="Mínimo 8 caracteres" />
+          </div>
+          <div class="form-group">
+            <label>Rol</label>
+            <select class="form-input" [(ngModel)]="newUser.role">
+              <option value="CUSTOMER">CUSTOMER (Cliente)</option>
+              <option value="PROVIDER">PROVIDER (Proveedor)</option>
+              <option value="ADMIN">ADMIN (Administrador)</option>
+            </select>
+          </div>
+        }
+
+        @if (selectedTab() === 'servicios') {
+          <div class="form-group">
+            <label>Título del Servicio</label>
+            <input type="text" class="form-input" [(ngModel)]="newService.title" placeholder="Ej: Mentoría Arquitectura Spring Boot" />
+          </div>
+          <div class="form-group">
+            <label>Categoría</label>
+            <select class="form-input" [(ngModel)]="newService.category">
+              <option value="BACKEND">BACKEND</option>
+              <option value="FRONTEND">FRONTEND</option>
+              <option value="CLOUD">CLOUD</option>
+              <option value="MOBILE">MOBILE</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Precio ($ COP)</label>
+            <input type="number" class="form-input" [(ngModel)]="newService.price" />
+          </div>
+          <div class="form-group">
+            <label>Descripción</label>
+            <textarea class="form-input textarea" [(ngModel)]="newService.description" rows="3" placeholder="Descripción detallada del servicio"></textarea>
+          </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeCreate()">Cancelar</button>
+        <button class="btn-primary" (click)="submitCreate()">Guardar Registro</button>
+      </div>
+    </div>
+  </div>
+}

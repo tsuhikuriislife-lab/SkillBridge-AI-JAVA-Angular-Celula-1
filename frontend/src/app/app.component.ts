@@ -19,6 +19,9 @@ import { HistoryService } from './core/history.service';
           @if (auth.role() === 'PROVIDER') {
             <a routerLink="/provider">Panel de proveedor</a>
           }
+          @if (auth.role() === 'ADMIN') {
+            <a routerLink="/admin">Panel Admin</a>
+          }
           @if (!auth.isAuthenticated()) {
             <a routerLink="/login">Ingresar</a>
           } @else {

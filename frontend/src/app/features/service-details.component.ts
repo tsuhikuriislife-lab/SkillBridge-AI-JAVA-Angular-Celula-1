@@ -59,11 +59,12 @@ export class ServiceDetailsComponent implements OnInit {
   }
 
   onInscribirse(): void {
+    if (!this.offering?.id) return;
     if (!this.auth.isLoggedIn()) {
-      this.router.navigate(['/login'], { queryParams: { returnUrl: `/service/${this.offering?.id}` } });
+      this.router.navigate(['/login'], { queryParams: { returnUrl: `/checkout/${this.offering.id}` } });
       return;
     }
-    this.router.navigate(['/booking'], { queryParams: { offeringId: this.offering?.id } });
+    this.router.navigate(['/checkout', this.offering.id]);
   }
 
   startAssessment(): void {

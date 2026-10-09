@@ -52,4 +52,28 @@ export class OfferingService {
   listMyServices(page: number = 0, size: number = 10) {
     return this.http.get<PageResult<Offering>>(`${apiBase()}/provider/offerings/me?page=${page}&size=${size}`);
   }
+
+  delete(id: string) {
+    return this.http.delete<void>(`${apiBase()}/provider/offerings/${id}`);
+  }
+
+  adminList() {
+    return this.http.get<Offering[]>(`${apiBase()}/admin/offerings`);
+  }
+
+  adminCreate(offering: Partial<Offering>) {
+    return this.http.post<Offering>(`${apiBase()}/admin/offerings`, offering);
+  }
+
+  adminUpdate(id: string, updates: Partial<Offering>) {
+    return this.http.patch<Offering>(`${apiBase()}/admin/offerings/${id}`, updates);
+  }
+
+  adminToggleStatus(id: string) {
+    return this.http.patch<Offering>(`${apiBase()}/admin/offerings/${id}/status`, {});
+  }
+
+  adminDelete(id: string) {
+    return this.http.delete<void>(`${apiBase()}/admin/offerings/${id}`);
+  }
 }
