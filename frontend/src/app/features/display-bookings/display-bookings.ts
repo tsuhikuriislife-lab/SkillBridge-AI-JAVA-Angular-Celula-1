@@ -1,8 +1,9 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { BookingService, BookingSummary, BookingSort, BookingActivityFilter, BookingPage } from '../../core/booking.service';
+import { ToastService } from '../../core/toast.service';
 
 
 @Component({
@@ -129,7 +130,39 @@ export class DisplayBookingsComponent implements OnInit {
       : date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   }
 
+  private router = inject(Router);
+  private toastService = inject(ToastService);
+
   verDetalle(id: string): void {
-    console.log('Detalle de reserva:', id);
+    this.router.navigate(['/service', id], { queryParams: { viewOnly: true } });
+  }
+
+  confirmarCancelacion(id: string): void {
+    this.toastService.show('¿Estás seguro de que deseas cancelar esta reserva?', [
+      {
+        label: 'Sí, cancelar',
+        primary: true,
+        action: () => {
+          this.toastService.clear();
+          this.cancelBooking(id);
+        }
+      },
+      {
+        label: 'No, mantener',
+        action: () => this.toastService.clear()
+      }
+    ]);
+  }
+
+  private cancelBooking(id: string): void {
+    this.bookingService.cancel(id).subscribe({
+      next: () => {
+        this.loadPage(this.currentPage());
+      },
+      error: (err) => {
+        const errorMsg = err?.error?.detail || err?.message || 'No fue posible cancelar la reserva.';
+        this.error.set(errorMsg);
+      }
+    });
   }
 }

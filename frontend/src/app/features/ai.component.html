@@ -20,7 +20,42 @@
         @for (msg of messages; track $index) {
           <div class="message" [ngClass]="{'message--user': msg.sender === 'user', 'message--assistant': msg.sender === 'assistant', 'message--welcome': msg.isWelcome}">
               <div class="message__avatar"><i class="bx" [ngClass]="msg.sender === 'assistant' ? 'bx-sparkles-alt' : 'bx-user'"></i></div>
-              <div class="message__bubble">{{ msg.text }}</div>
+              <div class="message__content-wrap">
+                  <!-- Burbuja de texto principal -->
+                  <div class="message__bubble"
+                       (click)="handleBubbleClick($event)"
+                       [innerHTML]="msg.formattedHtml || msg.text">
+                  </div>
+
+                  <!-- Notificación / Tarjeta interactiva de acceso directo abajo del mensaje -->
+                  @if (msg.courses && msg.courses.length > 0) {
+                    <div class="message__courses-card">
+                        <div class="message__courses-header">
+                            <i class="bx bx-compass"></i>
+                            <span>Cursos recomendados para ti</span>
+                        </div>
+                        <div class="message__courses-list">
+                            @for (course of msg.courses; track course.id) {
+                              <button type="button" class="message__course-btn" (click)="goToCourse(course.id)">
+                                  <div class="message__course-meta">
+                                      @if (course.category) {
+                                        <span class="message__course-badge">{{ course.category }}</span>
+                                      }
+                                      <span class="message__course-name">{{ course.title }}</span>
+                                  </div>
+                                  <span class="message__course-action">
+                                      Ir al curso <i class="bx bx-chevron-right"></i>
+                                  </span>
+                              </button>
+                            }
+                        </div>
+                        <div class="message__courses-tip">
+                            <i class="bx bx-pointer"></i>
+                            <span>Haz clic aquí para ir directo a la vista del curso enseguida sin tener que buscarlo por su nombre.</span>
+                        </div>
+                    </div>
+                  }
+              </div>
           </div>
         }
 
@@ -62,4 +97,3 @@
 
     <p class="chat__disclaimer">SkillBridge AI es un asistente creado para arquitecturas modernas</p>
 </div>
-
