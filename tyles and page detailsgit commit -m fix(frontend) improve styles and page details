@@ -1,0 +1,79 @@
+[1mdiff --git a/frontend/public/images/Group 23 (1).jpg b/frontend/public/images/Group 23 (1).jpg[m
+[1mdeleted file mode 100644[m
+[1mindex a24db38..0000000[m
+Binary files a/frontend/public/images/Group 23 (1).jpg and /dev/null differ
+[1mdiff --git a/frontend/public/images/Group 23.jpg b/frontend/public/images/Group 23.jpg[m
+[1mdeleted file mode 100644[m
+[1mindex 3829e2e..0000000[m
+Binary files a/frontend/public/images/Group 23.jpg and /dev/null differ
+[1mdiff --git a/frontend/public/images/Multimedia/Imagen.jpg b/frontend/public/images/Multimedia/Imagen.jpg[m
+[1mnew file mode 100644[m
+[1mindex 0000000..12c41e4[m
+Binary files /dev/null and b/frontend/public/images/Multimedia/Imagen.jpg differ
+[1mdiff --git a/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo-1.svg b/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo-1.svg[m
+[1mnew file mode 100644[m
+[1mindex 0000000..e69d84f[m
+[1m--- /dev/null[m
+[1m+++ b/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo-1.svg[m
+[36m@@ -0,0 +1,5 @@[m
+[32m+[m[32m<svg width="678" height="678" viewBox="0 0 678 678" fill="none" xmlns="http://www.w3.org/2000/svg">[m
+[32m+[m[32m<path d="M491.078 0C502.307 0.000534524 513.077 4.46468 521.018 12.4104L648.056 139.535C664.593 156.083 664.593 182.915 648.056 199.464L521.018 326.588C513.077 334.534 502.307 338.998 491.078 338.999H241.372L410.5 169.5C409.5 169.5 408.861 169.467 408 169.5L406.405 169.499H0V0H491.078Z" fill="#2861D8"/>[m
+[32m+[m[32m<path d="M72.7535 605.658C72.7535 605.658 1.50883 676.952 0.46433 677.997C-0.580171 679.043 0.46433 356.55 0.46433 356.55C0.46433 345.312 4.92577 334.533 12.8672 326.586L169.849 169.5C168.114 171.235 169.849 169.5 169.849 173.737V490.945C169.849 502.183 165.387 512.962 157.446 520.908L72.7535 605.658Z" fill="#2861D8"/>[m
+[32m+[m[32m<path d="M635.654 338.999C659.041 338.999 678 357.97 678 381.373V490.944C678 502.182 673.539 512.961 665.598 520.908L521.018 665.587C513.077 673.532 502.307 677.997 491.078 677.997H169.384V508.498H466.27C489.657 508.498 508.616 489.526 508.616 466.123V381.373C508.616 357.97 527.575 338.999 550.962 338.999H635.654Z" fill="#2861D8"/>[m
+[32m+[m[32m</svg>[m
+[1mdiff --git a/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo-2.svg b/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo-2.svg[m
+[1mnew file mode 100644[m
+[1mindex 0000000..4690221[m
+[1m--- /dev/null[m
+[1m+++ b/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo-2.svg[m
+[36m@@ -0,0 +1,5 @@[m
+[32m+[m[32m<svg width="678" height="678" viewBox="0 0 678 678" fill="none" xmlns="http://www.w3.org/2000/svg">[m
+[32m+[m[32m<path d="M491.078 0C502.307 0.000534524 513.077 4.46468 521.018 12.4104L648.056 139.535C664.593 156.083 664.593 182.915 648.056 199.464L521.018 326.588C513.077 334.534 502.307 338.998 491.078 338.999H241.372L410.5 169.5C409.5 169.5 408.861 169.467 408 169.5L406.405 169.499H0V0H491.078Z" fill="#0F172A"/>[m
+[32m+[m[32m<path d="M72.7535 605.658C72.7535 605.658 1.50883 676.952 0.46433 677.997C-0.580171 679.043 0.46433 356.55 0.46433 356.55C0.46433 345.312 4.92577 334.533 12.8672 326.586L169.849 169.5C168.114 171.235 169.849 169.5 169.849 173.737V490.945C169.849 502.183 165.387 512.962 157.446 520.908L72.7535 605.658Z" fill="#0F172A"/>[m
+[32m+[m[32m<path d="M635.654 338.999C659.041 338.999 678 357.97 678 381.373V490.944C678 502.182 673.539 512.961 665.598 520.908L521.018 665.587C513.077 673.532 502.307 677.997 491.078 677.997H169.384V508.498H466.27C489.657 508.498 508.616 489.526 508.616 466.123V381.373C508.616 357.97 527.575 338.999 550.962 338.999H635.654Z" fill="#0F172A"/>[m
+[32m+[m[32m</svg>[m
+[1mdiff --git a/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo-3.svg b/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo-3.svg[m
+[1mnew file mode 100644[m
+[1mindex 0000000..322ea2a[m
+[1m--- /dev/null[m
+[1m+++ b/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo-3.svg[m
+[36m@@ -0,0 +1,19 @@[m
+[32m+[m[32m<svg width="678" height="678" viewBox="0 0 678 678" fill="none" xmlns="http://www.w3.org/2000/svg">[m
+[32m+[m[32m<path d="M491.078 0C502.307 0.000534524 513.077 4.46468 521.018 12.4104L648.056 139.535C664.593 156.083 664.593 182.915 648.056 199.464L521.018 326.588C513.077 334.534 502.307 338.998 491.078 338.999H241.372L410.5 169.5C409.5 169.5 408.861 169.467 408 169.5L406.405 169.499H0V0H491.078Z" fill="url(#paint0_linear_300_19)"/>[m
+[32m+[m[32m<path d="M72.7535 605.658C72.7535 605.658 1.50883 676.952 0.46433 677.997C-0.580171 679.043 0.46433 356.55 0.46433 356.55C0.46433 345.312 4.92577 334.533 12.8672 326.586L169.849 169.5C168.114 171.235 169.849 169.5 169.849 173.737V490.945C169.849 502.183 165.387 512.962 157.446 520.908L72.7535 605.658Z" fill="url(#paint1_linear_300_19)"/>[m
+[32m+[m[32m<path d="M635.654 338.999C659.041 338.999 678 357.97 678 381.373V490.944C678 502.182 673.539 512.961 665.598 520.908L521.018 665.587C513.077 673.532 502.307 677.997 491.078 677.997H169.384V508.498H466.27C489.657 508.498 508.616 489.526 508.616 466.123V381.373C508.616 357.97 527.575 338.999 550.962 338.999H635.654Z" fill="url(#paint2_linear_300_19)"/>[m
+[32m+[m[32m<defs>[m
+[32m+[m[32m<linearGradient id="paint0_linear_300_19" x1="0" y1="0" x2="660.785" y2="338.634" gradientUnits="userSpaceOnUse">[m
+[32m+[m[32m<stop stop-color="#164A9F"/>[m
+[32m+[m[32m<stop offset="1" stop-color="#0A68FE"/>[m
+[32m+[m[32m</linearGradient>[m
+[32m+[m[32m<linearGradient id="paint1_linear_300_19" x1="0" y1="0" x2="660.785" y2="338.634" gradientUnits="userSpaceOnUse">[m
+[32m+[m[32m<stop stop-color="#164A9F"/>[m
+[32m+[m[32m<stop offset="1" stop-color="#0A68FE"/>[m
+[32m+[m[32m</linearGradient>[m
+[32m+[m[32m<linearGradient id="paint2_linear_300_19" x1="0" y1="0" x2="660.785" y2="338.634" gradientUnits="userSpaceOnUse">[m
+[32m+[m[32m<stop stop-color="#164A9F"/>[m
+[32m+[m[32m<stop offset="1" stop-color="#0A68FE"/>[m
+[32m+[m[32m</linearGradient>[m
+[32m+[m[32m</defs>[m
+[32m+[m[32m</svg>[m
+[1mdiff --git a/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo.svg b/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo.svg[m
+[1mnew file mode 100644[m
+[1mindex 0000000..376e414[m
+[1m--- /dev/null[m
+[1m+++ b/frontend/public/images/Multimedia/Logo/Isotipo/Isotipo.svg[m
+[36m@@ -0,0 +1,5 @@[m
+[32m+[m[32m<svg width="678" height="678" viewBox="0 0 678 678" fill="none" xmlns="http://www.w3.org/2000/svg">[m
+[32m+[m[32m<path d="M491.078 0C502.307 0.000534524 513.077 4.46468 521.018 12.4104L648.056 139.535C664.593 156.083 664.593 182.915 648.056 199.464L521.018 326.588C513.077 334.534 502.307 338.998 491.078 338.999H241.372L410.5 169.5C409.5 169.5 408.861 169.467 408 169.5L406.405 169.499H0V0H491.078Z" fill="white"/>[m
+[32m+[m[32m<path d="M72.7535 605.658C72.7535 605.658 1.50883 676.952 0.46433 677.997C-0.580171 679.043 0.46433 356.55 0.46433 356.55C0.46433 345.312 4.92577 334.533 12.8672 326.586L169.849 169.5C168.114 171.235 169.849 169.5 169.849 173.737V490.945C169.849 502.183 165.387 512.962 157.446 520.908L72.7535 605.658Z" fill="white"/>[m
+[32m+[m[32m<path d="M635.654 338.999C659.041 338.999 678 357.97 678 381.373V490.944C678 502.182 673.539 512.961 665.598 520.908L521.018 665.587C513.077 673.532 502.307 677.997 491.078 677.997H169.384V508.498H466.27C489.657 508.498 508.616 489.526 508.616 466.123V381.373C508.616 357.97 527.575 338.999 550.962 338.999H635.654Z" fill="white"/>[m
+[32m+[m[32m</svg>[m
+[1mdiff --git a/frontend/public/images/Multimedia/Logo/Logo-1.svg b/frontend/public/images/Multimedia/Logo/Logo-1.svg[m
+[1mnew file mode 100644[m
+[1mindex 0000000..837543d[m
+[1m--- /dev/null[m
+[1m+++ b/frontend/public/images/Multimedia/Logo/Logo-1.svg[m
+[36m@@ -0,0 +1,19 @@[m
+[32m+[m[32m<svg width="1440" height="221" viewBox="0 0 1440 221" fill="none" xmlns="http://www.w3.org/2000/svg">[m
+[32m+[m[32m<path d="M321.912 155C321.912 157.761 319.673 160 316.912 160H286.912C284.15 160 281.912 157.761 281.912 155V52C281.912 49.2386 284.15 47 286.912 47H316.912C319.673 47 321.912 49.2386 321.912 52V155Z" fill="#0F172A"/>[m
+[32m+[m[32m<path d="M301.412 0C31
