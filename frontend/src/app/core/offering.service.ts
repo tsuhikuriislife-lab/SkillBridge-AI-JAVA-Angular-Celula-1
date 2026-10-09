@@ -219,4 +219,44 @@ export class OfferingService {
   deleteSchedule(serviceId: string, scheduleId: string): Observable<any> {
     return this.http.delete(`${apiBase()}/provider/services/${serviceId}/schedule/${scheduleId}`);
   }
+
+  delete(id: string) {
+    return this.http.delete<void>(`${apiBase()}/provider/offerings/${id}`);
+  }
+
+  adminList() {
+    return this.resolveCategories().pipe(
+      switchMap(catMap => this.http.get<any[]>(`${apiBase()}/admin/offerings`).pipe(
+        map(offerings => offerings.map(offering => this.mapToFrontend(offering, catMap)))
+      ))
+    );
+  }
+
+  adminCreate(offering: Partial<Offering>) {
+    return this.resolveCategories().pipe(
+      switchMap(catMap => this.http.post<any>(`${apiBase()}/admin/offerings`, offering).pipe(
+        map(created => this.mapToFrontend(created, catMap))
+      ))
+    );
+  }
+
+  adminUpdate(id: string, updates: Partial<Offering>) {
+    return this.resolveCategories().pipe(
+      switchMap(catMap => this.http.patch<any>(`${apiBase()}/admin/offerings/${id}`, updates).pipe(
+        map(updated => this.mapToFrontend(updated, catMap))
+      ))
+    );
+  }
+
+  adminToggleStatus(id: string) {
+    return this.resolveCategories().pipe(
+      switchMap(catMap => this.http.patch<any>(`${apiBase()}/admin/offerings/${id}/status`, {}).pipe(
+        map(updated => this.mapToFrontend(updated, catMap))
+      ))
+    );
+  }
+
+  adminDelete(id: string) {
+    return this.http.delete<void>(`${apiBase()}/admin/offerings/${id}`);
+  }
 }
