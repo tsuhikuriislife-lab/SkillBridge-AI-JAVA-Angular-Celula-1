@@ -407,3 +407,13 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Contexto:** Al empujar los últimos cambios, las pruebas en GitHub Actions (`docker/build-push-action`) fallaron con un error `429 Too Many Requests` proveniente de `registry-1.docker.io`. Esto ocurre porque las IPs públicas de GitHub Actions suelen sobrepasar el límite de descargas anónimas impuesto por Docker Hub para imágenes oficiales.
 - **Acción:** Se modificaron los archivos `backend/Dockerfile` y `frontend/Dockerfile` para sustituir las imágenes base de Docker Hub (`maven`, `eclipse-temurin`, `node`, `nginx`) por sus réplicas oficiales en el registro público de Amazon ECR (`public.ecr.aws/docker/library/...`), el cual no impone límites estrictos de peticiones anónimas.
 - **Resultado:** Los Dockerfiles mantienen las mismas versiones (ej. `node:22-alpine`, `maven:3.9.16-eclipse-temurin-21`), pero descargadas desde un espejo (mirror) confiable, lo que garantiza estabilidad en los pipelines de integración continua.
+
+## [2026-10-09] Fusión de rama develop hacia la vista Admin
+- **Agente:** Antigravity
+- **Contexto:** Se solicitó traer los últimos cambios de `develop` (mejoras de notificaciones, enlaces de IA, corrección de CI en Dockerfiles y nueva vista de proveedor y Home) hacia la rama `feature/Vista-Admin`.
+- **Acciones:** 
+  - Se ejecutó `git fetch` y `git merge origin/develop`.
+  - Se resolvieron conflictos en `app.component.ts` preservando la restricción de rutas exclusivas para ADMIN y combinándolo con el rediseño del navbar de `develop`.
+  - Se resolvieron conflictos de importaciones en `my-notifications.component.ts`.
+  - Se corrigieron los marcadores de conflicto residuales en `MEMORIA.md`.
+- **Resultado:** La rama de administración (`feature/Vista-Admin`) ahora integra todos los cambios recientes, incluyendo las soluciones de CI de Docker, sin perder el aislamiento de rutas administrativas.
