@@ -234,3 +234,134 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - **Mejora UI (Overflow de Textos):** En `my-offerings.component.ts`, se ajustó la disposición de las tarjetas (`.card`) para evitar desbordamientos visuales cuando el título o la descripción son muy largos. Se aplicó `white-space: nowrap`, `overflow: hidden` y `text-overflow: ellipsis`, utilizando Flexbox (`.title-row`) para garantizar que la etiqueta de estado ("Activo"/"Inactivo") nunca sea empujada fuera de la pantalla ni se oculte. Además, se añadió el atributo HTML `[title]` para permitir al usuario leer el texto completo al pasar el mouse por encima.
   - **Administración de Horarios (Schedules):** Se añadió la capacidad de gestionar los horarios desde el modal de edición de servicio (`my-offerings.component.ts`). Al abrir el modal, se hace una petición HTTP para cargar todos los horarios asociados. Se muestra una lista de los horarios activos indicando el día de la semana, hora y duración. Se agregó un botón para **eliminar** horarios específicos usando el endpoint `DELETE /api/provider/services/{id}/schedule/{scheduleId}`, conectando con la capa de persistencia a través de `offering.service.ts`.
   - **Campos Faltantes de la HU:** Se agregó la posibilidad de editar la capacidad por sesión y la URL de la imagen (photoUrl) en el formulario reactivo del modal, asegurando que se modifiquen en la base de datos al usar el PUT de la API.
+## [2026-10-08] Frontend de la Vista de Administración Completo
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Completar los elementos faltantes en el frontend de la vista de Administración antes de la integración con el backend.
+- **Cambios realizados:**
+  - **Seguridad y Enrutamiento:** Creación de `adminGuard` en `core/admin.guard.ts` para restringir el acceso a usuarios autenticados con rol `ADMIN`. Aplicación del guard a la ruta `/admin` en `app.routes.ts`.
+  - **Navegación:** Inclusión del enlace "Panel Admin" en la barra de navegación superior (`app.component.ts`) condicionado a `auth.role() === 'ADMIN'`.
+  - **Servicios:**
+    - Ampliación de `UserService` (`core/userDto.service.ts`) con métodos completos CRUD (`create`, `update`, `delete`).
+    - Creación de `ProviderService` (`core/provider.service.ts`) para consumir endpoints de gestión de proveedores (`getAll`, `getById`, `create`, `update`, `delete`).
+    - Adición del método `delete` en `OfferingService` (`core/offering.service.ts`).
+  - **UI / Componente Admin Dashboard (`AdminDashboardComponent`):**
+    - Implementación de estado de carga (`isLoading` con spinner visual).
+    - Integración de `ProviderService` con fallback defensivo a datos base mientras se crea el endpoint en el backend.
+    - Conexión de acciones por fila:
+      - Modal de visualización de detalles completos (`👁`).
+      - Modal de confirmación y ejecución de eliminación (`✕`) con actualización reactiva en signals.
+    - Implementación del modal dinámico `+ Nuevo Registro` adaptativo según la pestaña activa (`usuarios`, `proveedores`, `servicios`), validación y actualización en tiempo real con notificaciones `ToastService`.
+  - **Estilos:** Agregados estilos CSS para modales, overlays con blur, diálogos de confirmación, formularios responsivos y spinner de carga en `admin-dashboard.component.css`.
+- **Validación:** Compilación de producción con Angular CLI (`npm run build`) exitosa (0 errores).
+
+## [2026-10-08] Backend para el Panel de Administración (Arquitectura Hexagonal)
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Implementación de los endpoints y lógica del backend para la gestión administrativa de usuarios, proveedores y servicios sin alterar el esquema de base de datos actual.
+- **Cambios realizados:**
+  - **Dominio:** Creación del modelo `ProviderSummary` para consolidar información de proveedores con conteo de servicios asociados.
+  - **Aplicación:**
+    - Puertos de Entrada: `AdminManageUsersUseCase`, `AdminManageProvidersUseCase`, `AdminManageOfferingsUseCase`.
+    - Puertos de Salida: Ampliación de `UserRepositoryPort` (`findAll`, `findById`, `findByRole`, `deleteById`) y `OfferingRepositoryPort` (`countByProviderId`, `deleteById`).
+    - Casos de Uso (Servicios):
+      - `AdminUserService`: Gestión completa de usuarios (listado, búsqueda por ID, creación con contraseña hasheada vía `PasswordHasherPort`, actualización de datos y borrado con validación de unicidad de correo).
+      - `AdminProviderService`: Listado de proveedores filtrando por `Role.PROVIDER` y agregando el conteo de servicios publicados, creación de nuevo proveedor y borrado.
+      - `AdminOfferingService`: Eliminación de servicios con desalojo automático de caché Redis vía `OfferingCachePort`.
+  - **Infraestructura:**
+    - Seguridad: Configuración en `SecurityConfiguration.java` para exigir autoridad `hasRole('ADMIN')` sobre `/api/admin/**`.
+    - REST Controllers:
+      - `AdminUserController` (`/api/admin/users`): `GET`, `GET /{id}`, `POST`, `PATCH /{id}`, `DELETE /{id}` anotado con `@PreAuthorize("hasRole('ADMIN')")`.
+      - `AdminProviderController` (`/api/admin/providers`): `GET`, `POST`, `DELETE /{id}` anotado con `@PreAuthorize("hasRole('ADMIN')")`.
+      - `AdminOfferingController` (`/api/admin/offerings`): `DELETE /{id}` anotado con `@PreAuthorize("hasRole('ADMIN')")`.
+    - DTOs: `AdminUserResponse`, `CreateAdminUserRequest`, `UpdateAdminUserRequest`, `AdminProviderResponse`, `CreateAdminProviderRequest`.
+    - Persistencia: Implementación de los métodos en `UserPersistenceAdapter` y `OfferingPersistenceAdapter`, así como en `JpaUserRepository` y `JpaOfferingRepository`.
+    - Pruebas Unitarias: Creación de `AdminUserServiceTest` y `AdminProviderServiceTest` (7 pruebas unitarias pasando al 100%).
+- **Validación:**
+  - `mvn clean compile` completado con éxito (100 clases Java compiladas).
+  - `mvn test -Dtest=AdminUserServiceTest,AdminProviderServiceTest` completado con BUILD SUCCESS.
+
+## [2026-10-08] Solución y Conexión Total de CRUD y Estados en Administración
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Corrección del error 403 al crear servicios como admin, habilitación de edición y alternancia de estado para servicios y proveedores, y sincronización en tiempo real con el catálogo principal (desalojo de caché Redis).
+- **Cambios realizados:**
+  - **Backend:**
+    - `AdminManageOfferingsUseCase` y `AdminOfferingService`: Implementación de creación (`createOffering`), modificación (`updateOffering`) y alternancia de estado activo/pausado (`toggleStatus`), todos con desalojo automático de la caché Redis (`OfferingCachePort.evictActiveOfferings()`).
+    - `AdminOfferingController`: Añadidos endpoints administrativos `POST /api/admin/offerings`, `PATCH /api/admin/offerings/{id}`, `PATCH /api/admin/offerings/{id}/status`.
+    - `AdminManageProvidersUseCase` y `AdminProviderService`: Implementación de `updateStatus` para alternar estados del proveedor.
+    - `AdminProviderController`: Añadido endpoint `PATCH /api/admin/providers/{id}/status`.
+    - Pruebas unitarias: Ampliación de `AdminOfferingServiceTest` y `AdminProviderServiceTest` (11 pruebas pasando al 100%).
+  - **Frontend:**
+    - `OfferingService`: Creación de métodos dedicados para el admin (`adminCreate`, `adminUpdate`, `adminToggleStatus`, `adminDelete`) que apuntan a `/api/admin/offerings` en lugar de `/provider/offerings` (eliminando el 403 Forbidden).
+    - `ProviderService`: Añadido método `updateStatus(id, status)` para consumir `/api/admin/providers/{id}/status`.
+    - `AdminDashboardComponent`:
+      - Estado de servicios interactivo: Clic en el badge de estado para alternar entre "Publicado" y "Pausado" en tiempo real.
+      - Estado de proveedores interactivo: Clic en el badge de estado para ciclar entre "Verificado", "En Revisión" y "Suspendido".
+      - Modal de modificación de servicios (`showEditServiceModal`): Permite editar título, categoría, precio y descripción con actualización inmediata.
+      - Modificado el botón de nuevo servicio para usar `adminCreate` y el de borrado para usar `adminDelete`.
+- **Validación:**
+  - `mvn test -Dtest=AdminUserServiceTest,AdminProviderServiceTest,AdminOfferingServiceTest` exitoso (11 tests, 0 fallos).
+  - `npm run build` exitoso (0 errores de TypeScript y plantillas).
+
+## [2026-10-08] Reorganización de Guardianes de Rutas en Frontend
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Estructuración y ordenamiento de los guards de Angular en una carpeta dedicada para facilitar su localización y mantenimiento futuro.
+- **Cambios realizados:**
+  - Creación del directorio `frontend/src/app/guards/`.
+  - Migración de `auth.guard.ts` y `admin.guard.ts` a `frontend/src/app/guards/`.
+  - Actualización de las rutas de importación de `AuthService` dentro de los guards a `../core/auth.service`.
+  - Actualización de las importaciones de `authGuard` y `adminGuard` en `frontend/src/app/app.routes.ts`.
+  - Eliminación de los archivos de guards anteriores en `core/`.
+- **Validación:**
+  - `npm run build` completado exitosamente (0 errores).
+
+## [2026-10-08] Remoción del Módulo de Proveedores en Administración
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Simplificación del panel de administración a solo Usuarios y Servicios, eliminando la sección redundante de proveedores dado que "Proveedor" es simplemente un rol de usuario (`Role.PROVIDER`).
+- **Cambios realizados:**
+  - **Backend:**
+    - Eliminación de archivos: `ProviderSummary.java`, `AdminManageProvidersUseCase.java`, `AdminProviderService.java`, `AdminProviderController.java`, `AdminProviderResponse.java`, `CreateAdminProviderRequest.java`, y `AdminProviderServiceTest.java`.
+  - **Frontend:**
+    - Eliminación de `frontend/src/app/core/provider.service.ts`.
+    - En `AdminDashboardComponent`: remoción del tipo y datos de proveedores, dejando únicamente `ViewType = 'usuarios' | 'servicios'`, limpiando señales, computed y métodos.
+    - En `admin-dashboard.component.html`: eliminación de la pestaña "Proveedores", así como sus columnas, filas y modales asociados.
+- **Validación:**
+  - `mvn clean test` ejecutado exitosamente (9 pruebas pasando al 100%).
+  - `npm run build` ejecutado exitosamente (0 errores).
+
+## [2026-10-08] Corrección de Visibilidad y Estado Pausado de Servicios
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Solución al problema donde pausar un servicio ocasionaba que desapareciera del panel de administración como si se hubiera eliminado. El requerimiento consistía en que pausar un servicio únicamente lo oculte del catálogo público para clientes/usuarios, mientras que en el panel de administración se mantenga siempre visible con estado "Pausado" y opción de reanudarlo ("Publicar").
+- **Cambios realizados:**
+  - **Backend (Arquitectura Hexagonal):**
+    - `OfferingRepositoryPort`: Se añadió el método `List<Offering> findAll()`.
+    - `JpaOfferingRepository`: Se añadió la consulta derivada `List<OfferingEntity> findAllByOrderByTitleAsc()`.
+    - `OfferingPersistenceAdapter`: Se implementó `findAll()` para mapear todas las entidades (activas e inactivas) al modelo de dominio `Offering`.
+    - `AdminManageOfferingsUseCase` y `AdminOfferingService`: Se añadió `List<Offering> listAllOfferings()` consumiendo el puerto de repositorio.
+    - `AdminOfferingController`: Se agregó el endpoint `@GetMapping` en `/api/admin/offerings` protegido con `@PreAuthorize("hasRole('ADMIN')")`.
+    - `AdminOfferingServiceTest`: Se añadieron pruebas unitarias para `listAllOfferings()`.
+  - **Frontend (Angular 20):**
+    - `OfferingService`: Se añadió el método `adminList()` apuntando a `GET /api/admin/offerings`.
+    - `AdminDashboardComponent`: `cargarServicios()` ahora consulta `adminList()` (con fallback preventivo a `list()`). Se actualizó `toggleOfferingStatus()` para mantener la reactividad del estado sin retirar el ítem de la tabla y notificar explícitamente el cambio de visibilidad.
+    - `admin-dashboard.component.html`: Se añadió el botón de alternar estado `⏸️` / `▶️` junto a los botones de editar y eliminar, diferenciando claramente la pausa (ocultar de clientes) de la eliminación permanente (`✕`).
+- **Validación:**
+  - `mvn test -Dtest=AdminUserServiceTest,AdminOfferingServiceTest` pasó con éxito (10 tests, 0 fallos).
+  - `npm run build` completado exitosamente (0 errores).
+  - Verificación en contenedores Docker: `GET /api/offerings` (catálogo público de usuarios) solo retorna servicios activos (`active: true`), mientras que `GET /api/admin/offerings` retorna la totalidad de servicios (activos y pausados).
+## [2026-10-08] Redirección al Flujo de Pago desde el Diagnóstico con IA
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Al finalizar el test diagnóstico de prerrequisitos generado por IA, el botón "Continuar a la Reserva" redirigía a la ruta inexistente `/booking`, desencadenando la página de error 404. El requerimiento solicitaba dirigir al usuario a la vista de selección de método de pago.
+- **Cambios realizados:**
+  - **Frontend:**
+    - En [`ServiceDetailsComponent`](file:///home/yamitgc/Desktop/SpringBoot/SkillBridge-AI-JAVA-Angular-Celula-1/frontend/src/app/features/service-details.component.ts), se actualizó el método `onInscribirse()` para redirigir a `/checkout/${this.offering.id}`, garantizando que si el usuario no ha iniciado sesión sea llevado al login preservando el `returnUrl` hacia el checkout del servicio.
+    - La vista de checkout (`CheckoutComponent`) gestiona los métodos de pago (Tarjeta de Crédito, Transferencia, PayPal) y la confirmación final de la reserva.
+- **Validación:**
+  - `npm run build` completado exitosamente (0 errores).
+  - Archivos desplegados al contenedor web de Nginx.
+
+## [2026-10-09] Restricciones y actividad administrativa
+- Se ocultaron las rutas de catálogo, IA, reservas e inscripciones para ADMIN en Angular y Spring Security.
+- Se habilito el cambio de roles desde el panel admin; el backend impide crear un segundo ADMIN, cambiar el rol del unico ADMIN o eliminarlo.
+- Se agrego una restriccion unica parcial en PostgreSQL para permitir como maximo un usuario ADMIN.
+- Se agrego una bitacora persistente de acciones administrativas y se muestra en Notificaciones para ADMIN.
+- Validacion: frontend y backend compilan en Docker; pruebas de servicios admin (16) y bitacora (4) pasan; stack local healthy con migraciones V12 y V13 aplicadas.
+
+

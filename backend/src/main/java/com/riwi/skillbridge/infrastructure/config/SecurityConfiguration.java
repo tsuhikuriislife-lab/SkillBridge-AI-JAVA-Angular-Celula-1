@@ -32,6 +32,9 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/auth/**", "/actuator/health", "/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/services/**", "/api/catalog/**").permitAll()
                         .requestMatchers("/actuator/prometheus").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/bookings/**", "/api/enrollments/**")
+                        .hasAnyRole("CUSTOMER", "PROVIDER")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

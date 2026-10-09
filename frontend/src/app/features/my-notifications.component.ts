@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { NotificationPage, NotificationService, NotificationSummary } from '../core/notification.service';
+import { AuthService } from '../core/auth.service';
 
 @Component({
     standalone: true,
@@ -9,9 +10,9 @@ import { NotificationPage, NotificationService, NotificationSummary } from '../c
     <section class="container notifications-page">
       <header class="page-heading">
         <div>
-          <p class="eyebrow">TU ACTIVIDAD</p>
-          <h1>Mis notificaciones</h1>
-          <p class="muted">Consulta el resultado del procesamiento de las notificaciones de tus reservas.</p>
+          <p class="eyebrow">{{ isAdmin ? 'ACTIVIDAD ADMINISTRATIVA' : 'TU ACTIVIDAD' }}</p>
+          <h1>{{ isAdmin ? 'Acciones del administrador' : 'Mis notificaciones' }}</h1>
+          <p class="muted">{{ isAdmin ? 'Consulta los cambios realizados desde el panel de administración.' : 'Consulta el resultado del procesamiento de las notificaciones de tus reservas.' }}</p>
         </div>
         <button class="btn secondary" type="button" (click)="loadPage()" [disabled]="loading">
           Actualizar
@@ -39,7 +40,11 @@ import { NotificationPage, NotificationService, NotificationSummary } from '../c
               <div class="notification-main">
                 <h2>{{ notification.title }}</h2>
                 <p>{{ notification.message }}</p>
-                <p class="muted">Reserva: {{ notification.bookingId }}</p>
+                @if (isAdmin && notification.targetId) {
+                  <p class="muted">{{ notification.targetType }}: {{ notification.targetId }}</p>
+                } @else if (notification.bookingId) {
+                  <p class="muted">Reserva: {{ notification.bookingId }}</p>
+                }
                 <p class="muted">Recibida: {{ notification.createdAt | date:'medium' }}</p>
               </div>
               <span class="status" [class.status-processed]="notification.status === 'PROCESSED'"
@@ -96,6 +101,7 @@ import { NotificationPage, NotificationService, NotificationSummary } from '../c
   `]
 })
 export class MyNotificationsComponent implements OnInit {
+  private readonly auth = inject(AuthService);
     private readonly pageSize = 20;
     notifications: NotificationSummary[] = [];
     currentPage = 0;
@@ -103,6 +109,10 @@ export class MyNotificationsComponent implements OnInit {
     totalPages = 0;
     loading = false;
     error = '';
+
+    get isAdmin(): boolean {
+      return this.auth.role() === 'ADMIN';
+    }
 
     constructor(private readonly notificationService: NotificationService) {}
 

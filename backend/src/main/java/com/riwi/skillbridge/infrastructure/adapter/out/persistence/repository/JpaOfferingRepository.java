@@ -2,6 +2,8 @@ package com.riwi.skillbridge.infrastructure.adapter.out.persistence.repository;
 
 import com.riwi.skillbridge.domain.enums.ServiceStatus;
 import com.riwi.skillbridge.infrastructure.adapter.out.persistence.entity.OfferingEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -14,4 +16,8 @@ public interface JpaOfferingRepository extends JpaRepository<OfferingEntity, UUI
     Optional<OfferingEntity> findByCode(String code);
     List<OfferingEntity> findByCreatedBy(UUID createdBy);
     List<OfferingEntity> findByStatus(ServiceStatus status);
+    List<OfferingEntity> findAllByOrderByNameAsc();
+    List<OfferingEntity> findByStatusOrderByNameAsc(ServiceStatus status);
+    Page<OfferingEntity> findByCreatedBy(UUID createdBy, Pageable pageable);
+    long countByCreatedBy(UUID createdBy);
 }

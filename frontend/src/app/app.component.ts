@@ -13,16 +13,23 @@ import { HistoryService } from './core/history.service';
       <div class="container nav-inner">
         <a routerLink="/" class="brand">SkillBridge AI</a>
         <nav>
-          <a routerLink="/">Servicios</a>
-          <a routerLink="/book">Reservar</a>
-          <a routerLink="/ai">IA</a>
+          @if (auth.role() !== 'ADMIN') {
+            <a routerLink="/">Servicios</a>
+            <a routerLink="/book">Reservar</a>
+            <a routerLink="/ai">IA</a>
+          }
           @if (auth.role() === 'PROVIDER') {
             <a routerLink="/provider">Panel de proveedor</a>
+          }
+          @if (auth.role() === 'ADMIN') {
+            <a routerLink="/admin">Panel Admin</a>
           }
           @if (!auth.isAuthenticated()) {
             <a routerLink="/login">Ingresar</a>
           } @else {
-            <a routerLink="/bookings">Mis reservas</a>
+            @if (auth.role() !== 'ADMIN') {
+              <a routerLink="/bookings">Mis reservas</a>
+            }
             <a routerLink="/notifications">Notificaciones</a>
             <button class="link-button" (click)="auth.logout()">Salir</button>
           }
