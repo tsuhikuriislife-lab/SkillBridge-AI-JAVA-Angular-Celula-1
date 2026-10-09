@@ -113,6 +113,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - `app.routes.ts`: Se cambió la ruta a `/checkout/:id` para recibir el ID del servicio.
   - `CheckoutComponent`: Ahora lee el `:id` de la ruta, carga los datos del servicio con `OfferingService` (mostrando su título, categoría y precio en la tarjeta) y al hacer clic en "Pagar", llama a `BookingService.create()`.
   - Muestra un estado de "Procesando..." y, si la respuesta es exitosa (200/201), avanza a la vista de éxito.
+
 ## [2026-10-08] Comportamiento Estricto de Expiración de Token
 - **Agente:** Antigravity
 - **Contexto:** Al expirar el token, el usuario debe ver un modal a pantalla completa que bloquee cualquier otra interacción, en lugar de un toast descartable.
@@ -365,3 +366,44 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - Validacion: frontend y backend compilan en Docker; pruebas de servicios admin (16) y bitacora (4) pasan; stack local healthy con migraciones V12 y V13 aplicadas.
 
 
+
+## [2026-10-09] Enlace y Notificación Directa a Vista de Curso en Asistente IA
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Permitir que las recomendaciones del asistente IA incluyan enlaces directos y tarjetas de acceso inmediato a la vista de detalle del curso (`/service/:id`), evitando que el usuario deba buscarlo manualmente por nombre.
+- **Cambios realizados:**
+  - **Backend (`GeminiAiAdapter.java`):**
+    - Se formateó el catálogo entregado al prompt para incluir de forma explícita el `ID` de la oferta y su ruta directa `/service/{id}` adaptado a la nueva estructura de `Offering` (`name`, `code`, `shortDescription`/`detail`).
+    - Se agregaron instrucciones estrictas al prompt para exigir el formato Markdown `[Ver curso: NOMBRE](/service/ID)` e indicar al usuario que puede acceder directamente.
+    - Se implementó un mecanismo de respaldo/seguridad que detecta si el modelo mencionó cursos del catálogo pero omitió los enlaces directos, anexando automáticamente una sección de enlaces al pie del mensaje.
+    - Se unificó el manejo y extracción recursiva de detalles de error (`extractErrorDetails`).
+    - Se crearon pruebas unitarias completas en `GeminiAiAdapterTest` validando enlaces directos, respaldo de seguridad y excepciones de configuración, cuota y red.
+  - **Frontend (`AiComponent`):**
+    - Se actualizó el modelo de mensaje `ChatMessage` para soportar `SafeHtml` y lista de `courses` recomendados.
+    - Se implementó pre-carga de ofertas con `OfferingService` y extracción dinámica de IDs y cursos recomendados (`extractCourses`).
+    - Se agregaron formateo de Markdown interactivo para enlaces `/service/:id` y captura de eventos de clic en la burbuja para navegar con el `Router` de Angular sin recargar la página.
+    - Se agregó una tarjeta/notificación interactiva de cursos recomendados al pie del mensaje del asistente con badges, títulos y botones de acción "Ir al curso", junto a la indicación de acceso directo sin búsqueda manual.
+    - Se añadieron estilos modernos en `ai.component.css` manteniendo la línea visual del proyecto.
+- **Validación:**
+  - Pruebas unitarias de backend pasando al 100%.
+  - Compilación de Angular (`npx ng build`) completada con éxito.
+  - Reconstrucción y despliegue en Docker Compose (`docker compose up -d --build backend frontend`) validando contenedores activos y saludables.
+
+
+## [2026-10-09] Fusión de funcionalidades de la vista de proveedor
+- **Agente:** Antigravity
+- **Contexto:** La rama actual (`fix/frontend-details`) tenía una implementación muy básica y desactualizada de la vista de proveedor en comparación con la rama `develop`, la cual contenía funcionalidades avanzadas de la HU-13 (gestión de horarios, validaciones complejas de fechas, manejo de categorías por objeto, entre otras).
+- **Acción:** Se realizó un merge (fusión) de los cambios de `origin/develop` hacia la rama actual, priorizando los cambios de `develop` (estrategia `-X theirs`) para resolver automáticamente los conflictos en favor de la implementación más completa.
+- **Resultado:** La rama actual ahora tiene la versión más robusta de los componentes `create-offering.component.ts` y `my-offerings.component.ts`, alineada con las funcionalidades desarrolladas en `develop`.
+
+## [2026-10-09] Mejora visual y descriptiva en notificaciones
+- **Agente:** Antigravity
+- **Contexto:** La vista de notificaciones en Angular estaba solo mostrando de manera estática el cambio de estado de la reserva, sin permitir ir al detalle del servicio ni comparar claramente el estado anterior.
+- **Acción (Frontend):** Se modificó la plantilla de `my-notifications.component.ts` agregando un ancla `<a>` con la directiva `[routerLink]` que envuelve al título (`notification.title`). Ahora enlaza a `/service/:bookingId` usando clases para estilizar.
+- **Acción (Backend):** En `BookingHistoryController.java` se mejoró la generación del texto de la notificación para que busque en el `BookingHistory` del usuario cuál era su estado anterior. Ahora ensambla dinámicamente el mensaje: `"El/la estado del servicio fue modificado. Antes: [antes], despues [despues]"`. Si es el primer evento en la historia, el "Antes" queda catalogado como "Ninguno".
+- **Validación:** Se recompiló la imagen `backend` en Docker y se verificó que arranca satisfactoriamente.
+
+## [2026-10-09] Corrección de Fallo de CI por Límite de Peticiones en Docker Hub
+- **Agente:** Antigravity
+- **Contexto:** Al empujar los últimos cambios, las pruebas en GitHub Actions (`docker/build-push-action`) fallaron con un error `429 Too Many Requests` proveniente de `registry-1.docker.io`. Esto ocurre porque las IPs públicas de GitHub Actions suelen sobrepasar el límite de descargas anónimas impuesto por Docker Hub para imágenes oficiales.
+- **Acción:** Se modificaron los archivos `backend/Dockerfile` y `frontend/Dockerfile` para sustituir las imágenes base de Docker Hub (`maven`, `eclipse-temurin`, `node`, `nginx`) por sus réplicas oficiales en el registro público de Amazon ECR (`public.ecr.aws/docker/library/...`), el cual no impone límites estrictos de peticiones anónimas.
+- **Resultado:** Los Dockerfiles mantienen las mismas versiones (ej. `node:22-alpine`, `maven:3.9.16-eclipse-temurin-21`), pero descargadas desde un espejo (mirror) confiable, lo que garantiza estabilidad en los pipelines de integración continua.

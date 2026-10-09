@@ -1,11 +1,12 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { NotificationPage, NotificationService, NotificationSummary } from '../core/notification.service';
 import { AuthService } from '../core/auth.service';
 
 @Component({
     standalone: true,
-    imports: [DatePipe],
+    imports: [DatePipe, RouterLink],
     template: `
     <section class="container notifications-page">
       <header class="page-heading">
@@ -38,7 +39,11 @@ import { AuthService } from '../core/auth.service';
           @for (notification of notifications; track notification.id) {
             <article class="notification-row">
               <div class="notification-main">
-                <h2>{{ notification.title }}</h2>
+                <h2>
+                  <a [routerLink]="['/service', notification.bookingId]" class="service-link">
+                    {{ notification.title }}
+                  </a>
+                </h2>
                 <p>{{ notification.message }}</p>
                 @if (isAdmin && notification.targetId) {
                   <p class="muted">{{ notification.targetType }}: {{ notification.targetId }}</p>
