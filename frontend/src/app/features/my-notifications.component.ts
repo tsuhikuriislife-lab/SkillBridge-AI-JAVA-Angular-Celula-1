@@ -1,10 +1,11 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { NotificationPage, NotificationService, NotificationSummary } from '../core/notification.service';
 
 @Component({
     standalone: true,
-    imports: [DatePipe],
+    imports: [DatePipe, RouterLink],
     template: `
     <section class="container notifications-page">
       <header class="page-heading">
@@ -37,7 +38,11 @@ import { NotificationPage, NotificationService, NotificationSummary } from '../c
           @for (notification of notifications; track notification.id) {
             <article class="notification-row">
               <div class="notification-main">
-                <h2>{{ notification.title }}</h2>
+                <h2>
+                  <a [routerLink]="['/service', notification.bookingId]" class="service-link">
+                    {{ notification.title }}
+                  </a>
+                </h2>
                 <p>{{ notification.message }}</p>
                 <p class="muted">Reserva: {{ notification.bookingId }}</p>
                 <p class="muted">Recibida: {{ notification.createdAt | date:'medium' }}</p>
