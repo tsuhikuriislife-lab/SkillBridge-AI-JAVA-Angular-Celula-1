@@ -1,8 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
-
-import { HistoryService } from '../core/history.service';
+import { HistoryService } from '../../core/history.service';
 
 @Component({
   selector: 'app-not-found',

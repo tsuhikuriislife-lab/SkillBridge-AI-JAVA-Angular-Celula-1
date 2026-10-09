@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CurrencyPipe, CommonModule } from '@angular/common';
-import { Offering, OfferingService } from '../core/offering.service';
-import { AuthService } from '../core/auth.service';
-import { AssessmentService, ClientAssessmentResponse, AssessmentEvaluation } from '../core/assessment.service';
+import { Offering, OfferingService } from '../../core/offering.service';
+import { AuthService } from '../../core/auth.service';
+import { AssessmentService, ClientAssessmentResponse, AssessmentEvaluation } from '../../core/assessment.service';
 
 @Component({
   selector: 'app-service-details',

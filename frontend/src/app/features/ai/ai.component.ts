@@ -2,7 +2,7 @@ import { Component, ElementRef, ViewChild, AfterViewChecked } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { apiBase } from '../core/api';
+import { apiBase } from '../../core/api';
 
 interface ChatMessage {
   text: string;

@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BookingService } from '../core/booking.service';
-import { OfferingService, Offering } from '../core/offering.service';
+import { BookingService } from '../../core/booking.service';
+import { OfferingService, Offering } from '../../core/offering.service';
 
 @Component({
   selector: 'app-checkout',

@@ -1,9 +1,9 @@
 import { Component, OnInit, AfterViewInit, HostListener, ElementRef, inject } from '@angular/core';
 import { CurrencyPipe, LowerCasePipe } from '@angular/common';
 import { Router } from '@angular/router';
-import { Offering, OfferingService, CategoryCount } from '../core/offering.service';
-import { AuthService } from '../core/auth.service';
-import { ToastService } from '../core/toast.service';
+import { Offering, OfferingService, CategoryCount } from '../../core/offering.service';
+import { AuthService } from '../../core/auth.service';
+import { ToastService } from '../../core/toast.service';
 
 @Component({
   standalone: true,
