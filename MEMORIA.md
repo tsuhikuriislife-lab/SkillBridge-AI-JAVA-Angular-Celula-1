@@ -161,3 +161,13 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Se completó la fusión priorizando el código de `fix/crud-completo` que ya tenía implementado el panel de proveedor (`ServiceManagementController`, Angular views en `provider/`, `OfferingCrudService`) y el nuevo esquema de la base de datos (`ServiceStatus`, UUID categoryId). 
   - Se descartaron las implementaciones duplicadas (`ProviderOfferingService`, `ProviderOfferingController`, etc.) para mantener la coherencia con la arquitectura hexagonal limpia introducida en HEAD.
   - La memoria de agentes fue unificada.
+
+## 2026-10-08: Fixes para Provider y Checkout
+- Se corrigió el bug del `[object Object]` en `CreateOfferingComponent`, mapeando correctamente el ID de la categoría seleccionada.
+- Se agregó el manejo de `HttpMessageNotReadableException` en `GlobalExceptionHandler.java` (retorna 400 Bad Request) para evitar que el framework lance un 403 y desloguee falsamente al usuario.
+- Se adaptó `CreateOfferingComponent` y `OfferingService` para recolectar campos del cronograma (`startDate`, `startDay`, `sessionDuration`, etc.) y encadenar la petición `/api/provider/services/{id}/schedule`.
+- Se previno el acceso prematuro a la pasarela de pagos esperando la validación de `checkEnrollmentStatus` antes de habilitar la vista en `service-details.component.ts`.
+- Se ajustó `CheckoutComponent` para que expulse inmediatamente al usuario (mediante `router.navigate`) si ingresa a la URL de checkout de un curso que ya tiene reservado, mostrando además el toast correspondiente.
+- Se modificó `ServiceEnrollmentService.java` (`!isAfter` -> `isBefore`) para evitar errores 422 al reservar servicios que comienzan el mismo día.
+- Se verificó la consistencia del modelo `NotificationPage` (retorna `PageResult` con `totalElements`), resolviendo la inconsistencia visual de "NaN de NaN".
+- Se fusionó exitosamente la rama `feat/implementar-rol-proveedor`.
