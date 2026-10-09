@@ -7,10 +7,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface OfferingRepositoryPort {
+    List<Offering> findAll();
     List<Offering> findAllActive();
     Optional<Offering> findById(UUID id);
     Offering save(Offering offering);
     PageResult<Offering> findByProviderId(UUID providerId, int page, int size);
     List<String> findDistinctCategories();
     List<com.riwi.skillbridge.domain.model.CategoryCount> findTopCategories(int limit);
+    long countByProviderId(UUID providerId);
+    void deleteById(UUID id);
 }

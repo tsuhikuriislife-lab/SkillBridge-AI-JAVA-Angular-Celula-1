@@ -20,6 +20,11 @@ public class OfferingPersistenceAdapter implements OfferingRepositoryPort {
     public OfferingPersistenceAdapter(JpaOfferingRepository repository) { this.repository = repository; }
 
     @Override
+    public List<Offering> findAll() {
+        return repository.findAllByOrderByTitleAsc().stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public List<Offering> findAllActive() {
         return repository.findByActiveTrueOrderByTitleAsc().stream().map(this::toDomain).toList();
     }
@@ -54,6 +59,16 @@ public class OfferingPersistenceAdapter implements OfferingRepositoryPort {
     @Override
     public List<com.riwi.skillbridge.domain.model.CategoryCount> findTopCategories(int limit) {
         return repository.findTopCategories(PageRequest.of(0, limit));
+    }
+
+    @Override
+    public long countByProviderId(UUID providerId) {
+        return repository.countByProviderId(providerId);
+    }
+
+    @Override
+    public void deleteById(UUID id) {
+        repository.deleteById(id);
     }
 
     private Offering toDomain(OfferingEntity e) {

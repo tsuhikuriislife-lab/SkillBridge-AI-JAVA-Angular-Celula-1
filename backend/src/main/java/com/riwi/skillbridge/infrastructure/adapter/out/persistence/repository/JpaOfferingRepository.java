@@ -9,9 +9,12 @@ import java.util.List;
 import java.util.UUID;
 
 public interface JpaOfferingRepository extends JpaRepository<OfferingEntity, UUID> {
+    List<OfferingEntity> findAllByOrderByTitleAsc();
     List<OfferingEntity> findByActiveTrueOrderByTitleAsc();
     
     Page<OfferingEntity> findByProviderId(UUID providerId, Pageable pageable);
+
+    long countByProviderId(UUID providerId);
     
     @Query("SELECT DISTINCT o.category FROM OfferingEntity o ORDER BY o.category ASC")
     List<String> findDistinctCategories();

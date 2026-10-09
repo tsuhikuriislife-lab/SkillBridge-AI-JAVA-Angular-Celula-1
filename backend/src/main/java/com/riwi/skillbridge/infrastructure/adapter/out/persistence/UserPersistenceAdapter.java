@@ -24,10 +24,30 @@ public class UserPersistenceAdapter implements UserRepositoryPort, UserAccountPo
     public Optional<UserAccount> findByEmail(String email) { return repository.findByEmailIgnoreCase(email).map(this::toDomain); }
 
     @Override
+    public Optional<UserAccount> findById(UUID id) {
+        return repository.findById(id).map(this::toDomain);
+    }
+
+    @Override
+    public java.util.List<UserAccount> findAll() {
+        return repository.findAll().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public java.util.List<UserAccount> findByRole(com.riwi.skillbridge.domain.model.Role role) {
+        return repository.findByRole(role).stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public UserAccount save(UserAccount user) {
         UserEntity saved = repository.save(new UserEntity(
                 user.id(), user.name(), user.email(), user.passwordHash(), user.role(), Instant.now()));
         return toDomain(saved);
+    }
+
+    @Override
+    public void deleteById(UUID id) {
+        repository.deleteById(id);
     }
 
     @Override
