@@ -4,6 +4,7 @@ import com.riwi.skillbridge.domain.enums.Frequency;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 public record ServiceSchedule(
@@ -13,6 +14,8 @@ public record ServiceSchedule(
     int sessionDuration,
     Frequency frequency,
     int numberOfSessions,
-    LocalDate startDate
+    LocalDate startDate,
+    LocalTime startTime,
+    LocalTime endTime
 ) {
 }

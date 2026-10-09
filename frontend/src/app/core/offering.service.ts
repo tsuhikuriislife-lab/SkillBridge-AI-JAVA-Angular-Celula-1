@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { apiBase } from './api';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin, of } from 'rxjs';
 import { map, switchMap, shareReplay } from 'rxjs/operators';
 
 export interface Offering {
@@ -19,6 +19,8 @@ export interface Offering {
   numberOfSessions?: number;
   photoUrl?: string;
   createdBy?: string;
+  capacity?: number;
+  code?: string;
 }
 
 export interface PageResult<T> {
@@ -68,7 +70,9 @@ export class OfferingService {
       price: backendObj.price,
       active: backendObj.status === 'ACTIVE',
       photoUrl: 'images/placeholder.jpg',
-      createdBy: backendObj.createdBy
+      createdBy: backendObj.createdBy,
+      capacity: backendObj.capacity || 10,
+      code: backendObj.code
     };
   }
 
@@ -113,14 +117,23 @@ export class OfferingService {
       switchMap(catMap => 
         this.http.post<any>(`${apiBase()}/provider/services`, req).pipe(
           switchMap(createdService => {
-            const scheduleReq = {
-              startDay: offering.startDay,
-              sessionDuration: offering.sessionDuration,
-              frequency: offering.frequency,
-              numberOfSessions: offering.numberOfSessions,
-              startDate: offering.startDate
-            };
-            return this.http.post<any>(`${apiBase()}/provider/services/${createdService.id}/schedule`, scheduleReq).pipe(
+            const days: string[] = offering.startDays && offering.startDays.length > 0 ? offering.startDays : [offering.startDay];
+            const scheduleRequests = days.map(day => {
+              const scheduleReq = {
+                startDay: day,
+                sessionDuration: offering.sessionDuration,
+                frequency: offering.frequency,
+                numberOfSessions: offering.numberOfSessions,
+                startDate: this.getNextDateForDay(offering.startDate, day),
+                startTime: offering.startTime.length === 5 ? offering.startTime + ':00' : offering.startTime
+              };
+              return this.http.post<any>(`${apiBase()}/provider/services/${createdService.id}/schedule`, scheduleReq);
+            });
+            
+            if (scheduleRequests.length === 0) {
+              return of(this.mapToFrontend(createdService, catMap));
+            }
+            return forkJoin(scheduleRequests).pipe(
               map(() => this.mapToFrontend(createdService, catMap))
             );
           })
@@ -128,17 +141,41 @@ export class OfferingService {
       )
     );
   }
+
+  private getNextDateForDay(baseDateStr: string, targetDay: string): string {
+    const daysMap: any = { 'SUNDAY': 0, 'MONDAY': 1, 'TUESDAY': 2, 'WEDNESDAY': 3, 'THURSDAY': 4, 'FRIDAY': 5, 'SATURDAY': 6 };
+    const targetIdx = daysMap[targetDay];
+    
+    const parts = baseDateStr.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    const date = new Date(year, month - 1, day);
+    
+    let currentIdx = date.getDay();
+    let daysToAdd = targetIdx - currentIdx;
+    if (daysToAdd < 0) {
+      daysToAdd += 7;
+    }
+    
+    date.setDate(date.getDate() + daysToAdd);
+    
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
   
-  update(id: string, updates: Partial<Offering>): Observable<Offering> {
+  update(id: string, updates: Partial<Offering>, currentStatus?: boolean): Observable<Offering> {
     const req = {
       name: updates.title,
       categoryId: updates.categoryId || updates.category,
       price: updates.price,
       detail: updates.description,
       shortDescription: updates.description,
-      capacity: 10,
-      code: "SRV-" + id.substring(0, 4),
-      status: updates.active ? "ACTIVE" : "INACTIVE"
+      capacity: updates.capacity || 10,
+      code: updates.code || "SRV-" + id.substring(0, 4),
+      status: (updates.active !== undefined ? updates.active : currentStatus) ? "ACTIVE" : "INACTIVE"
     };
     return this.resolveCategories().pipe(
       switchMap(catMap => 
@@ -149,10 +186,11 @@ export class OfferingService {
     );
   }
   
-  toggleStatus(id: string): Observable<Offering> {
+  toggleStatus(id: string, currentStatus: boolean): Observable<Offering> {
+    const newStatus = currentStatus ? "INACTIVE" : "ACTIVE";
     return this.resolveCategories().pipe(
       switchMap(catMap => 
-        this.http.patch<any>(`${apiBase()}/provider/services/${id}/status`, { status: "INACTIVE" }).pipe(
+        this.http.patch<any>(`${apiBase()}/provider/services/${id}/status`, { status: newStatus }).pipe(
           map(o => this.mapToFrontend(o, catMap))
         )
       )
@@ -172,5 +210,13 @@ export class OfferingService {
         )
       )
     );
+  }
+
+  getSchedules(serviceId: string): Observable<any[]> {
+    return this.http.get<any[]>(`${apiBase()}/provider/services/${serviceId}/schedule`);
+  }
+
+  deleteSchedule(serviceId: string, scheduleId: string): Observable<any> {
+    return this.http.delete(`${apiBase()}/provider/services/${serviceId}/schedule/${scheduleId}`);
   }
 }

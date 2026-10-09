@@ -44,7 +44,7 @@ class ServiceEnrollmentServiceTest {
     private ServiceSchedule schedule() {
         return new ServiceSchedule(UUID.randomUUID(), serviceId,
                 LocalDate.now().plusDays(7).getDayOfWeek(), 60, Frequency.WEEKLY, 4,
-                LocalDate.now().plusDays(7));
+                LocalDate.now().plusDays(7), java.time.LocalTime.of(10, 0), java.time.LocalTime.of(11, 0));
     }
 
     private void stubEnrollable(int capacity) {

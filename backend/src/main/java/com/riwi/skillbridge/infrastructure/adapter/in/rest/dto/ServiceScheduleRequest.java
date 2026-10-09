@@ -4,6 +4,7 @@ import com.riwi.skillbridge.domain.enums.Frequency;
 import jakarta.validation.constraints.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 public record ServiceScheduleRequest(
@@ -11,5 +12,6 @@ public record ServiceScheduleRequest(
     @NotNull @Min(1) Integer sessionDuration,
     @NotNull Frequency frequency,
     @NotNull @Min(1) Integer numberOfSessions,
-    @NotNull LocalDate startDate
+    @NotNull LocalDate startDate,
+    @NotNull LocalTime startTime
 ) {}

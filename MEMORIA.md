@@ -171,3 +171,66 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - Se modificó `ServiceEnrollmentService.java` (`!isAfter` -> `isBefore`) para evitar errores 422 al reservar servicios que comienzan el mismo día.
 - Se verificó la consistencia del modelo `NotificationPage` (retorna `PageResult` con `totalElements`), resolviendo la inconsistencia visual de "NaN de NaN".
 - Se fusionó exitosamente la rama `feat/implementar-rol-proveedor`.
+
+## [2026-10-08] Inclusión de horario en creación de servicios y ajuste de sesión
+- **Agente:** Antigravity
+- **Contexto:** Se solicitaron correcciones en la vista de creación de servicios para incluir la hora, clarificar selectores, y evitar cierres de sesión abruptos por errores de permisos.
+- **Cambios realizados:**
+  - **Dominio y Persistencia (Backend):** Se amplió el modelo `ServiceSchedule` y sus DTOs (`ServiceScheduleRequest`, `ServiceScheduleOut`) para incluir `startTime` y `endTime` de tipo `LocalTime`. Se actualizó `ServiceScheduleEntity` y los adaptadores de persistencia, creando una nueva migración Flyway inmutable (`V11__add_time_to_schedules.sql`) con valores por defecto.
+  - **Pruebas (Backend):** Se actualizaron `ServiceScheduleServiceTest` y `ServiceEnrollmentServiceTest` para proveer instancias válidas de `LocalTime`.
+  - **Frontend:** Se modificó `CreateOfferingComponent` para incorporar dos nuevos inputs (`type="time"`) para `startTime` y `endTime`, mapeados apropiadamente en el formulario reactivo (`FormGroup`).
+  - **Servicio Angular:** En `offering.service.ts` se ajustó la captura del `scheduleReq` para enviar los campos de hora formateados a Jackson (`HH:mm:00`). Se verificó que el selector `Día de la semana` ya envía valores ENUM funcionales (`MONDAY`, etc.).
+  - **Autenticación (Frontend):** Se corrigió la lógica en `auth.interceptor.ts`. Anteriormente, ante un `403 Forbidden`, la app cerraba abruptamente la sesión. Ahora solo se expulsa la sesión (`triggerSessionExpired()`) con códigos `401 Unauthorized`, permitiendo al usuario con roles insuficientes permanecer en sesión y solo visualizar el mensaje de error de creación.
+
+## [2026-10-08] Mejoras en la vista de creación de servicios (proveedor) y corrección del error 403
+- **Agente:** Antigravity
+- **Contexto:** El usuario reportó un error 403 al crear servicios y solicitó mejoras UI en la selección de días y categorías.
+- **Cambios realizados:**
+  - **Manejo de Excepciones:** Se agregó un `ExceptionHandler` en `GlobalExceptionHandler.java` para interceptar `DataIntegrityViolationException`. Esto previene que una excepción de base de datos no manejada (como desbordamiento numérico por precios/capacidades grandes) se propague a Spring Security y retorne erróneamente un 403, retornando en su lugar un 400 Bad Request estructurado.
+  - **Frontend UI:** Se modificó `create-offering.component.ts` para usar checkboxes permitiendo la selección de múltiples días (`startDays`). Se ajustó el buscador de categorías para que ocupe la mitad de la pantalla y muestre la categoría seleccionada a la derecha.
+  - **Lógica de Múltiples Horarios:** En `offering.service.ts`, el método `create` ahora itera sobre los días seleccionados. Por cada día, se calcula automáticamente la fecha de inicio correspondiente (usando `getNextDateForDay`) basada en la fecha base y el día objetivo, y se envían múltiples peticiones concurrentes `POST` a la ruta `/schedule` utilizando `forkJoin`.
+  - **Eliminación de "Hora Fin":** Se eliminó el campo "hora fin" de la interfaz. En el backend, el `ServiceScheduleController` ya calcula automáticamente `endTime` usando `startTime().plusMinutes(req.sessionDuration())`, evitando que el frontend tenga que enviarlo.
+
+## [2026-10-08] Fix para UUID de ServiceScheduleEntity
+- **Agente:** Antigravity
+- **Contexto:** Al intentar crear los horarios (schedules) en cadena con la creación del servicio, el endpoint devolvía un 500 Interno que Spring Security mapeaba como 403 Forbidden.
+- **Cambio:** Se ajustó el método `createSchedule` en `ServiceScheduleService.java` para que genere explícitamente un `UUID.randomUUID()` en caso de que llegue nulo, dado que `ServiceScheduleEntity` no estaba configurada con generación automática (`@GeneratedValue`).
+
+## [2026-10-08] Refinamiento de la UX y manejo de errores en la vista de Proveedor
+- **Agente:** Antigravity
+- **Contexto:** Repaso exhaustivo sobre el manejo de excepciones y alertas en las funcionalidades de creación, edición y visualización de servicios del proveedor.
+- **Cambios en Frontend:**
+  - `create-offering.component.ts`: Se implementó un validador personalizado (`minDateValidator`) para asegurar que la fecha de inicio tenga al menos 48 horas de anticipación, coincidiendo con la regla de negocio del backend y evitando llamadas API fallidas.
+  - `create-offering.component.ts`: Se removió el atributo `[disabled]="form.invalid"` del botón de submit para permitir que el usuario intente enviarlo y el sistema pueda marcar los campos como tocados (`markAllAsTouched()`) y desplegar los mensajes de error correspondientes.
+  - Se capturó adecuadamente el mensaje de error del backend (`err.error.detail`) en todas las peticiones (creación, edición, listar), de manera que si ocurre un problema de base de datos o regla de negocio, el usuario pueda ver el motivo real.
+  - `my-offerings.component.ts`: Se añadió lógica completa para mostrar alertas de éxito y de error usando una función `showMessage` compartida con un `setTimeout` a 5 segundos para su limpieza automática.
+  - Estilización: Se añadió una clase `.msg.error` a las plantillas HTML para pintar de rojo y con fondo claro las notificaciones de fallo en ambas pantallas.
+
+## [2026-10-08] Corrección del mensaje de éxito en la creación de servicio
+- **Agente:** Antigravity
+- **Contexto:** Al crear un servicio, el mensaje de éxito ("Servicio creado exitosamente!") no se mostraba porque la función `cancel()` (encargada de limpiar el formulario) era llamada *después* de asignar el mensaje de éxito, y dentro de su lógica también blanqueaba la variable `msg`.
+- **Cambio en Frontend (`create-offering.component.ts`):** Se invirtió el orden de ejecución en el callback `next` del observable, ejecutando `this.cancel()` antes de asignar `this.msg = 'Servicio creado exitosamente!'` para evitar que la limpieza sobrescriba el mensaje.
+
+## [2026-10-08] UX Visual para errores de validación de formulario
+- **Agente:** Antigravity
+- **Contexto:** Identificación visual de los campos obligatorios o inválidos durante la creación y actualización de servicios.
+  - Se añadieron estilos CSS (`.ng-invalid.ng-touched`) en los componentes `create-offering.component.ts` y `my-offerings.component.ts`. Cuando el usuario intenta enviar el formulario o sale de un campo dejándolo inválido, los bordes del input (o la caja contenedora de los checkboxes/selector personalizado de categoría) se vuelven rojos para indicarle exactamente dónde debe corregir.
+
+## [2026-10-08] Validación de fecha máxima para evitar desbordamientos
+- **Agente:** Antigravity
+- **Contexto:** Al intentar ingresar valores excesivamente grandes en la fecha de inicio (ej. el año 275760), el sistema colapsaba porque el backend no podía deserializarlo (HttpMessageNotReadableException), resultando en un error confuso para el usuario.
+- **Cambios realizados:**
+  - **Frontend (`create-offering.component.ts`):** Se añadió el atributo HTML `max="2099-12-31"` al input de fecha para restringir fechas absurdas desde el navegador. Además, se actualizó el validador personalizado (ahora llamado `dateValidator`) para detectar si el año supera el 2099 y arrojar un error específico (`maxDate`) que muestra un mensaje amigable al usuario.
+  - **Backend (`GlobalExceptionHandler.java`):** Se mejoró el manejador de la excepción `HttpMessageNotReadableException` para inspeccionar la causa raíz (`InvalidFormatException`). Si el fallo ocurre al parsear un `LocalDate`, ahora retorna un mensaje amigable indicando que el formato o el límite de la fecha no es válido, en lugar de exponer el error interno de Jackson al frontend.
+
+## [2026-10-08] Corrección Crítica en la Gestión de Servicios (Mis Servicios)
+- **Agente:** Antigravity
+- **Contexto:** La vista de "Mis Servicios" permitía editar y cambiar el estado, pero introducía bugs críticos de pérdida de datos y no permitía cambiar la categoría.
+- **Cambios realizados (Frontend):**
+  - **Fallo de Desactivación Permanente:** Se corrigió un bug en `offering.service.ts` donde la función `toggleStatus` enviaba siempre `{ status: "INACTIVE" }` al backend (incluso al intentar activarlo), y la función `update` hacía lo mismo porque el formulario no enviaba la propiedad `active`. Ahora `toggleStatus` envía el estado invertido correctamente y `update` preserva el estado actual del servicio al editarlo.
+  - **Pérdida de Capacidad y Código:** Se corrigió la función `update` para que no sobrescriba la capacidad a `10` y el código del servicio a `SRV-XXXX` (lo cual destruía los datos originales). Ahora se agregó `capacity` y `code` a la interfaz `Offering` de Angular, se mapean desde la respuesta, y se reutilizan al hacer el PUT al backend.
+  - **Edición de Categoría:** Se añadió el selector desplegable de categoría en el modal de edición de `my-offerings.component.ts`. Ahora el proveedor puede cambiar la categoría del servicio una vez creado.
+  - **Validación Visual:** Se agregó la marcación roja automática para el selector de categoría (`select.ng-invalid`) y se invocó `markAllAsTouched()` en la función `update()` para que el usuario sepa qué falta.
+  - **Mejora UI (Overflow de Textos):** En `my-offerings.component.ts`, se ajustó la disposición de las tarjetas (`.card`) para evitar desbordamientos visuales cuando el título o la descripción son muy largos. Se aplicó `white-space: nowrap`, `overflow: hidden` y `text-overflow: ellipsis`, utilizando Flexbox (`.title-row`) para garantizar que la etiqueta de estado ("Activo"/"Inactivo") nunca sea empujada fuera de la pantalla ni se oculte. Además, se añadió el atributo HTML `[title]` para permitir al usuario leer el texto completo al pasar el mouse por encima.
+  - **Administración de Horarios (Schedules):** Se añadió la capacidad de gestionar los horarios desde el modal de edición de servicio (`my-offerings.component.ts`). Al abrir el modal, se hace una petición HTTP para cargar todos los horarios asociados. Se muestra una lista de los horarios activos indicando el día de la semana, hora y duración. Se agregó un botón para **eliminar** horarios específicos usando el endpoint `DELETE /api/provider/services/{id}/schedule/{scheduleId}`, conectando con la capa de persistencia a través de `offering.service.ts`.
+  - **Campos Faltantes de la HU:** Se agregó la posibilidad de editar la capacidad por sesión y la URL de la imagen (photoUrl) en el formulario reactivo del modal, asegurando que se modifiquen en la base de datos al usar el PUT de la API.

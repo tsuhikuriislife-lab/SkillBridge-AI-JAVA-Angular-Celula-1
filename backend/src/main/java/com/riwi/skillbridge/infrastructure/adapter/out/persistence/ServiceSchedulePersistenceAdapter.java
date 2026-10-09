@@ -21,7 +21,7 @@ public class ServiceSchedulePersistenceAdapter implements ServiceSchedulePort {
     @Override
     public ServiceSchedule save(ServiceSchedule s) {
         return toDomain(repository.save(new ServiceScheduleEntity(s.id(), s.serviceId(), s.startDay(),
-                s.sessionDuration(), s.frequency(), s.numberOfSessions(), s.startDate())));
+                s.sessionDuration(), s.frequency(), s.numberOfSessions(), s.startDate(), s.startTime(), s.endTime())));
     }
 
     @Override
@@ -39,6 +39,6 @@ public class ServiceSchedulePersistenceAdapter implements ServiceSchedulePort {
 
     private ServiceSchedule toDomain(ServiceScheduleEntity e) {
         return new ServiceSchedule(e.getId(), e.getServiceId(), e.getStartDay(),
-                e.getSessionDuration(), e.getFrequency(), e.getNumberOfSessions(), e.getStartDate());
+                e.getSessionDuration(), e.getFrequency(), e.getNumberOfSessions(), e.getStartDate(), e.getStartTime(), e.getEndTime());
     }
 }

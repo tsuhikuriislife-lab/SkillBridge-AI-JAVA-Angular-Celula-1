@@ -58,7 +58,7 @@ public class OfferingController {
         return schedules.getSchedulesByService(id).stream()
                 .map(s -> new com.riwi.skillbridge.infrastructure.adapter.in.rest.dto.ServiceScheduleOut(
                         s.id(), s.serviceId(), s.startDay(), s.sessionDuration(),
-                        s.frequency(), s.numberOfSessions(), s.startDate()))
+                        s.frequency(), s.numberOfSessions(), s.startDate(), s.startTime(), s.endTime()))
                 .toList();
     }
 

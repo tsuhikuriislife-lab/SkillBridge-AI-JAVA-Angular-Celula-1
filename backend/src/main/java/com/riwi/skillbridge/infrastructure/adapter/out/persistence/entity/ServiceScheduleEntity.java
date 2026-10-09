@@ -4,6 +4,7 @@ import com.riwi.skillbridge.domain.enums.Frequency;
 import jakarta.persistence.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 @Entity
@@ -32,13 +33,21 @@ public class ServiceScheduleEntity {
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
+    @Column(name = "start_time", nullable = false)
+    private LocalTime startTime;
+
+    @Column(name = "end_time", nullable = false)
+    private LocalTime endTime;
+
     protected ServiceScheduleEntity() {}
 
     public ServiceScheduleEntity(UUID id, UUID serviceId, DayOfWeek startDay, int sessionDuration,
-                                 Frequency frequency, int numberOfSessions, LocalDate startDate) {
+                                 Frequency frequency, int numberOfSessions, LocalDate startDate,
+                                 LocalTime startTime, LocalTime endTime) {
         this.id = id; this.serviceId = serviceId; this.startDay = startDay;
         this.sessionDuration = sessionDuration; this.frequency = frequency;
         this.numberOfSessions = numberOfSessions; this.startDate = startDate;
+        this.startTime = startTime; this.endTime = endTime;
     }
 
     public UUID getId() { return id; }
@@ -48,4 +57,6 @@ public class ServiceScheduleEntity {
     public Frequency getFrequency() { return frequency; }
     public int getNumberOfSessions() { return numberOfSessions; }
     public LocalDate getStartDate() { return startDate; }
+    public LocalTime getStartTime() { return startTime; }
+    public LocalTime getEndTime() { return endTime; }
 }

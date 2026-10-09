@@ -33,7 +33,7 @@ class ServiceScheduleServiceTest {
     private final LocalDate validStart = LocalDate.now().plusDays(7);
 
     private ServiceSchedule schedule(int sessions, int duration, Frequency freq, LocalDate start) {
-        return new ServiceSchedule(null, serviceId, start.getDayOfWeek(), duration, freq, sessions, start);
+        return new ServiceSchedule(null, serviceId, start.getDayOfWeek(), duration, freq, sessions, start, java.time.LocalTime.of(10, 0), java.time.LocalTime.of(11, 0));
     }
 
     private Offering service() {

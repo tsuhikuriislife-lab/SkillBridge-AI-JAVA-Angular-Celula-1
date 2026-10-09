@@ -28,7 +28,13 @@ public class ServiceScheduleService implements ManageServiceScheduleUseCase {
     @Override
     public ServiceSchedule createSchedule(ServiceSchedule s) {
         validate(s);
-        return serviceSchedulePort.save(s);
+        ServiceSchedule toSave = new ServiceSchedule(
+                s.id() != null ? s.id() : UUID.randomUUID(),
+                s.serviceId(), s.startDay(), s.sessionDuration(),
+                s.frequency(), s.numberOfSessions(), s.startDate(),
+                s.startTime(), s.endTime()
+        );
+        return serviceSchedulePort.save(toSave);
     }
 
     @Override
@@ -51,7 +57,9 @@ public class ServiceScheduleService implements ManageServiceScheduleUseCase {
                 s.sessionDuration() > 0 ? s.sessionDuration() : existing.sessionDuration(),
                 s.frequency() != null ? s.frequency() : existing.frequency(),
                 s.numberOfSessions() > 0 ? s.numberOfSessions() : existing.numberOfSessions(),
-                s.startDate() != null ? s.startDate() : existing.startDate());
+                s.startDate() != null ? s.startDate() : existing.startDate(),
+                s.startTime() != null ? s.startTime() : existing.startTime(),
+                s.endTime() != null ? s.endTime() : existing.endTime());
         validate(merged);
         return Optional.of(serviceSchedulePort.save(merged));
     }

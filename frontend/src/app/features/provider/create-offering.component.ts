@@ -20,39 +20,49 @@ import { OfferingService } from '../../core/offering.service';
           <textarea formControlName="description" rows="3" maxlength="300" placeholder="Describe tu servicio..."></textarea>
         </label>
         
-        <label class="field">Categoría
-          <div class="custom-select">
-            <input type="text" placeholder="Buscar categoría..." [value]="searchCat" (input)="filterCats($event)" (focus)="showCats=true" />
-            @if (showCats) {
-              <ul class="cat-list">
-                @for (c of filteredCats; track c.id) {
-                  <li (click)="selectCat(c)">{{ c.name }}</li>
-                }
-              </ul>
-            }
+        <div class="category-container">
+          <label class="field half">Categoría
+            <div class="custom-select" [class.error-box]="form.get('category')?.invalid && form.get('category')?.touched">
+              <input type="text" placeholder="Buscar categoría..." [value]="searchCat" (input)="filterCats($event)" (focus)="showCats=true" />
+              @if (showCats) {
+                <ul class="cat-list">
+                  @for (c of filteredCats; track c.id) {
+                    <li (click)="selectCat(c)">{{ c.name }}</li>
+                  }
+                </ul>
+              }
+            </div>
+          </label>
+          <div class="half selected-category-display">
+            Categoría seleccionada:<br>
+            <strong>{{ selectedCategoryName || 'Ninguna' }}</strong>
           </div>
-          <small>Seleccionada: <strong>{{ selectedCategoryName || 'Ninguna' }}</strong></small>
-        </label>
+        </div>
         
         <label class="field">Precio
           <input type="number" formControlName="price" min="0" step="0.01" />
         </label>
 
         <div class="row">
-          <label class="field">Fecha de Inicio
-            <input type="date" formControlName="startDate" />
+          <label class="field">Hora inicio
+            <input type="time" formControlName="startTime" />
           </label>
-          <label class="field">Día de la semana
-            <select formControlName="startDay">
-              <option value="">Seleccione un día</option>
-              <option value="MONDAY">Lunes</option>
-              <option value="TUESDAY">Martes</option>
-              <option value="WEDNESDAY">Miércoles</option>
-              <option value="THURSDAY">Jueves</option>
-              <option value="FRIDAY">Viernes</option>
-              <option value="SATURDAY">Sábado</option>
-              <option value="SUNDAY">Domingo</option>
-            </select>
+        </div>
+
+        <div class="row">
+          <label class="field">Fecha de Inicio
+            <input type="date" formControlName="startDate" max="2099-12-31" />
+          </label>
+          <label class="field">Días de la semana
+            <div class="days-checkboxes" [class.error-box]="form.get('startDays')?.invalid && form.get('startDays')?.touched">
+              <label><input type="checkbox" [checked]="selectedDays.includes('MONDAY')" (change)="toggleDay('MONDAY')"> Lun</label>
+              <label><input type="checkbox" [checked]="selectedDays.includes('TUESDAY')" (change)="toggleDay('TUESDAY')"> Mar</label>
+              <label><input type="checkbox" [checked]="selectedDays.includes('WEDNESDAY')" (change)="toggleDay('WEDNESDAY')"> Mié</label>
+              <label><input type="checkbox" [checked]="selectedDays.includes('THURSDAY')" (change)="toggleDay('THURSDAY')"> Jue</label>
+              <label><input type="checkbox" [checked]="selectedDays.includes('FRIDAY')" (change)="toggleDay('FRIDAY')"> Vie</label>
+              <label><input type="checkbox" [checked]="selectedDays.includes('SATURDAY')" (change)="toggleDay('SATURDAY')"> Sáb</label>
+              <label><input type="checkbox" [checked]="selectedDays.includes('SUNDAY')" (change)="toggleDay('SUNDAY')"> Dom</label>
+            </div>
           </label>
         </div>
 
@@ -79,10 +89,10 @@ import { OfferingService } from '../../core/offering.service';
 
         <div class="actions">
           <button type="button" class="btn cancel" (click)="cancel()">Cancelar</button>
-          <button type="submit" class="btn" [disabled]="form.invalid || loading">{{ loading ? 'Guardando...' : 'Crear servicio' }}</button>
+          <button type="submit" class="btn" [disabled]="loading">{{ loading ? 'Guardando...' : 'Crear servicio' }}</button>
         </div>
       </form>
-      @if (msg) { <p class="msg">{{ msg }}</p> }
+      @if (msg) { <p class="msg" [class.error]="isError">{{ msg }}</p> }
     </div>
   `,
   styles: [`
@@ -98,6 +108,22 @@ import { OfferingService } from '../../core/offering.service';
     .actions{display:flex;gap:12px;margin-top:16px}
     .btn.cancel{background:#e7ebf0;color:#333}
     .msg{margin-top:16px;color:green}
+    .msg.error{color:#d93025;background:#fce8e6;padding:10px;border-radius:4px;border:1px solid #f8cdcd;}
+    .category-container { display: flex; gap: 16px; align-items: flex-end; margin-bottom: 12px; }
+    .half { flex: 1; margin-bottom: 0 !important; }
+    .selected-category-display { padding: 8px 12px; background: #f3f6fb; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; height: 37px; }
+    .days-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; padding: 4px; }
+    .days-checkboxes label { display: flex; align-items: center; gap: 4px; font-size: 14px; }
+    .field input.ng-invalid.ng-touched,
+    .field textarea.ng-invalid.ng-touched,
+    .field select.ng-invalid.ng-touched {
+      border-color: #d93025;
+      outline: 1px solid #d93025;
+    }
+    .error-box {
+      border: 1px solid #d93025 !important;
+      border-radius: 4px;
+    }
   `]
 })
 export class CreateOfferingComponent implements OnInit {
@@ -111,19 +137,53 @@ export class CreateOfferingComponent implements OnInit {
   selectedCategoryName = '';
   loading = false;
   msg = '';
+  isError = false;
+
+  selectedDays: string[] = [];
 
   form = this.fb.group({
     title: ['', [Validators.required, Validators.maxLength(60)]],
     description: ['', [Validators.required, Validators.maxLength(300)]],
     category: ['', Validators.required],
     price: [0, [Validators.required, Validators.min(0)]],
-    startDate: ['', Validators.required],
-    startDay: ['', Validators.required],
+    startTime: ['', Validators.required],
+    startDate: ['', [Validators.required, this.dateValidator()]],
+    startDays: [[] as string[], Validators.required],
     sessionDuration: [60, [Validators.required, Validators.min(1)]],
     frequency: ['WEEKLY', Validators.required],
     numberOfSessions: [1, [Validators.required, Validators.min(1)]],
     photoUrl: ['']
   });
+
+  dateValidator() {
+    return (control: any) => {
+      if (!control.value) return null;
+      const inputDate = new Date(control.value + 'T00:00:00');
+      
+      // Check max date
+      if (inputDate.getFullYear() > 2099) {
+          return { maxDate: true };
+      }
+
+      const minDate = new Date();
+      minDate.setDate(minDate.getDate() + 2);
+      minDate.setHours(0, 0, 0, 0);
+      
+      if (inputDate < minDate) {
+        return { minDate: true };
+      }
+      return null;
+    };
+  }
+
+  toggleDay(day: string) {
+    if (this.selectedDays.includes(day)) {
+      this.selectedDays = this.selectedDays.filter(d => d !== day);
+    } else {
+      this.selectedDays.push(day);
+    }
+    this.form.patchValue({ startDays: this.selectedDays });
+  }
 
   ngOnInit() {
     this.offeringService.getCategories().subscribe(res => {
@@ -148,26 +208,44 @@ export class CreateOfferingComponent implements OnInit {
   }
 
   cancel() {
-    this.form.reset({ price: 0, sessionDuration: 60, frequency: 'WEEKLY', numberOfSessions: 1 });
+    this.form.reset({ price: 0, sessionDuration: 60, frequency: 'WEEKLY', numberOfSessions: 1, startDays: [] });
     this.searchCat = '';
     this.selectedCategoryName = '';
+    this.selectedDays = [];
     this.msg = '';
+    this.isError = false;
   }
 
   submit() {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.isError = true;
+      if (this.form.get('startDate')?.hasError('minDate')) {
+        this.msg = 'La fecha de inicio debe tener al menos 48 horas de anticipación.';
+      } else if (this.form.get('startDate')?.hasError('maxDate')) {
+        this.msg = 'El año de la fecha de inicio es demasiado lejano. Por favor, ingresa un año válido.';
+      } else {
+        this.msg = 'Por favor, completa todos los campos obligatorios correctamente.';
+      }
+      return;
+    }
+    
     this.loading = true;
+    this.msg = '';
+    this.isError = false;
     const val = this.form.value as any;
     
     this.offeringService.create(val).subscribe({
       next: () => {
-        this.msg = 'Servicio creado exitosamente!';
         this.cancel();
+        this.isError = false;
+        this.msg = 'Servicio creado exitosamente!';
         this.loading = false;
-        setTimeout(() => this.msg='', 3000);
+        setTimeout(() => this.msg='', 5000);
       },
-      error: () => {
-        this.msg = 'Error al crear servicio.';
+      error: (err) => {
+        this.isError = true;
+        this.msg = err.error?.detail || err.error?.message || 'Error al crear servicio.';
         this.loading = false;
       }
     });

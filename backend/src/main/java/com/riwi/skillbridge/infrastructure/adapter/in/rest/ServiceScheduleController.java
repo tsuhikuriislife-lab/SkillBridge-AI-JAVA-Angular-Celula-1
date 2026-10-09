@@ -37,7 +37,7 @@ public class ServiceScheduleController {
                                      @Valid @RequestBody ServiceScheduleRequest req) {
         assertOwnership(user, serviceId);
         return toOut(schedules.createSchedule(new ServiceSchedule(null, serviceId, req.startDay(),
-                req.sessionDuration(), req.frequency(), req.numberOfSessions(), req.startDate())));
+                req.sessionDuration(), req.frequency(), req.numberOfSessions(), req.startDate(), req.startTime(), req.startTime().plusMinutes(req.sessionDuration()))));
     }
 
     @GetMapping
@@ -54,7 +54,7 @@ public class ServiceScheduleController {
                                                      @Valid @RequestBody ServiceScheduleRequest req) {
         assertOwnership(user, serviceId);
         return schedules.updateSchedule(scheduleId, new ServiceSchedule(null, serviceId, req.startDay(),
-                        req.sessionDuration(), req.frequency(), req.numberOfSessions(), req.startDate()))
+                        req.sessionDuration(), req.frequency(), req.numberOfSessions(), req.startDate(), req.startTime(), req.startTime().plusMinutes(req.sessionDuration())))
                 .map(s -> ResponseEntity.ok(toOut(s)))
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -79,6 +79,6 @@ public class ServiceScheduleController {
 
     private ServiceScheduleOut toOut(ServiceSchedule s) {
         return new ServiceScheduleOut(s.id(), s.serviceId(), s.startDay(), s.sessionDuration(),
-                s.frequency(), s.numberOfSessions(), s.startDate());
+                s.frequency(), s.numberOfSessions(), s.startDate(), s.startTime(), s.endTime());
     }
 }
