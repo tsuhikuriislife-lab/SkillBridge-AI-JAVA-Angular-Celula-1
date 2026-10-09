@@ -24,12 +24,12 @@ import { HistoryService } from './core/history.service';
 
         <nav class="nav__menu">
           <a routerLink="/" class="nav__link">Servicios</a>
-          <a routerLink="/book" class="nav__link">Reservar</a>
-          <a routerLink="/ai" class="nav__link">IA</a>
+          <a routerLink="/book" class="nav__link"> Reservar</a>
+          <a routerLink="/ai" class="nav__link"><i class="bx bx-sparkles-alt"></i> IA</a>
 
           @if (auth.role() === 'PROVIDER') {
             <a routerLink="/provider" class="nav__link nav__link--provider">
-              <i class="bx bxs-dashboard"></i> Panel de proveedor
+              <i class="bx bx-widget-vertical"></i> Panel de proveedor
             </a>
           }
 
@@ -40,9 +40,9 @@ import { HistoryService } from './core/history.service';
             <a routerLink="/notifications" class="nav__link nav__link--icon" aria-label="Notificaciones">
               <i class="bx bx-bell"></i> Notificaciones
             </a>
-            <button class="nav__link nav__link--logout" type="button" (click)="auth.logout()">
-              <i class="bx bx-log-out"></i> Salir
-            </button>
+            <a class="nav__link nav__cta" style="cursor: pointer; user-select: none;" type="button" (click)="auth.logout()">
+              Salir <i class="bx bx-arrow-out-right-square-half"></i>
+            </a>
           }
         </nav>
 
