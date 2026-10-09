@@ -36,4 +36,8 @@ export class BookingService {
             .set('activity', activity);
         return this.http.get<BookingPage>(`${apiBase()}/bookings/me`, { params });
     }
+
+    create(booking: { offeringId: string, scheduledAt: string }): Observable<any> {
+        return this.http.post<any>(`${apiBase()}/bookings`, booking);
+    }
 }
