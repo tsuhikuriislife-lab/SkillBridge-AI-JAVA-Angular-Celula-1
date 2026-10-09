@@ -28,3 +28,4 @@ SELECT
 WHERE NOT EXISTS (
     SELECT 1 FROM app_users WHERE email = 'provider_test@skillbridge.com'
 );
+
