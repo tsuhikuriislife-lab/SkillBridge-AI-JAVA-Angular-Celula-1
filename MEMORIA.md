@@ -270,3 +270,9 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Acción (Frontend):** Se modificó la plantilla de `my-notifications.component.ts` agregando un ancla `<a>` con la directiva `[routerLink]` que envuelve al título (`notification.title`). Ahora enlaza a `/service/:bookingId` usando clases para estilizar.
 - **Acción (Backend):** En `BookingHistoryController.java` se mejoró la generación del texto de la notificación para que busque en el `BookingHistory` del usuario cuál era su estado anterior. Ahora ensambla dinámicamente el mensaje: `"El/la estado del servicio fue modificado. Antes: [antes], despues [despues]"`. Si es el primer evento en la historia, el "Antes" queda catalogado como "Ninguno".
 - **Validación:** Se recompiló la imagen `backend` en Docker y se verificó que arranca satisfactoriamente.
+
+## [2026-10-09] Corrección de Fallo de CI por Límite de Peticiones en Docker Hub
+- **Agente:** Antigravity
+- **Contexto:** Al empujar los últimos cambios, las pruebas en GitHub Actions (`docker/build-push-action`) fallaron con un error `429 Too Many Requests` proveniente de `registry-1.docker.io`. Esto ocurre porque las IPs públicas de GitHub Actions suelen sobrepasar el límite de descargas anónimas impuesto por Docker Hub para imágenes oficiales.
+- **Acción:** Se modificaron los archivos `backend/Dockerfile` y `frontend/Dockerfile` para sustituir las imágenes base de Docker Hub (`maven`, `eclipse-temurin`, `node`, `nginx`) por sus réplicas oficiales en el registro público de Amazon ECR (`public.ecr.aws/docker/library/...`), el cual no impone límites estrictos de peticiones anónimas.
+- **Resultado:** Los Dockerfiles mantienen las mismas versiones (ej. `node:22-alpine`, `maven:3.9.16-eclipse-temurin-21`), pero descargadas desde un espejo (mirror) confiable, lo que garantiza estabilidad en los pipelines de integración continua.
