@@ -417,3 +417,12 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Se resolvieron conflictos de importaciones en `my-notifications.component.ts`.
   - Se corrigieron los marcadores de conflicto residuales en `MEMORIA.md`.
 - **Resultado:** La rama de administración (`feature/Vista-Admin`) ahora integra todos los cambios recientes, incluyendo las soluciones de CI de Docker, sin perder el aislamiento de rutas administrativas.
+
+## [2026-10-09] Sembrado de Usuarios de Prueba vía Flyway
+- **Agente:** Antigravity
+- **Contexto:** El usuario solicitó agregar usuarios para testear los roles de `ADMIN` y `PROVIDER` mediante el sistema de migraciones de base de datos.
+- **Acciones:**
+  - Se creó el archivo de migración inmutable `V14__seed_test_users.sql` en `backend/src/main/resources/db/migration/`.
+  - Se insertó un usuario administrador (`admin@skillbridge.com`) y un proveedor de pruebas extra (`provider_test@skillbridge.com`), usando el hash BCrypt correspondiente a la contraseña `password123`.
+  - Se reinició el contenedor del `backend` para ejecutar la migración.
+- **Resultado:** La base de datos ahora cuenta de manera predeterminada con usuarios fijos para probar ambos flujos.
