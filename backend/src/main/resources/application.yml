@@ -11,7 +11,7 @@ spring:
         api-key: ${GEMINI_API_KEY:}
         chat:
           options:
-            model: ${GEMINI_MODEL:gemini-3.1-flash-lite}
+            model: ${GEMINI_MODEL:gemini-3.8-flash}
             temperature: 0.2
             max-output-tokens: 800
   datasource:
@@ -64,8 +64,6 @@ springdoc:
     path: /swagger-ui.html
 
 app:
-  notifications:
-    retention-days: ${NOTIFICATION_RETENTION_DAYS:90}
   jwt:
     secret: ${JWT_SECRET:change-this-to-a-long-random-secret-at-least-32-characters}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:120}

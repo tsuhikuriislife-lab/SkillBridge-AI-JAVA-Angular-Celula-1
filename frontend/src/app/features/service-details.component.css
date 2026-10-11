@@ -1135,3 +1135,4 @@
 }
 
 
+.service-detail--view-only { grid-template-columns: 1fr; }

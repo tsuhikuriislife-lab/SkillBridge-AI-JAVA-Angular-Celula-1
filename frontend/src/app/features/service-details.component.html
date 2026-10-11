@@ -28,7 +28,7 @@
 <!-- ============================================================
      DETALLE DEL SERVICIO
 ============================================================ -->
-<div class="service-detail">
+<div class="service-detail" [class.service-detail--view-only]="viewOnly">
 
     <!-- Columna izquierda -->
     <div>
@@ -64,7 +64,7 @@
 
             </div>
 
-            <div class="assessment-banner-callout">
+            <div class="assessment-banner-callout" *ngIf="!viewOnly">
                 <div class="assessment-banner-callout__icon">
                     <i class="bx bx-brain"></i>
                 </div>
@@ -108,7 +108,7 @@
 
 
     <!-- Columna derecha: card de compra -->
-    <aside class="buy-card">
+    <aside class="buy-card" *ngIf="!viewOnly">
 
         <div class="buy-card__price">{{ offering?.price | currency:"COP":"symbol-narrow":"1.0-0" }} <small>COP</small></div>
 
@@ -124,8 +124,8 @@
             <li><i class="bx bx-play-circle"></i> Inicio <strong>15 Oct, 2024</strong></li>
         </ul>
 
-        <button class="buy-card__button" type="button" [routerLink]="['/checkout', offering?.id]">
-            <i class="bx bx-rocket"></i> Inscríbete Ahora
+        <button class="buy-card__button" type="button" (click)="onInscribirse()" [disabled]="isEnrolled || viewOnly">
+            <i class="bx" [ngClass]="isEnrolled ? 'bx-check-circle' : 'bx-rocket'"></i> {{ isEnrolled ? 'Ya estás inscrito' : 'Inscríbete Ahora' }}
         </button>
 
         <button class="buy-card__assessment-button" type="button" (click)="startAssessment()">
@@ -258,8 +258,8 @@
             </div>
 
             <div class="assessment-results__actions">
-              <button class="btn-proceed" type="button" (click)="closeAssessment(); onInscribirse()">
-                <i class="bx bx-rocket"></i> Continuar a la Reserva
+              <button class="btn-proceed" type="button" (click)="closeAssessment(); onInscribirse()" [disabled]="isEnrolled || viewOnly">
+                <i class="bx" [ngClass]="isEnrolled ? 'bx-check-circle' : 'bx-rocket'"></i> {{ isEnrolled ? 'Ya estás inscrito' : 'Continuar a la Reserva' }}
               </button>
               <button class="btn-retry" type="button" (click)="retryAssessment()">
                 <i class="bx bx-refresh"></i> Repetir Evaluación

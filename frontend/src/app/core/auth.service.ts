@@ -11,6 +11,7 @@ export class AuthService {
   private readonly key = 'skillbridge_token';
   readonly authenticated = signal(!!localStorage.getItem(this.key));
   readonly userRole = signal(this.extractRole(localStorage.getItem(this.key)));
+  readonly sessionExpired = signal(false);
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -35,6 +36,18 @@ export class AuthService {
     this.authenticated.set(false); 
     this.userRole.set(null);
     this.router.navigateByUrl('/'); 
+  }
+
+  triggerSessionExpired(): void {
+    this.sessionExpired.set(true);
+  }
+
+  forceLogout(): void {
+    localStorage.removeItem(this.key);
+    this.authenticated.set(false);
+    this.userRole.set(null);
+    this.sessionExpired.set(false);
+    this.router.navigateByUrl('/login');
   }
 
   private save(token: string): void { 
