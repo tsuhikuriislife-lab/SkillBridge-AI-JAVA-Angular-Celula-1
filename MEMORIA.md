@@ -276,3 +276,16 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Contexto:** Al empujar los últimos cambios, las pruebas en GitHub Actions (`docker/build-push-action`) fallaron con un error `429 Too Many Requests` proveniente de `registry-1.docker.io`. Esto ocurre porque las IPs públicas de GitHub Actions suelen sobrepasar el límite de descargas anónimas impuesto por Docker Hub para imágenes oficiales.
 - **Acción:** Se modificaron los archivos `backend/Dockerfile` y `frontend/Dockerfile` para sustituir las imágenes base de Docker Hub (`maven`, `eclipse-temurin`, `node`, `nginx`) por sus réplicas oficiales en el registro público de Amazon ECR (`public.ecr.aws/docker/library/...`), el cual no impone límites estrictos de peticiones anónimas.
 - **Resultado:** Los Dockerfiles mantienen las mismas versiones (ej. `node:22-alpine`, `maven:3.9.16-eclipse-temurin-21`), pero descargadas desde un espejo (mirror) confiable, lo que garantiza estabilidad en los pipelines de integración continua.
+
+## [2026-10-09] Registro personal de bloqueantes fuera del repositorio
+- **Agente:** Codex.
+- **Cambios realizados:**
+  - Se movió `BLOQUEANTES.md` a la carpeta personal de Descargas, fuera del repositorio.
+  - El registro deja de formar parte del árbol de trabajo y no podrá incluirse en GitHub.
+
+## [2026-10-09] Traspaso de seguimiento de seguridad a Jira
+- **Agente:** Codex.
+- **Cambios realizados:**
+  - Se creó el issue `KAN-24` en Jira para centralizar el trabajo pendiente de seguridad de sesión.
+  - Se retiraron los registros específicos de JWT de `BLOQUEANTES.md` y el detalle de la historia de esta memoria, por solicitud del usuario.
+- **Estado:** Pendiente de implementación y seguimiento en Jira.
