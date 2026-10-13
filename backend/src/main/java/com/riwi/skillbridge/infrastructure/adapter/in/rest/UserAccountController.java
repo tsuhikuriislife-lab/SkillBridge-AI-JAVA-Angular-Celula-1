@@ -10,7 +10,9 @@ import com.riwi.skillbridge.infrastructure.adapter.in.rest.dto.ChangeStatusReque
 import com.riwi.skillbridge.infrastructure.adapter.in.rest.dto.UpdateUserAccountRequest;
 import com.riwi.skillbridge.infrastructure.adapter.in.rest.dto.UserAccountOut;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,6 +35,17 @@ public class UserAccountController {
         this.updateUseCase = updateUseCase;
         this.changeStatusUseCase = changeStatusUseCase;
         this.deleteUseCase = deleteUseCase;
+    }
+
+    // GET /users/me — perfil del usuario autenticado
+    @GetMapping("/me")
+    public ResponseEntity<UserAccountOut> getCurrentUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return retrieveUseCase.getUserAccountByEmail(authentication.getName())
+                .map(u -> ResponseEntity.ok(toOut(u)))
+                .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
 
     // GET /users/{id} — ver un usuario

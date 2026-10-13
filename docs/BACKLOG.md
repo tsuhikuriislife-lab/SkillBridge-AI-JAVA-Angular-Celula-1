@@ -164,8 +164,9 @@ Estas historias no forman parte automáticamente del compromiso del Sprint. El P
 
 #### HU-14 — Proteger la sesión de usuario en el navegador
 
-**Prioridad:** Alta.
-**Estado:** Propuesta; pendiente de priorización.
+**Prioridad:** Alta.  
+**Estado:** Implementada.  
+**Incluye:** Cookies HttpOnly/Secure/SameSite/Path=/api, protección CSRF con CookieCsrfTokenRepository y SpaCsrfTokenRequestHandler, remoción de tokens en localStorage y encabezado Bearer, restauración reactiva de perfil con GET /api/users/me, cierre de sesión con invalidación de cookie, validación estricta de secreto JWT sin fallbacks, y suite de pruebas automatizadas en backend y frontend.
 
 **Como** usuario autenticado, **quiero** que mi sesión se gestione sin exponer mi token de acceso a scripts del navegador, **para** reducir el riesgo de robo de sesión y proteger mi cuenta.
 
