@@ -1,6 +1,6 @@
 package com.riwi.skillbridge.infrastructure.adapter.out.persistence;
 
-import com.riwi.skillbridge.application.port.out.OfferingPort;
+import com.riwi.skillbridge.application.port.out.OfferingRepositoryPort;
 import com.riwi.skillbridge.domain.enums.ServiceStatus;
 import com.riwi.skillbridge.domain.model.Offering;
 import com.riwi.skillbridge.domain.model.PageResult;
@@ -18,7 +18,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Component
-public class OfferingPersistenceAdapter implements OfferingPort {
+public class OfferingPersistenceAdapter implements OfferingRepositoryPort {
 
     private final JpaOfferingRepository repository;
 
@@ -45,11 +45,13 @@ public class OfferingPersistenceAdapter implements OfferingPort {
     }
 
     @Override
-    public List<Offering> findAll() { return repository.findAll().stream().map(this::toDomain).toList(); }
+    public List<Offering> findAll() {
+        return repository.findAllByOrderByNameAsc().stream().map(this::toDomain).toList();
+    }
 
     @Override
     public List<Offering> findAllActive() {
-        return repository.findByStatus(ServiceStatus.ACTIVE).stream().map(this::toDomain).toList();
+        return repository.findByStatusOrderByNameAsc(ServiceStatus.ACTIVE).stream().map(this::toDomain).toList();
     }
 
     @Override
@@ -79,6 +81,11 @@ public class OfferingPersistenceAdapter implements OfferingPort {
         String[] parts = sort.split(",");
         return "desc".equalsIgnoreCase(parts.length > 1 ? parts[1] : "asc")
                 ? Sort.by(parts[0]).descending() : Sort.by(parts[0]).ascending();
+    }
+
+    @Override
+    public long countByProviderId(UUID providerId) {
+        return repository.countByCreatedBy(providerId);
     }
 
     private Offering toDomain(OfferingEntity e) {

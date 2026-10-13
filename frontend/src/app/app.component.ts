@@ -11,7 +11,6 @@ import { HistoryService } from './core/history.service';
   template: `
     <header class="nav">
       <div class="container nav-inner">
-
         <a routerLink="/" class="brand">
           <img src="images/Multimedia/Logo/Logo-3.svg" alt="SteelBridge AI" class="brand__logo">
         </a>
@@ -23,9 +22,11 @@ import { HistoryService } from './core/history.service';
         </label>
 
         <nav class="nav__menu">
-          <a routerLink="/" class="nav__link">Servicios</a>
-          <a routerLink="/book" class="nav__link"> Reservar</a>
-          <a routerLink="/ai" class="nav__link"><i class="bx bx-sparkles-alt"></i> IA</a>
+          @if (auth.role() !== 'ADMIN') {
+            <a routerLink="/" class="nav__link">Servicios</a>
+            <a routerLink="/book" class="nav__link"> Reservar</a>
+            <a routerLink="/ai" class="nav__link"><i class="bx bx-sparkles-alt"></i> IA</a>
+          }
 
           @if (auth.role() === 'PROVIDER') {
             <a routerLink="/provider" class="nav__link nav__link--provider">
@@ -33,10 +34,16 @@ import { HistoryService } from './core/history.service';
             </a>
           }
 
+          @if (auth.role() === 'ADMIN') {
+            <a routerLink="/admin" class="nav__link"><i class="bx bx-shield-quarter"></i> Panel Admin</a>
+          }
+
           @if (!auth.isAuthenticated()) {
             <a routerLink="/login" class="nav__link nav__cta">Ingresar</a>
           } @else {
-            <a routerLink="/bookings" class="nav__link">Mis reservas</a>
+            @if (auth.role() !== 'ADMIN') {
+              <a routerLink="/bookings" class="nav__link">Mis reservas</a>
+            }
             <a routerLink="/notifications" class="nav__link nav__link--icon" aria-label="Notificaciones">
               <i class="bx bx-bell"></i> Notificaciones
             </a>

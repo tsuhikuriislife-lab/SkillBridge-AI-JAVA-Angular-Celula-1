@@ -1,18 +1,21 @@
 package com.riwi.skillbridge.infrastructure.adapter.out.persistence;
 
-import com.riwi.skillbridge.application.port.out.UserAccountPort;
+import com.riwi.skillbridge.application.port.out.UserRepositoryPort;
+import com.riwi.skillbridge.domain.enums.Role;
 import com.riwi.skillbridge.domain.model.PageResult;
 import com.riwi.skillbridge.domain.model.UserAccount;
 import com.riwi.skillbridge.infrastructure.adapter.out.persistence.entity.UserEntity;
 import com.riwi.skillbridge.infrastructure.adapter.out.persistence.repository.JpaUserRepository;
 import org.springframework.stereotype.Component;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Component
-public class UserPersistenceAdapter implements UserAccountPort {
+public class UserPersistenceAdapter implements UserRepositoryPort {
 
     private final JpaUserRepository repository;
 
@@ -47,8 +50,7 @@ public class UserPersistenceAdapter implements UserAccountPort {
 
     @Override
     public PageResult<UserAccount> findAll(int page, int size) {
-        var result = repository.findAll(org.springframework.data.domain.PageRequest.of(page, size,
-                org.springframework.data.domain.Sort.by("name").ascending()));
+        var result = repository.findAll(PageRequest.of(page, size, Sort.by("name").ascending()));
         return new PageResult<>(result.getContent().stream().map(this::toDomain).toList(),
                 result.getTotalPages(), result.getTotalElements(), result.getNumber());
     }
@@ -76,6 +78,16 @@ public class UserPersistenceAdapter implements UserAccountPort {
     @Override
     public List<UserAccount> findByServiceId(UUID serviceId) {
         return repository.findByServiceId(serviceId).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<UserAccount> findByRole(Role role) {
+        return repository.findByRole(role).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public long countByRole(Role role) {
+        return repository.countByRole(role);
     }
 
     // Conversión entidad ↔ dominio
