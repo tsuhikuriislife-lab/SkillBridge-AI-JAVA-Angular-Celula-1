@@ -456,3 +456,18 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
      - Backend: `JwtServiceTest` (6 pruebas que cubren rechazo de secretos inseguros, entropía, longitud y generación) y `AuthSessionSecurityTest` (7 pruebas que cubren login con cookie HttpOnly, registro sin token en JSON, logout invalidando cookie, acceso autenticado con cookie a `/api/users/me`, rechazo sin cookie con 401, rechazo CSRF con 403 y éxito con token CSRF válido). Suite total: 68 pruebas pasando al 100%.
      - Frontend: `auth.service.spec.ts` (5 pruebas unitarias verificando ausencia de tokens en localStorage, restauración con `GET /api/users/me`, manejo de 401, login y logout con cookie). Suite total: 7 pruebas pasando al 100% en Edge Headless.
 
+## [2026-10-14] Formato en español para auditoría de cambio de rol
+- **Contexto:** Se solicitó reemplazar la acción `USER_ROLE_CHANGED` en las notificaciones administrativas y mostrar el detalle del cambio con una estructura legible.
+- **Cambios realizados:** La acción ahora se registra como `ROL MODIFICADO`; el mensaje contiene ID Usuario, Correo, Rol Anterior y Rol Nuevo, sin repetir el título. La vista ubica `Recibida` después de Rol Nuevo, oculta la fila redundante `USER: ID` y normaliza notificaciones antiguas sin modificar la base. Se agregó una prueba unitaria del formato.
+- **Validación:** `mvn -Dtest=AdminUserServiceTest test` pasó (11 pruebas), `npx ng build` completó y la vista se verificó en navegador con dos eventos históricos. Backend y frontend quedaron saludables.
+
+## [2026-10-14] Recorte visual de IDs de usuario y servicio
+- **Contexto:** Se solicitó mejorar el aspecto de los UUID visibles sin agregar campos ni cambiar los IDs internos.
+- **Cambios realizados:** Se agregó `compactDisplayId`, que muestra `...` y los últimos cinco caracteres en el panel admin (filas y detalles) y en notificaciones (ID de usuario y target de usuario/servicio). Los IDs completos siguen en datos, rutas y peticiones; no se alteraron IDs de reservas.
+- **Validación:** `npx ng build` pasó y se verificaron en navegador filas, modales y notificaciones. Se reconstruyó el frontend.
+
+## [2026-10-14] Notificación de usuario creado
+- **Contexto:** Se solicitó que el evento de alta se muestre como `USUARIO CREADO` con el formato de actividad administrativa.
+- **Cambios realizados:** El backend registra título, ID, nombre, correo y rol; no incluye contraseña. La vista muestra el mismo formato y adapta eventos históricos `USER_CREATED` al presentarlos.
+- **Validación:** `AdminUserServiceTest` pasó (11 pruebas), `npx ng build` completó y se reconstruyeron backend y frontend. Las pruebas no insertaron usuarios en la base local.
+

@@ -3,6 +3,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NotificationPage, NotificationService, NotificationSummary } from '../core/notification.service';
 import { AuthService } from '../core/auth.service';
+import { compactDisplayId } from '../core/display-id';
 
 @Component({
     standalone: true,
@@ -40,17 +41,26 @@ import { AuthService } from '../core/auth.service';
             <article class="notification-row">
               <div class="notification-main">
                 <h2>
-                  <a [routerLink]="['/service', notification.bookingId]" class="service-link">
-                    {{ notification.title }}
-                  </a>
+                  @if (isAdmin) {
+                    {{ displayTitle(notification) }}
+                  } @else {
+                    <a [routerLink]="['/service', notification.bookingId]" class="service-link">
+                      {{ notification.title }}
+                    </a>
+                  }
                 </h2>
-                <p>{{ notification.message }}</p>
-                @if (isAdmin && notification.targetId) {
-                  <p class="muted">{{ notification.targetType }}: {{ notification.targetId }}</p>
-                } @else if (notification.bookingId) {
-                  <p class="muted">Reserva: {{ notification.bookingId }}</p>
+                <p class="notification-message">{{ displayMessage(notification) }}</p>
+                @if (isFormattedAdminActivity(notification)) {
+                  <p class="muted">Recibida: {{ notification.createdAt | date:'medium' }}</p>
+                  <p class="notification-divider">-----------------------------------------</p>
+                } @else {
+                  @if (isAdmin && notification.targetId) {
+                    <p class="muted">{{ notification.targetType }}: {{ compactId(notification.targetId) }}</p>
+                  } @else if (notification.bookingId) {
+                    <p class="muted">Reserva: {{ notification.bookingId }}</p>
+                  }
+                  <p class="muted">Recibida: {{ notification.createdAt | date:'medium' }}</p>
                 }
-                <p class="muted">Recibida: {{ notification.createdAt | date:'medium' }}</p>
               </div>
               <span class="status" [class.status-processed]="notification.status === 'PROCESSED'"
                     [class.status-failed]="notification.status === 'FAILED'">
@@ -83,6 +93,8 @@ import { AuthService } from '../core/auth.service';
     .notification-row{display:flex;justify-content:space-between;align-items:start;gap:18px;padding:20px 4px;border-bottom:1px solid #dfe7e4}
     .notification-main h2{font-size:17px;margin:0 0 7px;color:#17332d}
     .notification-main p{margin:4px 0}
+    .notification-message{white-space:pre-wrap}
+    .notification-divider{white-space:pre-wrap}
     .status{white-space:nowrap;font-size:12px;font-weight:700;color:#475467;background:#eef2f1;padding:6px 9px;border-radius:4px}
     .status-processed{color:#176b4d;background:#e7f4ec}
     .status-failed{color:#8c3d27;background:#faeee8}
@@ -117,6 +129,46 @@ export class MyNotificationsComponent implements OnInit {
 
     get isAdmin(): boolean {
       return this.auth.role() === 'ADMIN';
+    }
+
+    compactId(id: string | null | undefined): string {
+        return compactDisplayId(id);
+    }
+
+    displayTitle(notification: NotificationSummary): string {
+      if (notification.title === 'USER_ROLE_CHANGED') return 'ROL MODIFICADO';
+      if (notification.title === 'USER_CREATED') return 'USUARIO CREADO';
+      return notification.title ?? '';
+    }
+
+    isFormattedAdminActivity(notification: NotificationSummary): boolean {
+      return ['USER_ROLE_CHANGED', 'ROL MODIFICADO', 'USER_CREATED', 'USUARIO CREADO']
+        .includes(notification.title ?? '');
+    }
+
+    displayMessage(notification: NotificationSummary): string {
+      if (notification.title === 'USER_CREATED') {
+        const legacyDetails = notification.message.match(/^Se creó el usuario (.+) \((.+)\) con rol (.+)\.$/);
+        if (!legacyDetails || !notification.targetId) return notification.message;
+
+        return `-----------------------------------------\n        ID Usuario  : ${compactDisplayId(notification.targetId)}\n        Nombre      : ${legacyDetails[1]}\n        Correo      : ${legacyDetails[2]}\n        Rol         : ${legacyDetails[3]}`;
+      }
+
+      if (notification.title === 'USER_ROLE_CHANGED') {
+        const legacyDetails = notification.message.match(/^Se actualizó (.+); rol: (.+) -> (.+)\.$/);
+        if (!legacyDetails || !notification.targetId) return notification.message;
+
+        return `-----------------------------------------\n        ID Usuario  : ${compactDisplayId(notification.targetId)}\n        Correo      : ${legacyDetails[1]}\n        Rol Anterior: ${legacyDetails[2]}\n        Rol Nuevo   : ${legacyDetails[3]}`;
+      }
+
+      if (notification.title === 'ROL MODIFICADO' || notification.title === 'USUARIO CREADO') {
+        return notification.message
+          .replace(/^\s*(?:ROL MODIFICADO|USUARIO CREADO)\s*\r?\n/, '')
+          .replace(/(ID Usuario\s*:\s*)([^\r\n]+)/, (_match, label: string, id: string) => `${label}${compactDisplayId(id.trim())}`)
+          .replace(/\r?\n\s*-{5,}\s*$/, '');
+      }
+
+      return notification.message;
     }
 
     constructor(private readonly notificationService: NotificationService) {}
