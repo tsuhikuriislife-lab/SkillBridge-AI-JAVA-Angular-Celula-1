@@ -178,7 +178,6 @@ import { HistoryService } from './core/history.service';
     }
 
     .brand__logo {
-      trasform:
       display: block;
 
       height: 30px;

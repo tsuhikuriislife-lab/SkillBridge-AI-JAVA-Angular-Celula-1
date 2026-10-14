@@ -9,6 +9,7 @@ import java.util.UUID;
 
 public interface RetrieveUserAccountUseCase {
     Optional<UserAccount> getUserAccountById(UUID id);
+    Optional<UserAccount> getUserAccountByEmail(String email);
     List<UserAccount> getAllUserAccounts();
 
     PageResult<UserAccount> getAllUserAccounts(int page, int size);

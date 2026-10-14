@@ -235,6 +235,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - **Mejora UI (Overflow de Textos):** En `my-offerings.component.ts`, se ajustó la disposición de las tarjetas (`.card`) para evitar desbordamientos visuales cuando el título o la descripción son muy largos. Se aplicó `white-space: nowrap`, `overflow: hidden` y `text-overflow: ellipsis`, utilizando Flexbox (`.title-row`) para garantizar que la etiqueta de estado ("Activo"/"Inactivo") nunca sea empujada fuera de la pantalla ni se oculte. Además, se añadió el atributo HTML `[title]` para permitir al usuario leer el texto completo al pasar el mouse por encima.
   - **Administración de Horarios (Schedules):** Se añadió la capacidad de gestionar los horarios desde el modal de edición de servicio (`my-offerings.component.ts`). Al abrir el modal, se hace una petición HTTP para cargar todos los horarios asociados. Se muestra una lista de los horarios activos indicando el día de la semana, hora y duración. Se agregó un botón para **eliminar** horarios específicos usando el endpoint `DELETE /api/provider/services/{id}/schedule/{scheduleId}`, conectando con la capa de persistencia a través de `offering.service.ts`.
   - **Campos Faltantes de la HU:** Se agregó la posibilidad de editar la capacidad por sesión y la URL de la imagen (photoUrl) en el formulario reactivo del modal, asegurando que se modifiquen en la base de datos al usar el PUT de la API.
+  
 ## [2026-10-08] Frontend de la Vista de Administración Completo
 - **Agente:** Antigravity (Gemini 3.8 Flash)
 - **Contexto:** Completar los elementos faltantes en el frontend de la vista de Administración antes de la integración con el backend.
@@ -408,6 +409,19 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Acción:** Se modificaron los archivos `backend/Dockerfile` y `frontend/Dockerfile` para sustituir las imágenes base de Docker Hub (`maven`, `eclipse-temurin`, `node`, `nginx`) por sus réplicas oficiales en el registro público de Amazon ECR (`public.ecr.aws/docker/library/...`), el cual no impone límites estrictos de peticiones anónimas.
 - **Resultado:** Los Dockerfiles mantienen las mismas versiones (ej. `node:22-alpine`, `maven:3.9.16-eclipse-temurin-21`), pero descargadas desde un espejo (mirror) confiable, lo que garantiza estabilidad en los pipelines de integración continua.
 
+## [2026-10-09] Registro personal de bloqueantes fuera del repositorio
+- **Agente:** Codex.
+- **Cambios realizados:**
+  - Se movió `BLOQUEANTES.md` a la carpeta personal de Descargas, fuera del repositorio.
+  - El registro deja de formar parte del árbol de trabajo y no podrá incluirse en GitHub.
+
+## [2026-10-09] Traspaso de seguimiento de seguridad a Jira
+- **Agente:** Codex.
+- **Cambios realizados:**
+  - Se creó el issue `KAN-24` en Jira para centralizar el trabajo pendiente de seguridad de sesión.
+  - Se retiraron los registros específicos de JWT de `BLOQUEANTES.md` y el detalle de la historia de esta memoria, por solicitud del usuario.
+- **Estado:** Pendiente de implementación y seguimiento en Jira.
+
 ## [2026-10-09] Fusión de rama develop hacia la vista Admin
 - **Agente:** Antigravity
 - **Contexto:** Se solicitó traer los últimos cambios de `develop` (mejoras de notificaciones, enlaces de IA, corrección de CI en Dockerfiles y nueva vista de proveedor y Home) hacia la rama `feature/Vista-Admin`.
@@ -426,3 +440,19 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Se insertó un usuario administrador (`admin@skillbridge.com`) y un proveedor de pruebas extra (`provider_test@skillbridge.com`), usando el hash BCrypt correspondiente a la contraseña `password123`.
   - Se reinició el contenedor del `backend` para ejecutar la migración.
 - **Resultado:** La base de datos ahora cuenta de manera predeterminada con usuarios fijos para probar ambos flujos.
+
+## [2026-10-13] Implementación de HU-14 — Proteger la sesión de usuario en el navegador
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Se implementó la HU-14 para proteger la sesión de usuario en el navegador y eliminar la exposición de JWT ante scripts y ataques XSS/CSRF.
+- **Criterios de Aceptación Cumplidos:**
+  1. **Token en Cookie HttpOnly:** `AuthController` emite y elimina el token de acceso únicamente a través de una cookie segura (`access_token`) con flags `HttpOnly`, `SameSite=Lax`, `Path=/api` y `Secure` (configurable por entorno / exigido en prod). La respuesta JSON (`AuthResponse`) no expone el JWT en el cuerpo de la respuesta.
+  2. **Eliminación de almacenamiento en frontend:** Se removió completamente el uso de `localStorage` y `sessionStorage` para guardar tokens en Angular. Se eliminó la inyección del encabezado `Authorization: Bearer` en el interceptor.
+  3. **Autenticación en Backend con Cookie:** `JwtAuthenticationFilter` extrae el token directamente de la cookie de sesión (`access_token`) y autentica al usuario en el `SecurityContextHolder`, manteniendo fallback secundario para compatibilidad de migración con tokens emitidos previamente.
+  4. **Protección CSRF para Solicitudes Mutantes:** Se configuró Spring Security con `CookieCsrfTokenRepository.withHttpOnlyFalse()`, `SpaCsrfTokenRequestHandler` y `CsrfCookieFilter`. Toda solicitud mutante (`POST`, `PUT`, `PATCH`, `DELETE`) sin token CSRF válido recibe `403 Forbidden` y no altera datos. En Angular, `authInterceptor` inyecta automáticamente el encabezado `X-XSRF-TOKEN` a partir de la cookie `XSRF-TOKEN` y habilita `withCredentials: true`.
+  5. **Cierre de Sesión:** Endpoint `POST /api/auth/logout` invalida la cookie estableciendo `Max-Age=0` y limpiando el contexto. En Angular, `authService.logout()` y `forceLogout()` limpian el estado reactivo (`signals`) y redirigen a la vista correspondiente.
+  6. **Restauración de Perfil en Arranque:** Se agregó el endpoint `GET /api/users/me` en `UserAccountController` y el caso de uso `RetrieveUserAccountUseCase.getUserAccountByEmail`. En Angular, `main.ts` utiliza `provideAppInitializer` para restaurar reactivamente el perfil con `GET /api/users/me` al cargar la aplicación antes de evaluar los guards.
+  7. **Eliminación de Claves JWT de Respaldo y Validación de Secreto:** Se eliminaron los fallbacks por defecto de `application.yml`, `docker-compose.yml` y `.env.example`. En `JwtService`, se implementó validación estricta al iniciar: la aplicación se rehúsa a iniciar si `JWT_SECRET` falta, está en blanco, tiene menos de 32 caracteres, baja entropía o coincide con valores por defecto conocidos. En entornos de producción (`prod`), `SecurityConfiguration` exige además `cookie.secure=true` y `require-https=true`.
+  8. **Pruebas Automatizadas:**
+     - Backend: `JwtServiceTest` (6 pruebas que cubren rechazo de secretos inseguros, entropía, longitud y generación) y `AuthSessionSecurityTest` (7 pruebas que cubren login con cookie HttpOnly, registro sin token en JSON, logout invalidando cookie, acceso autenticado con cookie a `/api/users/me`, rechazo sin cookie con 401, rechazo CSRF con 403 y éxito con token CSRF válido). Suite total: 68 pruebas pasando al 100%.
+     - Frontend: `auth.service.spec.ts` (5 pruebas unitarias verificando ausencia de tokens en localStorage, restauración con `GET /api/users/me`, manejo de 401, login y logout con cookie). Suite total: 7 pruebas pasando al 100% en Edge Headless.
+

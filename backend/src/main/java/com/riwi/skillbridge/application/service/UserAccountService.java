@@ -36,6 +36,14 @@ public class UserAccountService implements RetrieveUserAccountUseCase, UpdateUse
     }
 
     @Override
+    public Optional<UserAccount> getUserAccountByEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return Optional.empty();
+        }
+        return userAccountPort.findByEmail(email.trim().toLowerCase());
+    }
+
+    @Override
     public PageResult<UserAccount> getAllUserAccounts(int page, int size) {
         return userAccountPort.findAll(page, size);
     }
