@@ -71,6 +71,7 @@ export class DisplayBookingsComponent implements OnInit {
 
   getStatusClass(estado: string): string {
     switch (estado) {
+      case 'ACTIVE':
       case 'Activo':
       case 'CONFIRMED':
         return 'status-active';
@@ -84,12 +85,14 @@ export class DisplayBookingsComponent implements OnInit {
       case 'COMPLETED':
         return 'status-completed';
       default:
-        return '';
+        return 'status-active';
     }
   }
 
   getStatusLabel(estado: string): string {
     switch (estado) {
+      case 'ACTIVE': return 'Activa';
+      case 'Activo': return 'Activa';
       case 'CREATED': return 'En Proceso';
       case 'CONFIRMED': return 'Confirmada';
       case 'CANCELLED': return 'Cancelada';
@@ -100,6 +103,7 @@ export class DisplayBookingsComponent implements OnInit {
 
   getProgressBarClass(estado: string): string {
     switch (estado) {
+      case 'ACTIVE':
       case 'Activo':
       case 'CONFIRMED': return 'bg-active';
       case 'En Proceso':
@@ -114,12 +118,20 @@ export class DisplayBookingsComponent implements OnInit {
 
   getCalculatedProgress(estado: string): number {
     switch (estado) {
+      case 'ACTIVE': return 50;
       case 'CREATED': return 25;
       case 'CONFIRMED': return 50;
       case 'COMPLETED': return 100;
       case 'CANCELLED': return 0;
       default: return 50;
     }
+  }
+
+  getServiceIdentifier(reserva: BookingSummary): string {
+    if (reserva.serviceCode) {
+      return `ID: ${reserva.serviceCode}`;
+    }
+    return `ID: #${reserva.id ? reserva.id.substring(0, 8).toUpperCase() : 'N/A'}`;
   }
 
   formatearFecha(fechaIso?: string): string {
@@ -137,14 +149,25 @@ export class DisplayBookingsComponent implements OnInit {
     this.router.navigate(['/service', id], { queryParams: { viewOnly: true } });
   }
 
-  confirmarCancelacion(id: string): void {
+  confirmarCancelacion(reserva: BookingSummary): void {
+    if (reserva.status === 'CANCELLED') {
+      this.toastService.show('Ya se ha hecho la cancelación de este recurso o de este servicio.', [
+        {
+          label: 'Entendido',
+          primary: true,
+          action: () => this.toastService.clear()
+        }
+      ]);
+      return;
+    }
+
     this.toastService.show('¿Estás seguro de que deseas cancelar esta reserva?', [
       {
         label: 'Sí, cancelar',
         primary: true,
         action: () => {
           this.toastService.clear();
-          this.cancelBooking(id);
+          this.cancelBooking(reserva.id);
         }
       },
       {
@@ -157,11 +180,24 @@ export class DisplayBookingsComponent implements OnInit {
   private cancelBooking(id: string): void {
     this.bookingService.cancel(id).subscribe({
       next: () => {
+        this.toastService.show('Reserva cancelada exitosamente.', [
+          { label: 'Cerrar', primary: true, action: () => this.toastService.clear() }
+        ]);
         this.loadPage(this.currentPage());
       },
       error: (err) => {
         const errorMsg = err?.error?.detail || err?.message || 'No fue posible cancelar la reserva.';
-        this.error.set(errorMsg);
+        if (
+          errorMsg.toLowerCase().includes('ya se ha hecho la cancelación') ||
+          errorMsg.toLowerCase().includes('no tienes una inscripción activa')
+        ) {
+          this.toastService.show('Ya se ha hecho la cancelación de este recurso o de este servicio.', [
+            { label: 'Entendido', primary: true, action: () => this.toastService.clear() }
+          ]);
+          this.loadPage(this.currentPage());
+        } else {
+          this.error.set(errorMsg);
+        }
       }
     });
   }

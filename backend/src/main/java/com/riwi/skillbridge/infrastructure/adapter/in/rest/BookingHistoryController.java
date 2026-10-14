@@ -47,18 +47,8 @@ public class BookingHistoryController {
             String title = offeringUseCase.getOfferingById(h.serviceId()).map(Offering::name).orElse("Servicio desconocido");
             String statusMapped = mapStatus(h.status().name());
             
-            List<BookingHistory> fullHist = history.getHistory(userId, h.serviceId());
-            String antes = "Ninguno";
-            for (int i = 0; i < fullHist.size(); i++) {
-                if (fullHist.get(i).id().equals(h.id())) {
-                    if (i > 0) {
-                        antes = fullHist.get(i - 1).status().name();
-                    }
-                    break;
-                }
-            }
-            String despues = h.status().name();
-            String message = String.format("El/la estado del servicio fue modificado. Antes: %s, despues %s", antes, despues);
+            String message = "El estado de tu inscripción es ahora: " + h.status().name()
+                    + "\n\nReserva: " + h.serviceId();
             
             return new HistoryNotificationOut(
                     h.id().toString(), "HISTORY", message, statusMapped,

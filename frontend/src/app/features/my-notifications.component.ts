@@ -44,11 +44,11 @@ import { AuthService } from '../core/auth.service';
                     {{ notification.title }}
                   </a>
                 </h2>
-                <p>{{ notification.message }}</p>
+                <p class="notification-message">{{ formatMessage(notification.message) }}</p>
                 @if (isAdmin && notification.targetId) {
-                  <p class="muted">{{ notification.targetType }}: {{ notification.targetId }}</p>
-                } @else if (notification.bookingId) {
-                  <p class="muted">Reserva: {{ notification.bookingId }}</p>
+                  <p class="muted">{{ notification.targetType }}: {{ formatId(notification.targetId) }}</p>
+                } @else if (notification.bookingId && !hasReservationInMessage(notification.message)) {
+                  <p class="muted">Reserva: {{ formatId(notification.bookingId) }}</p>
                 }
                 <p class="muted">Recibida: {{ notification.createdAt | date:'medium' }}</p>
               </div>
@@ -83,6 +83,7 @@ import { AuthService } from '../core/auth.service';
     .notification-row{display:flex;justify-content:space-between;align-items:start;gap:18px;padding:20px 4px;border-bottom:1px solid #dfe7e4}
     .notification-main h2{font-size:17px;margin:0 0 7px;color:#17332d}
     .notification-main p{margin:4px 0}
+    .notification-message{white-space:pre-line}
     .status{white-space:nowrap;font-size:12px;font-weight:700;color:#475467;background:#eef2f1;padding:6px 9px;border-radius:4px}
     .status-processed{color:#176b4d;background:#e7f4ec}
     .status-failed{color:#8c3d27;background:#faeee8}
@@ -151,11 +152,61 @@ export class MyNotificationsComponent implements OnInit {
         });
     }
 
+    formatMessage(rawMessage: string): string {
+        if (!rawMessage) return '';
+        const formattedPattern = rawMessage.replace(
+            /(El estado de tu inscripción es ahora:\s*)(ACTIVE|CANCELLED|COMPLETED|CREATED|CONFIRMED|PENDING)\s*Reserva:\s*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/i,
+            (_match, prefix: string, status: string, reservationId: string) =>
+                `${prefix}${status}\n\nReserva: ${reservationId}`
+        );
+        let msg = formattedPattern;
+        const reservationMatch = formattedPattern.match(/Reserva:\s*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/i);
+
+        // Traducir estados técnicos al español amigable
+        msg = msg.replace(/\bCANCELLED\b/g, 'Cancelada')
+                 .replace(/\bACTIVE\b/g, 'Activa')
+                 .replace(/\bCOMPLETED\b/g, 'Completada')
+                 .replace(/\bCREATED\b/g, 'En Proceso')
+                 .replace(/\bCONFIRMED\b/g, 'Confirmada')
+                 .replace(/\bPENDING\b/g, 'Pendiente');
+
+        // Formatear patrón: "Reserva: <UUID>" a "Reserva: #11111111"
+        msg = msg.replace(/Reserva:\s*([0-9a-fA-F]{8})-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/gi, 'Reserva: #$1');
+
+        // Cualquier otro UUID en el mensaje lo formatea a #XXXXXXXX
+        msg = msg.replace(/\b([0-9a-fA-F]{8})-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/g, '#$1');
+
+        if (reservationMatch) {
+            msg = msg.replace(/Reserva:\s*#?[0-9a-fA-F]{8}/i, `Reserva: ${reservationMatch[1]}`);
+        }
+
+        return msg;
+    }
+
+    formatId(id?: string): string {
+        if (!id) return '';
+        const match = id.match(/([0-9a-fA-F]{8})-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+        if (match) {
+            return '#' + match[1].toUpperCase();
+        }
+        if (id.length >= 8) {
+            return '#' + id.substring(0, 8).toUpperCase();
+        }
+        return id;
+    }
+
+    hasReservationInMessage(message?: string): boolean {
+        return !!message && /Reserva:\s*#?[0-9a-fA-F]{8}/i.test(message);
+    }
+
     statusLabel(status: string): string {
         const labels: Record<string, string> = {
             PENDING: 'Pendiente',
             PROCESSED: 'Procesada',
-            FAILED: 'Fallida'
+            FAILED: 'Cancelada',
+            ACTIVE: 'Activa',
+            CANCELLED: 'Cancelada',
+            COMPLETED: 'Completada'
         };
         return labels[status] ?? status;
     }

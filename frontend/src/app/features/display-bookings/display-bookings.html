@@ -110,8 +110,8 @@
                         </svg>
                       </div>
                       <div class="service-info">
-                        <span class="service-title">{{ reserva.offeringTitle || ('Reserva #' + reserva.id.substring(0, 8)) }}</span>
-                        <span class="service-subtitle">ID: {{ reserva.id.substring(0, 8) }}</span>
+                        <span class="service-title">{{ reserva.offeringTitle || ('Servicio #' + reserva.id.substring(0, 8)) }}</span>
+                        <span class="service-subtitle">{{ getServiceIdentifier(reserva) }}</span>
                       </div>
                     </div>
                   </td>
@@ -154,7 +154,7 @@
                     <button class="action-btn" (click)="verDetalle(reserva.id)" title="Ver Detalle">
                       <i class="bx bx-eye-big"></i>
                     </button>
-                    <button class="action-btn" (click)="confirmarCancelacion(reserva.id)" title="Cancelar Reserva" style="background-color: #f87171; color: white;">
+                    <button class="action-btn" (click)="confirmarCancelacion(reserva)" title="Cancelar Reserva" style="background-color: #f87171; color: white;">
                       <i class="bx bx-x"></i>
                     </button>
                   </td>

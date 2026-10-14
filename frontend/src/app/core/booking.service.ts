@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, forkJoin, of } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { map, switchMap, catchError } from 'rxjs/operators';
 import { apiBase } from './api';
 import { OfferingService } from './offering.service';
 
@@ -9,6 +9,7 @@ export interface BookingSummary {
     id: string; // The serviceId
     offeringId: string; // The serviceId
     offeringTitle: string;
+    serviceCode?: string;
     price: number;
     scheduledAt: string; // startDate
     status: string; // ACTIVE, COMPLETED, CANCELLED
@@ -32,11 +33,9 @@ export class BookingService {
     private readonly offeringService = inject(OfferingService);
 
     listMine(page: number, size: number, sort: BookingSort, activity: BookingActivityFilter): Observable<BookingPage> {
-        // The new API doesn't support sorting and activity filtering directly in the same way,
-        // it just takes page and size. We'll pass them but ignore sort/activity for now.
         const params = new HttpParams()
-            .set('page', page)
-            .set('size', size);
+            .set('page', '0')
+            .set('size', '100');
             
         return this.http.get<any>(`${apiBase()}/enrollments/me`, { params }).pipe(
             switchMap(pageResult => {
@@ -44,10 +43,10 @@ export class BookingService {
                 if (enrollments.length === 0) {
                     return of({
                         content: [],
-                        page: pageResult.number,
+                        page: 0,
                         size: size,
-                        totalElements: pageResult.totalElements,
-                        totalPages: pageResult.totalPages
+                        totalElements: 0,
+                        totalPages: 0
                     });
                 }
                 
@@ -58,7 +57,18 @@ export class BookingService {
                             id: enrollment.serviceId,
                             offeringId: enrollment.serviceId,
                             offeringTitle: service.title,
+                            serviceCode: service.code,
                             price: service.price,
+                            scheduledAt: enrollment.startDate,
+                            status: enrollment.status,
+                            active: enrollment.status === 'ACTIVE'
+                        })),
+                        catchError(() => of({
+                            id: enrollment.serviceId,
+                            offeringId: enrollment.serviceId,
+                            offeringTitle: 'Servicio #' + enrollment.serviceId.substring(0, 8),
+                            serviceCode: 'SRV-' + enrollment.serviceId.substring(0, 4).toUpperCase(),
+                            price: 0,
                             scheduledAt: enrollment.startDate,
                             status: enrollment.status,
                             active: enrollment.status === 'ACTIVE'
@@ -67,13 +77,46 @@ export class BookingService {
                 );
                 
                 return forkJoin(detailRequests).pipe(
-                    map(summaries => ({
-                        content: summaries as BookingSummary[],
-                        page: pageResult.number,
-                        size: size,
-                        totalElements: pageResult.totalElements,
-                        totalPages: pageResult.totalPages
-                    }))
+                    map(summaries => {
+                        let filtered = summaries as BookingSummary[];
+
+                        // Filtrado por actividad (ALL / ACTIVE / INACTIVE)
+                        if (activity === 'ACTIVE') {
+                            filtered = filtered.filter(item => item.status === 'ACTIVE' || item.active);
+                        } else if (activity === 'INACTIVE') {
+                            filtered = filtered.filter(item => item.status !== 'ACTIVE' && !item.active);
+                        }
+
+                        // Ordenamiento
+                        if (sort === 'TITLE_ASC') {
+                            filtered.sort((a, b) => (a.offeringTitle || '').localeCompare(b.offeringTitle || ''));
+                        } else if (sort === 'TITLE_DESC') {
+                            filtered.sort((a, b) => (b.offeringTitle || '').localeCompare(a.offeringTitle || ''));
+                        } else if (sort === 'DATE_ASC') {
+                            filtered.sort((a, b) => new Date(a.scheduledAt || 0).getTime() - new Date(b.scheduledAt || 0).getTime());
+                        } else if (sort === 'DATE_DESC') {
+                            filtered.sort((a, b) => new Date(b.scheduledAt || 0).getTime() - new Date(a.scheduledAt || 0).getTime());
+                        } else if (sort === 'PRICE_ASC') {
+                            filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
+                        } else if (sort === 'PRICE_DESC') {
+                            filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
+                        }
+
+                        // Paginación en cliente sobre el conjunto filtrado
+                        const totalElements = filtered.length;
+                        const totalPages = Math.max(1, Math.ceil(totalElements / size));
+                        const safePage = Math.min(page, Math.max(0, totalPages - 1));
+                        const startIndex = safePage * size;
+                        const pageContent = filtered.slice(startIndex, startIndex + size);
+
+                        return {
+                            content: pageContent,
+                            page: safePage,
+                            size: size,
+                            totalElements: totalElements,
+                            totalPages: totalPages
+                        };
+                    })
                 );
             })
         );

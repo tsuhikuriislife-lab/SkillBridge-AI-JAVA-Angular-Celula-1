@@ -134,4 +134,17 @@ class ServiceEnrollmentServiceTest {
         assertThrows(BusinessRuleException.class,
                 () -> service.removeParticipant(UUID.randomUUID(), serviceId, userId));
     }
+
+    @Test
+    void withdraw_alreadyCancelled_throwsFriendlyMessage() {
+        var enrollment = new ServiceEnrollment(userId, serviceId, EnrollmentStatus.CANCELLED, 4,
+                LocalDate.now().plusDays(7), null);
+        when(enrollmentPort.findByUserIdAndServiceId(userId, serviceId)).thenReturn(Optional.of(enrollment));
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class,
+                () -> service.withdraw(userId, serviceId));
+        assertEquals("Ya se ha hecho la cancelación de este recurso o de este servicio.", ex.getMessage());
+        verify(enrollmentPort, never()).save(any());
+        verify(historyPort, never()).save(any());
+    }
 }
