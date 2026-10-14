@@ -68,6 +68,12 @@ export class AuthService {
     );
   }
 
+  fetchCsrfToken(): Observable<void> {
+    return this.http.get<void>(`${apiBase()}/auth/csrf`, { withCredentials: true }).pipe(
+      catchError(() => of(void 0))
+    );
+  }
+
   private fetchProfile(): Observable<UserProfile> {
     return this.http.get<UserProfile>(`${apiBase()}/users/me`, { withCredentials: true }).pipe(
       tap(profile => {

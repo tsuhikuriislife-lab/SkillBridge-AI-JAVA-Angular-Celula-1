@@ -508,3 +508,21 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Pruebas unitarias de backend pasando al 100% (69 de 69 tests en Maven).
   - Compilación de Angular (`CI=true npm run build`) exitosa.
   - Verificación en contenedores en vivo: inicio de sesión de `yamit@gmail.com` valida con rol `ADMIN`, `/api/admin/users` devuelve `200 OK`, y el acceso a `/api/enrollments/me` devuelve `403 Forbidden` (en lugar de `401`), evitando que se dispare el modal de sesión expirada.
+
+## [2026-10-14] Corrección de la doble pulsación en login y creación de usuarios (Ciclo de Vida de Token CSRF)
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Al iniciar sesión o al crear usuarios en la vista administrativa, el primer clic fallaba mostrando error ("No fue posible realizar la autenticación" / "No fue posible crear el usuario") y al presionar por segunda vez la acción se completaba exitosamente.
+- **Causas Raíz Identificadas:**
+  1. **Destrucción de Cookie CSRF en Solicitudes Autenticadas (Backend):** Spring Security, por defecto con protección CSRF activada, registra `CsrfAuthenticationStrategy` dentro de su estrategia de autenticación de sesión. En aplicaciones con autenticación JWT sin estado (`SessionCreationPolicy.STATELESS`), cada petición entrante con cookie de sesión es evaluada por `SessionManagementFilter` como una "nueva autenticación" (al no existir `HttpSession`). Como resultado, `CsrfAuthenticationStrategy` ejecutaba en cada solicitud autenticada `this.csrfTokenRepository.saveToken(null, request, response)`, enviando la cabecera `Set-Cookie: XSRF-TOKEN=; Max-Age=0;` e invalidando la cookie CSRF en el navegador inmediatamente después de cada lectura (`GET /api/admin/users`, `GET /api/users/me`).
+  2. **Ausencia de Token en el Primer Envío Mutante (Frontend):** En el primer intento (en login o tras la invalidación previa), el interceptor HTTP de Angular no encontraba la cookie `XSRF-TOKEN` y enviaba la petición mutante (`POST`) sin el encabezado `X-XSRF-TOKEN`. Spring Security rechazaba la solicitud con `403 Forbidden` y, como efecto colateral, generaba una nueva cookie `XSRF-TOKEN`. Al presionar el botón por segunda vez, la cookie ya estaba disponible en el navegador, permitiendo que la petición fuera aceptada.
+- **Cambios Realizados:**
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se configuró explícitamente `NullAuthenticatedSessionStrategy` tanto en el bloque `.csrf(...)` como en `.sessionManagement(...)`. Esto previene que `CsrfAuthenticationStrategy` borre la cookie CSRF (`Max-Age=0`) en cada petición JWT sin estado, manteniendo el token CSRF persistente y válido a lo largo de toda la sesión del usuario.
+    - Se añadió una prueba unitaria en `AuthSessionSecurityTest.java` (`authenticatedEndpoint_preservesXsrfToken`) que verifica formalmente que las peticiones autenticadas conservan la cookie `XSRF-TOKEN` sin emitir `Max-Age=0`.
+  - **Frontend:**
+    - En `AuthService` (`auth.service.ts`), se implementó el método `fetchCsrfToken(): Observable<void>`, el cual invoca `GET /api/auth/csrf` con credenciales para obtener o refrescar proactivamente el token CSRF.
+    - En `authInterceptor` (`auth.interceptor.ts`), si se detecta un método mutante (`POST`, `PUT`, `PATCH`, `DELETE`) y el navegador no tiene la cookie `XSRF-TOKEN`, el interceptor realiza una llamada transparente y previa a `authService.fetchCsrfToken()` antes de enviar la petición mutante con la cabecera `X-XSRF-TOKEN`, garantizando que jamás falle en el primer clic.
+- **Validación:**
+  - Backend: Se ejecutó la suite completa de pruebas unitarias (`mvn test`), pasando el 100% (70 de 70 pruebas exitosas).
+  - Frontend: Compilación de producción con Angular CLI (`CI=true npm run build`) exitosa con 0 errores.
+  - Verificación en contenedores en vivo: Se comprobó que `GET /api/users/me` y `POST /api/admin/users` ya no emiten `Max-Age=0`. Las creaciones consecutivas de usuarios en la API administrativa se completaron al primer intento con HTTP 201 Created. Se limpiaron los registros de prueba generados.
