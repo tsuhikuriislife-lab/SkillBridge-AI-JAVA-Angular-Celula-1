@@ -485,3 +485,26 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
     - `my-notifications.component.ts`: Componente reescrito con vista admin nueva que incluye: cabecera con etiqueta ACTIVIDAD ADMINISTRATIVA y botón Actualizar, 3 tarjetas de resumen, agrupación por día, tarjetas con ícono temático, badge de estado, avatar circular, flujo de roles y timestamp formateado. Paginación con indicador X–Y de Z. Responsive para móvil.
     - Se corrigió bug en `formatDateTime`: eliminado array `months` duplicado con índice 0 incorrecto.
 - **Validación:** `docker compose build frontend` y `docker compose build backend` completaron exitosamente. Todos los servicios Docker están `healthy`. El endpoint `GET /api/admin/notifications` retorna los campos estructurados `userId`, `userEmail`, `previousRole`, `newRole`.
+
+## [2026-10-14] Corrección de redirección tras login y manejo de expiración de sesión por rol
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Se reportaron dos problemas al iniciar sesión con cuentas administrativas (`yamit@gmail.com`):
+  1. Al iniciar sesión no redirigía al panel de administración (`/admin`).
+  2. Al intentar acceder a vistas no autorizadas o de cliente, la aplicación mostraba erróneamente el modal bloqueante de "Sesión expirada".
+- **Causas Identificadas:**
+  - `LoginComponent` (`login.ts`) tenía una redirección fija a `/ai` (`this.router.navigateByUrl('/ai')`), ignorando el rol del usuario autenticado y el parámetro `returnUrl`.
+  - En `SecurityConfiguration.java`, las rutas `/api/bookings/**` y `/api/enrollments/**` restringen el acceso a `CUSTOMER` y `PROVIDER`. Al ingresar un `ADMIN`, la falta de un `accessDeniedHandler` explícito provocaba que Spring Security delegara la respuesta al `authenticationEntryPoint`, retornando un código `401 Unauthorized` en lugar de `403 Forbidden`.
+  - El interceptor `auth.interceptor.ts` reaccionaba ante cualquier código `401` disparando `authService.triggerSessionExpired()`, lo que expulsaba al usuario y mostraba el modal de expiración aunque el token de sesión fuera totalmente válido.
+  - En el pie de página (`app.component.ts`), los enlaces a "Mis reservas" se mostraban indiscriminadamente incluso para administradores.
+  - La plantilla de Nginx permitía el almacenamiento en caché de `index.html`, sirviendo en ocasiones scripts antiguos de bundles previos.
+- **Cambios Realizados:**
+  - **Frontend:**
+    - Se refactorizó `LoginComponent` (`login.ts` y `login.component.ts`) para incluir el método `navigatePostAuth()`, redirigiendo dinámicamente según el rol (`ADMIN` -> `/admin`, `PROVIDER` -> `/provider`, `CUSTOMER` -> `/ai`) y respetando `returnUrl` (desviando rutas no administrativas hacia `/admin` si el rol es `ADMIN`).
+    - En `AppComponent` (`app.component.ts`), se condicionaron los enlaces del footer según el rol: para administradores se muestra "Panel Admin" y "Notificaciones", ocultando "Mis reservas".
+    - En `nginx.conf.template`, se configuró `location = /index.html` con cabeceras `Cache-Control: no-store, no-cache, must-revalidate` para garantizar la descarga de los bundles JS actualizados.
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se configuró explícitamente `.accessDeniedHandler((request, response, accessDeniedException) -> response.setStatus(HttpStatus.FORBIDDEN.value()))` y se añadió `/error` a la lista de `permitAll()`.
+- **Validación:**
+  - Pruebas unitarias de backend pasando al 100% (69 de 69 tests en Maven).
+  - Compilación de Angular (`CI=true npm run build`) exitosa.
+  - Verificación en contenedores en vivo: inicio de sesión de `yamit@gmail.com` valida con rol `ADMIN`, `/api/admin/users` devuelve `200 OK`, y el acceso a `/api/enrollments/me` devuelve `403 Forbidden` (en lugar de `401`), evitando que se dispare el modal de sesión expirada.
