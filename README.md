@@ -376,13 +376,15 @@ GEMINI_MODEL=gemini-3.8-flash
 La API key se utiliza únicamente en Spring Boot. Angular nunca se conecta
 directamente con Gemini.
 
-Cambia siempre el secreto JWT:
+Inyecta siempre el secreto JWT mediante variables de entorno o archivo `.env` (sin valores de respaldo inseguros):
 
 ```env
-JWT_SECRET=una-clave-larga-aleatoria-de-al-menos-32-caracteres
+JWT_SECRET=tu-clave-secreta-aleatoria-generada
 ```
 
-Puedes generar una:
+> **Importante (HU-14):** La aplicación no iniciará si `JWT_SECRET` falta, está en blanco, tiene menos de 32 caracteres, baja entropía o coincide con un valor por defecto conocido. La clave se obtiene exclusivamente de secretos del entorno.
+
+Puedes generar una clave criptográficamente segura:
 
 ```bash
 openssl rand -base64 48

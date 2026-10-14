@@ -79,4 +79,18 @@ class UserAccountServiceTest {
         when(userAccountPort.findById(id)).thenReturn(Optional.empty());
         assertThrows(DomainNotFoundException.class, () -> service.deleteUserAccount(id));
     }
+
+    @Test
+    void getByEmail_returnsEmptyWhenBlank() {
+        assertTrue(service.getUserAccountByEmail("").isEmpty());
+        assertTrue(service.getUserAccountByEmail(null).isEmpty());
+    }
+
+    @Test
+    void getByEmail_findsUserNormalized() {
+        when(userAccountPort.findByEmail("ana@x.com")).thenReturn(Optional.of(existing(Role.CUSTOMER)));
+        var result = service.getUserAccountByEmail("  ANA@X.COM  ");
+        assertTrue(result.isPresent());
+        assertEquals("ana@x.com", result.get().email());
+    }
 }
