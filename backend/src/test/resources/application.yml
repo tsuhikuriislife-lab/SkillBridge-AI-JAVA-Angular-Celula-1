@@ -1,0 +1,14 @@
+app:
+  jwt:
+    secret: "aA1!test-jwt-secret-with-sufficient-entropy-and-length-12345"
+    expiration-minutes: 60
+  security:
+    cookie:
+      name: access_token
+      secure: false
+      same-site: Lax
+      path: /api
+    require-https: false
+  cors:
+    allowed-origins: http://localhost:8088,http://localhost:4200
+

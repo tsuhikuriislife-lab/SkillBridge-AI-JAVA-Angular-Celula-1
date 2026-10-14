@@ -40,6 +40,26 @@ export class HomeComponent implements OnInit, AfterViewInit {
     elements.forEach((el: any) => observer.observe(el));
   }
 
+  getIcono(categoria: string): string {
+    const categoryIcons: Record<string, string> = {
+      'frontend': 'bxl bx-angular',
+      'backend': 'bx bx-server',
+      'full stack': 'bx bx-layer',
+      'mobile': 'bx bx-mobile-alt',
+      'desktop': 'bx bx-desktop',
+      'databases': 'bx bx-data',
+      'apis': 'bx bx-plug',
+      'devops': 'bx bx-git-branch',
+      'cloud': 'bx bx-cloud',
+      'cybersecurity': 'bx bx-shield-quarter',
+      'testing': 'bx bx-check-shield',
+      'videogames': 'bx bx-joystick',
+      'ai': 'bx bx-brain',
+      'blockchain': 'bx bx-cube-alt',
+    };
+    return categoryIcons[categoria?.toLowerCase()] ?? 'bx bx-bxs-briefcase';
+  }
+
   ngOnInit(): void {
     this.service.list().subscribe({
       next: r => {

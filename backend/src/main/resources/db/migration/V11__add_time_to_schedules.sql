@@ -1,0 +1,4 @@
+ALTER TABLE service_schedules
+ADD COLUMN start_time TIME NOT NULL DEFAULT '00:00:00',
+ADD COLUMN end_time TIME NOT NULL DEFAULT '01:00:00';
+
