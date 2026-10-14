@@ -471,3 +471,17 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Cambios realizados:** El backend registra título, ID, nombre, correo y rol; no incluye contraseña. La vista muestra el mismo formato y adapta eventos históricos `USER_CREATED` al presentarlos.
 - **Validación:** `AdminUserServiceTest` pasó (11 pruebas), `npx ng build` completó y se reconstruyeron backend y frontend. Las pruebas no insertaron usuarios en la base local.
 
+
+## [2026-10-14] Rediseño de la vista admin de Notificaciones (/notifications)
+- **Agente:** Antigravity
+- **Contexto:** Se solicitó rediseñar completamente la vista `/notifications` para el rol ADMIN, manteniendo intacta la vista de cliente regular, sin agregar librerías externas de UI y respetando la arquitectura hexagonal en los cambios de backend.
+- **Cambios realizados:**
+  - **Backend (aditivos, sin romper contratos existentes):**
+    - `AdminActivity.java` (dominio): Se amplió el `record` con 4 campos nuevos (`userId`, `userEmail`, `previousRole`, `newRole`) y se añadió constructor de compatibilidad de 7 parámetros que delega al canónico con `null`, de forma que `AdminActivityServiceTest` y `AdminUserServiceTest` siguen pasando sin cambios.
+    - `AdminActivityPersistenceAdapter.java`: Se agregó lógica de parseo con `Pattern` (regex) en `toDomain()` para extraer `userEmail`, `previousRole` y `newRole` del campo `message` de texto plano de la BD, soportando los formatos `ROL MODIFICADO` (multi-línea), `USER_UPDATED` (línea simple `->`) y `USUARIO CREADO`.
+    - `AdminNotificationController.java`: El record `AdminNotificationOut` ahora incluye `userId`, `userEmail`, `previousRole`, `newRole`; el mapeo en `listMine()` los popula desde `AdminActivity`.
+  - **Frontend (solo vista admin, cliente regular sin cambios):**
+    - `notification.service.ts`: Se ampliaron las interfaces `NotificationSummary` y `NotificationPage` con los campos opcionales nuevos (`userId?`, `userEmail?`, `previousRole?`, `newRole?`).
+    - `my-notifications.component.ts`: Componente reescrito con vista admin nueva que incluye: cabecera con etiqueta ACTIVIDAD ADMINISTRATIVA y botón Actualizar, 3 tarjetas de resumen, agrupación por día, tarjetas con ícono temático, badge de estado, avatar circular, flujo de roles y timestamp formateado. Paginación con indicador X–Y de Z. Responsive para móvil.
+    - Se corrigió bug en `formatDateTime`: eliminado array `months` duplicado con índice 0 incorrecto.
+- **Validación:** `docker compose build frontend` y `docker compose build backend` completaron exitosamente. Todos los servicios Docker están `healthy`. El endpoint `GET /api/admin/notifications` retorna los campos estructurados `userId`, `userEmail`, `previousRole`, `newRole`.
