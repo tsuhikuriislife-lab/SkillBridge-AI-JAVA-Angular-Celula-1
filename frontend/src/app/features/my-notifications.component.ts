@@ -244,18 +244,10 @@ interface NotificationGroup {
                           </span>
                         </div>
 
-                        <!-- Fila 3: Reserva + ID corto (mostrado una sola vez) y Fecha/Hora -->
-                        <div class="client-meta-row">
-                          @if (notification.bookingId) {
-                            <div class="booking-id-group">
-                              <span class="meta-label">Reserva</span>
-                              <span class="mono-badge">{{ getShortBookingId(notification) }}</span>
-                            </div>
-                          }
-                          <div class="time-row">
-                            <i class="bx bx-time"></i>
-                            <span>{{ formatDateTime(notification.createdAt) }}</span>
-                          </div>
+                        <!-- Fila 3: Fecha y hora con ícono de reloj (última línea) -->
+                        <div class="time-row">
+                          <i class="bx bx-time"></i>
+                          <span>{{ formatDateTime(notification.createdAt) }}</span>
                         </div>
                       </div>
                     </article>
@@ -775,42 +767,6 @@ interface NotificationGroup {
       line-height: 1;
     }
 
-    .client-meta-row {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-top: 2px;
-    }
-
-    .booking-id-group {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .meta-label {
-      font-size: 13px;
-      font-weight: 600;
-      color: #64748b;
-    }
-
-    .mono-badge {
-      background: #f1f5f9;
-      color: #475569;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 4px;
-      border: 1px solid #e2e8f0;
-    }
-
-    .pagination-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
 
     .page-number {
       min-width: 52px;
