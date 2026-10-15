@@ -535,3 +535,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Backend: Se ejecutó la suite completa de pruebas unitarias (`mvn test`), pasando el 100% (70 de 70 pruebas exitosas).
   - Frontend: Compilación de producción con Angular CLI (`CI=true npm run build`) exitosa con 0 errores.
   - Verificación en contenedores en vivo: Se comprobó que `GET /api/users/me` y `POST /api/admin/users` ya no emiten `Max-Age=0`. Las creaciones consecutivas de usuarios en la API administrativa se completaron al primer intento con HTTP 201 Created. Se limpiaron los registros de prueba generados.
+
+## [2026-10-15] Etiquetas de actividad administrativa
+- **Cambios realizados:** En el feed administrativo, `OFFERING_STATUS_CHANGED` ahora se muestra como “Oferta modificada” con la etiqueta “Cambio de estado”; `USUARIO CREADO` conserva su título “Usuario creado” y muestra “Nueva cuenta”. Los demás datos y comportamientos permanecen iguales.
+- **Validación:** `npm --prefix frontend run build` completó correctamente. El spec enfocado no pudo ejecutarse porque ya referencia `formatMessage`, método inexistente en el componente.

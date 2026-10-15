@@ -12,7 +12,7 @@ interface NotificationGroup {
 
 @Component({
   standalone: true,
-  imports: [DatePipe, RouterLink],
+  imports: [RouterLink],
   template: `
     <section class="container notifications-page">
       <!-- ================= VISTA ADMINISTRADOR ================= -->
@@ -156,63 +156,120 @@ interface NotificationGroup {
 
       <!-- ================= VISTA CLIENTE REGULAR ================= -->
       @else {
-        <header class="page-heading">
-          <div>
-            <p class="eyebrow">TU ACTIVIDAD</p>
-            <h1>Mis notificaciones</h1>
-            <p class="muted">Consulta el resultado del procesamiento de las notificaciones de tus reservas.</p>
+        <header class="admin-page-header">
+          <div class="header-left">
+            <span class="eyebrow">TU ACTIVIDAD</span>
+            <h1 class="header-title">Mis notificaciones</h1>
+            <p class="header-subtitle">Consulta el resultado del procesamiento de las notificaciones de tus reservas.</p>
           </div>
-          <button class="btn secondary" type="button" (click)="loadPage()" [disabled]="loading">
-            Actualizar
+          <button class="btn-refresh" type="button" (click)="loadPage()" [disabled]="loading">
+            <i class="bx bx-refresh"></i> Actualizar
           </button>
         </header>
 
+        <!-- Tarjetas de resumen -->
+        <div class="summary-cards">
+          <div class="summary-card">
+            <div class="summary-number">{{ totalElements }}</div>
+            <div class="summary-label">Notificaciones</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-number">{{ countProcessed }} / {{ notifications.length }}</div>
+            <div class="summary-label">Procesadas</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-number">{{ countActiveEnrollments }}</div>
+            <div class="summary-label">Inscripciones activas</div>
+          </div>
+        </div>
+
         @if (error) {
-          <div class="message error" role="alert">
+          <div class="alert-error" role="alert">
             <span>{{ error }}</span>
             <button class="text-button" type="button" (click)="loadPage()" [disabled]="loading">Reintentar</button>
           </div>
         }
 
         @if (loading) {
-          <p class="message muted" role="status">Cargando notificaciones...</p>
+          <div class="loading-state">
+            <p class="muted">Cargando notificaciones...</p>
+          </div>
         } @else if (!error && notifications.length === 0) {
           <div class="empty-state">
             <h2>Aún no tienes notificaciones</h2>
             <p class="muted">Cuando se procese una reserva, su notificación aparecerá aquí.</p>
           </div>
         } @else if (!error) {
-          <div class="notification-list" aria-live="polite">
-            @for (notification of notifications; track notification.id) {
-              <article class="notification-row">
-                <div class="notification-main">
-                  <h2>
-                    <a [routerLink]="['/service', notification.bookingId]" class="service-link">
-                      {{ notification.title }}
-                    </a>
-                  </h2>
-                  <p class="notification-message">{{ notification.message }}</p>
-                  @if (notification.bookingId) {
-                    <p class="muted">Reserva: {{ notification.bookingId }}</p>
+          <div class="activity-feed">
+            @for (group of groupedNotifications; track group.dateLabel) {
+              <div class="date-group">
+                <div class="date-group-label">{{ group.dateLabel }}</div>
+
+                <div class="notification-cards-list">
+                  @for (notification of group.items; track notification.id) {
+                    <article class="notification-card">
+                      <!-- Ícono lateral temático -->
+                      <div class="client-card-icon">
+                        <span class="cap-icon">🎓</span>
+                      </div>
+
+                      <!-- Cuerpo principal -->
+                      <div class="card-body">
+                        <!-- Fila 1: Título de Servicio, Badge de Inscripción y Estado Procesada -->
+                        <div class="card-header-row">
+                          <div class="card-title-group">
+                            <h2 class="card-title">
+                              @if (notification.bookingId) {
+                                <a [routerLink]="['/service', notification.bookingId]" class="service-link">
+                                  {{ notification.title || 'Inscripción a servicio' }}
+                                </a>
+                              } @else {
+                                {{ notification.title || 'Inscripción a servicio' }}
+                              }
+                            </h2>
+                            <span class="badge-inscription">INSCRIPCIÓN</span>
+                          </div>
+
+                          <span class="status-badge" [class.status-processed]="notification.status === 'PROCESSED'"
+                                [class.status-failed]="notification.status === 'FAILED'">
+                            ✓ {{ statusLabel(notification.status) }}
+                          </span>
+                        </div>
+
+                        <!-- Fila 2: Mensaje y Estado de la inscripción -->
+                        <div class="enrollment-status-row">
+                          <span class="enrollment-text">El estado de tu inscripción es ahora</span>
+                          <span class="enrollment-pill" [class]="getEnrollmentStatusClass(notification)">
+                            <span class="status-dot">•</span> {{ getEnrollmentStatus(notification) }}
+                          </span>
+                        </div>
+
+                        <!-- Fila 3: Fecha y hora con ícono de reloj (última línea) -->
+                        <div class="time-row">
+                          <i class="bx bx-time"></i>
+                          <span>{{ formatDateTime(notification.createdAt) }}</span>
+                        </div>
+                      </div>
+                    </article>
                   }
-                  <p class="muted">Recibida: {{ notification.createdAt | date:'medium' }}</p>
                 </div>
-                <span class="status" [class.status-processed]="notification.status === 'PROCESSED'"
-                      [class.status-failed]="notification.status === 'FAILED'">
-                  {{ statusLabel(notification.status) }}
-                </span>
-              </article>
+              </div>
             }
           </div>
 
-          <footer class="pagination">
-            <span class="muted">{{ firstVisible }}–{{ lastVisible }} de {{ totalElements }}</span>
-            <div class="pagination-actions">
-              <button class="btn secondary" type="button" (click)="loadPage(currentPage - 1)"
-                      [disabled]="loading || currentPage === 0">Anterior</button>
-              <span class="page-number">{{ currentPage + 1 }} / {{ totalPages }}</span>
-              <button class="btn secondary" type="button" (click)="loadPage(currentPage + 1)"
-                      [disabled]="loading || currentPage + 1 >= totalPages">Siguiente</button>
+          <!-- Pie de paginación -->
+          <footer class="pagination-footer">
+            <span class="pagination-info">{{ firstVisible }}–{{ lastVisible }} de {{ totalElements }}</span>
+            <div class="pagination-buttons">
+              <button class="btn-page" type="button" (click)="loadPage(currentPage - 1)"
+                      [disabled]="loading || currentPage === 0">
+                Anterior
+              </button>
+              <span class="page-current">{{ currentPage + 1 }} / {{ totalPages || 1 }}</span>
+              <button class="btn-page" type="button" (click)="loadPage(currentPage + 1)"
+                      [disabled]="loading || currentPage + 1 >= totalPages">
+                Siguiente
+              </button>
             </div>
           </footer>
         }
@@ -613,92 +670,103 @@ interface NotificationGroup {
     }
 
     /* ============================================================
-       VISTA CLIENTE (HEREDADA Y PRESERVADA)
+       ELEMENTOS DE VISTA CLIENTE
        ============================================================ */
-    .page-heading {
+    .client-card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: #eff6ff;
       display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 20px;
-      margin-bottom: 24px;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+      margin-top: 2px;
     }
 
-    .page-heading h1 {
-      font-size: 30px;
-      margin: 0 0 8px;
-      color: #17332d;
+    .cap-icon {
+      display: inline-block;
+      line-height: 1;
     }
 
-    .muted {
-      color: #667085;
-    }
-
-    .notification-list {
-      border-top: 1px solid #dfe7e4;
-    }
-
-    .notification-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 18px;
-      padding: 20px 4px;
-      border-bottom: 1px solid #dfe7e4;
-    }
-
-    .notification-main h2 {
-      font-size: 17px;
-      margin: 0 0 7px;
-      color: #17332d;
-    }
-
-    .notification-main p {
-      margin: 4px 0;
-    }
-
-    .notification-message {
-      white-space: pre-wrap;
+    .badge-inscription {
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
 
     .service-link {
-      color: #17332d;
-      text-decoration: underline;
+      color: #0f172a;
+      text-decoration: none;
+      transition: color 0.15s ease;
     }
 
-    .status {
-      white-space: nowrap;
+    .service-link:hover {
+      text-decoration: underline;
+      color: #2563eb;
+    }
+
+    .enrollment-status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: #334155;
+      font-weight: 500;
+      flex-wrap: wrap;
+    }
+
+    .enrollment-text {
+      color: #334155;
+    }
+
+    .enrollment-pill {
       font-size: 12px;
       font-weight: 700;
-      color: #475467;
-      background: #eef2f1;
-      padding: 6px 9px;
-      border-radius: 4px;
-    }
-
-    .status.status-processed {
-      color: #176b4d;
-      background: #e7f4ec;
-    }
-
-    .status.status-failed {
-      color: #8c3d27;
-      background: #faeee8;
-    }
-
-    .pagination {
-      display: flex;
-      justify-content: space-between;
+      padding: 3px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.03em;
+      display: inline-flex;
       align-items: center;
-      gap: 18px;
-      padding-top: 18px;
+      gap: 6px;
+    }
+
+    .enrollment-pill.enrollment-active {
+      background: #e6f7ed;
+      color: #15803d;
+    }
+
+    .enrollment-pill.enrollment-cancelled {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .enrollment-pill.enrollment-completed {
+      background: #e0e7ff;
+      color: #4338ca;
+    }
+
+    .enrollment-pill.enrollment-pending {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .enrollment-pill.enrollment-default {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .status-dot {
       font-size: 14px;
+      line-height: 1;
     }
 
-    .pagination-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
 
     .page-number {
       min-width: 52px;
@@ -835,6 +903,10 @@ export class MyNotificationsComponent implements OnInit {
     return this.notifications.filter(n => n.status === 'PROCESSED').length;
   }
 
+  get countActiveEnrollments(): number {
+    return this.notifications.filter(n => this.getEnrollmentStatus(n) === 'ACTIVE').length;
+  }
+
   get groupedNotifications(): NotificationGroup[] {
     const map = new Map<string, NotificationSummary[]>();
 
@@ -892,12 +964,20 @@ export class MyNotificationsComponent implements OnInit {
                     date.getMonth() === today.getMonth() &&
                     date.getDate() === today.getDate();
 
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    const isYesterday = date.getFullYear() === yesterday.getFullYear() &&
+                        date.getMonth() === yesterday.getMonth() &&
+                        date.getDate() === yesterday.getDate();
+
     const months = [
       'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
       'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
     ];
     const formatted = `${date.getDate()} DE ${months[date.getMonth()]} DE ${date.getFullYear()}`;
-    return isToday ? `HOY · ${formatted}` : formatted;
+    if (isToday) return `HOY · ${formatted}`;
+    if (isYesterday) return `AYER · ${formatted}`;
+    return formatted;
   }
 
   formatDateTime(dateStr: string): string {
@@ -931,6 +1011,9 @@ export class MyNotificationsComponent implements OnInit {
     if (notification.title === 'ROL MODIFICADO' || notification.title === 'USER_ROLE_CHANGED') {
       return 'Rol modificado';
     }
+    if (notification.title === 'OFFERING_STATUS_CHANGED') {
+      return 'Oferta modificada';
+    }
     if (notification.title === 'USER_UPDATED') {
       return 'Usuario actualizado';
     }
@@ -947,11 +1030,14 @@ export class MyNotificationsComponent implements OnInit {
     if (notification.title === 'ROL MODIFICADO' || notification.title === 'USER_ROLE_CHANGED') {
       return 'ROL';
     }
+    if (notification.title === 'OFFERING_STATUS_CHANGED') {
+      return 'Cambio de estado';
+    }
     if (notification.title === 'USER_UPDATED') {
       return 'USER_UPDATED';
     }
     if (notification.title === 'USUARIO CREADO' || notification.title === 'USER_CREATED') {
-      return 'USER_CREATED';
+      return 'Nueva cuenta';
     }
     return notification.title || 'ACCIÓN';
   }
@@ -1002,5 +1088,39 @@ export class MyNotificationsComponent implements OnInit {
       FAILED: 'Fallida'
     };
     return labels[status] ?? status;
+  }
+
+  getEnrollmentStatus(notification: NotificationSummary): string {
+    if (notification.enrollmentStatus) {
+      return notification.enrollmentStatus.toUpperCase();
+    }
+    const match = notification.message?.match(/El estado de tu inscripción es ahora:?\s*(\w+)/i);
+    if (match) return match[1].toUpperCase();
+    return 'ACTIVE';
+  }
+
+  getEnrollmentStatusClass(notification: NotificationSummary): string {
+    const status = this.getEnrollmentStatus(notification);
+    switch (status) {
+      case 'ACTIVE': return 'enrollment-active';
+      case 'CANCELLED': return 'enrollment-cancelled';
+      case 'COMPLETED': return 'enrollment-completed';
+      case 'PENDING': return 'enrollment-pending';
+      default: return 'enrollment-default';
+    }
+  }
+
+  getShortBookingId(notification: NotificationSummary): string {
+    return compactDisplayId(notification.bookingId || '');
+  }
+
+  formatMessage(message: string): string {
+    if (!message) return '';
+    let result = message
+      .replace(/\bACTIVE\b/g, 'Activa')
+      .replace(/\bCANCELLED\b/g, 'Cancelada')
+      .replace(/\bCOMPLETED\b/g, 'Completada')
+      .replace(/\bPENDING\b/g, 'Pendiente');
+    return result.replace(/(El estado de tu inscripción es ahora: [^\n\r]+?)\s+(Reserva:)/i, '$1\n\n$2');
   }
 }
