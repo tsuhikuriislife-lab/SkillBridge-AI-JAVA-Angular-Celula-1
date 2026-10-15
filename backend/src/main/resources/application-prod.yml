@@ -1,0 +1,8 @@
+app:
+  security:
+    cookie:
+      secure: ${COOKIE_SECURE:true}
+      same-site: ${COOKIE_SAMESITE:Lax}
+      path: ${COOKIE_PATH:/api}
+    require-https: ${REQUIRE_HTTPS:true}
+

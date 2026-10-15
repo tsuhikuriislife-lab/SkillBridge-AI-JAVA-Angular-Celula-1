@@ -1,0 +1,1129 @@
+<<<<<<< HEAD
+/* ============================================================
+   MIS RESERVAS — estilo coherente con el home de SkillBridge AI
+   Tokens del proyecto: --color-primary, --color-white, --color-background,
+   --color-border, --color-text, --color-dark, --status-*
+   Fuente del proyecto: Plus Jakarta Sans
+   Sin animaciones decorativas (solo el spinner de carga)
+   ============================================================ */
+
+.booking-container {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: rgb(var(--color-white, 255 255 255));
+      border: 1px solid rgb(var(--color-border, 226 232 240));
+      border-radius: 22px;
+      box-shadow: 0 6px 22px rgb(var(--color-background, 15 23 42) / 5%);
+      max-width: 1180px;
+      margin: 32px auto;
+      padding: 34px 38px;
+      color: rgb(var(--color-dark, 15 23 42));
+=======
+
+.booking-container {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #ffffff;
+      border: 1px solid #eef2f7;
+      border-radius: 20px;
+      padding: 36px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 12px 32px rgba(15, 23, 42, 0.07);
+      max-width: 1150px;
+      margin: 30px auto;
+      color: #1e293b;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    /* ---------- Encabezado ---------- */
+    .header-section {
+      margin-bottom: 26px;
+      padding-bottom: 22px;
+      border-bottom: 1px solid rgb(var(--color-border, 226 232 240));
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+<<<<<<< HEAD
+      gap: 8px;
+      margin-bottom: 14px;
+      padding: 8px 18px;
+      border: 1px solid rgb(var(--color-primary, 19 102 240) / 25%);
+      border-radius: 30px;
+      background-color: rgb(var(--color-primary, 19 102 240) / 7%);
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: rgb(var(--color-primary, 19 102 240));
+    }
+
+    .kicker .bx {
+      font-size: 15px;
+=======
+      gap: 16px;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #ffffff;
+      font-size: 1.4rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+      flex-shrink: 0;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    .header-section h2 {
+      margin: 0;
+<<<<<<< HEAD
+      font-size: clamp(24px, 3vw, 30px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      color: rgb(var(--color-dark, 15 23 42));
+=======
+      color: #0f172a;
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    .subtitle {
+      margin: 8px 0 0 0;
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.6;
+      color: rgb(var(--color-text, 100 116 139));
+    }
+
+    /* ---------- Botones ---------- */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+<<<<<<< HEAD
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 14px;
+      background-color: rgb(var(--color-primary, 19 102 240));
+      color: rgb(var(--color-white, 255 255 255));
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .btn-primary:hover {
+      background-color: #0f53c9;
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border: 1px solid rgb(var(--color-border, 226 232 240));
+      border-radius: 12px;
+      background-color: rgb(var(--color-white, 255 255 255));
+      color: rgb(var(--color-dark, 15 23 42));
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      border-color: rgb(var(--color-primary, 19 102 240) / 40%);
+      color: rgb(var(--color-primary, 19 102 240));
+    }
+
+    .btn-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+=======
+      gap: 6px;
+      background-color: #2563eb;
+      color: #ffffff;
+      text-decoration: none;
+      padding: 11px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      font-family: inherit;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover {
+      background-color: #1d4ed8;
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+      transform: translateY(-1px);
+    }
+
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    /* ---------- Filtros ---------- */
+    .booking-filters {
+      display: flex;
+      flex-wrap: wrap;
+<<<<<<< HEAD
+=======
+      gap: 14px;
+      margin-bottom: 24px;
+      padding: 14px 16px;
+      background-color: #f8fafc;
+      border: 1px solid #eef2f7;
+      border-radius: 12px;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 22px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background-color: rgb(var(--color-primary, 19 102 240) / 4%);
+    }
+
+    .filter-control, .page-size {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+<<<<<<< HEAD
+      font-size: 13px;
+      font-weight: 600;
+      color: rgb(var(--color-text, 100 116 139));
+=======
+      color: #475569;
+      font-size: 0.8125rem;
+      font-weight: 600;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    .page-size {
+      margin-left: auto;
+    }
+
+    .filter-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .filter-label .bx {
+<<<<<<< HEAD
+      font-size: 16px;
+      color: rgb(var(--color-primary, 19 102 240));
+=======
+      font-size: 1rem;
+      color: #2563eb;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+<<<<<<< HEAD
+      border: 1px solid rgb(var(--color-border, 226 232 240));
+      border-radius: 12px;
+      padding: 9px 34px 9px 14px;
+      background-color: rgb(var(--color-white, 255 255 255));
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      color: rgb(var(--color-dark, 15 23 42));
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select:hover:not(:disabled) {
+      border-color: rgb(var(--color-primary, 19 102 240) / 40%);
+    }
+
+    select:focus {
+      border-color: rgb(var(--color-primary, 19 102 240));
+      box-shadow: 0 0 0 3px rgb(var(--color-primary, 19 102 240) / 15%);
+    }
+
+    select:disabled {
+      opacity: 0.6;
+=======
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 34px 8px 12px;
+      background-color: #ffffff;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      color: #1e293b;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    select:hover:not(:disabled) {
+      border-color: #cbd5e1;
+    }
+
+    select:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    select:disabled {
+      background-color: #f1f5f9;
+      color: #94a3b8;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      cursor: not-allowed;
+    }
+
+    /* ---------- Estados de Carga, Error y Vacío ---------- */
+    .state-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 64px 20px;
+      text-align: center;
+    }
+
+    .spinner {
+      width: 42px;
+      height: 42px;
+      border: 3px solid rgb(var(--color-border, 226 232 240));
+      border-top-color: rgb(var(--color-primary, 19 102 240));
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .empty-icon-wrapper {
+<<<<<<< HEAD
+      width: 76px;
+      height: 76px;
+      border-radius: 22px;
+      background-color: rgb(var(--color-primary, 19 102 240) / 8%);
+      color: rgb(var(--color-primary, 19 102 240));
+      font-size: 34px;
+=======
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background-color: #eff6ff;
+      color: #2563eb;
+      font-size: 2rem;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+
+    .state-icon {
+      font-size: 42px;
+      color: rgb(var(--color-text, 100 116 139));
+      margin-bottom: 14px;
+    }
+
+    .state-icon--error {
+      color: rgb(var(--status-cancelled, 218 35 35));
+    }
+
+    .empty-state h3, .error-state h3 {
+<<<<<<< HEAD
+=======
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #0f172a;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      margin: 0 0 8px 0;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+      color: rgb(var(--color-dark, 15 23 42));
+    }
+
+    .empty-state p, .error-state p {
+      max-width: 420px;
+      margin: 0 0 20px 0;
+<<<<<<< HEAD
+      font-size: 14.5px;
+      font-weight: 500;
+      line-height: 1.65;
+      color: rgb(var(--color-text, 100 116 139));
+    }
+
+=======
+      font-size: 0.9rem;
+    }
+
+    .btn-retry {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      background-color: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      color: #334155;
+      font-weight: 600;
+      font-size: 0.8125rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .btn-retry:hover:not(:disabled) {
+      background-color: #e2e8f0;
+      border-color: #cbd5e1;
+    }
+
+    .btn-retry:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    /* ---------- Tabla ---------- */
+    .table-responsive {
+      overflow-x: auto;
+    }
+
+    .booking-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .booking-table th {
+      padding: 14px 12px;
+<<<<<<< HEAD
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgb(var(--color-text, 100 116 139) / 80%);
+      border-bottom: 1px solid rgb(var(--color-border, 226 232 240));
+    }
+
+    .table-row {
+      border-bottom: 1px solid rgb(var(--color-border, 226 232 240) / 60%);
+    }
+
+    .table-row:hover {
+      background-color: rgb(var(--color-primary, 19 102 240) / 4%);
+    }
+
+    /* Acento lateral de la fila según el estado (paleta del proyecto) */
+    .table-row.status-active    { box-shadow: inset 3px 0 0 rgb(var(--status-active, 16 185 129)); }
+    .table-row.status-process   { box-shadow: inset 3px 0 0 rgb(var(--status-in-progress, 245 158 11)); }
+    .table-row.status-cancelled { box-shadow: inset 3px 0 0 rgb(var(--status-cancelled, 218 35 35)); }
+    .table-row.status-completed { box-shadow: inset 3px 0 0 rgb(var(--color-text, 100 116 139)); }
+=======
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .table-row {
+      border-bottom: 1px solid #f8fafc;
+      transition: background-color 0.2s ease;
+    }
+
+    .table-row:hover {
+      background-color: #f8fafc;
+    }
+
+    /* Acento lateral de la fila según el estado (paleta de estados) */
+    .table-row.status-active    { box-shadow: inset 3px 0 0 #10b981; }
+    .table-row.status-process   { box-shadow: inset 3px 0 0 #f59e0b; }
+    .table-row.status-cancelled { box-shadow: inset 3px 0 0 #ef4444; }
+    .table-row.status-completed { box-shadow: inset 3px 0 0 #94a3b8; }
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+
+    .booking-table td {
+      padding: 18px 12px;
+      vertical-align: middle;
+    }
+
+    .service-cell {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .service-icon {
+<<<<<<< HEAD
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background-color: rgb(var(--color-primary, 19 102 240) / 10%);
+      color: rgb(var(--color-primary, 19 102 240));
+      font-size: 22px;
+=======
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background-color: #eff6ff;
+      color: #2563eb;
+      font-size: 1.3rem;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .service-info {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .service-title {
+<<<<<<< HEAD
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      line-height: 1.35;
+      color: rgb(var(--color-dark, 15 23 42));
+    }
+
+    /* Chip de ID copiable: 3 primeros + 3 últimos caracteres */
+=======
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #0f172a;
+      line-height: 1.35;
+    }
+
+    /* Chip de ID copiable: muestra 3 primeros + 3 últimos caracteres */
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    .id-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+<<<<<<< HEAD
+      padding: 4px 9px;
+      border: 1px solid rgb(var(--color-border, 226 232 240));
+      border-radius: 8px;
+      background-color: rgb(var(--color-primary, 19 102 240) / 4%);
+      color: rgb(var(--color-text, 100 116 139));
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11.5px;
+      cursor: pointer;
+=======
+      border: 1px solid #e2e8f0;
+      background-color: #f8fafc;
+      color: #64748b;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .id-chip:hover {
+      border-color: #2563eb;
+      color: #2563eb;
+      background-color: #eff6ff;
+    }
+
+    .id-chip .bx {
+      font-size: 0.85rem;
+    }
+
+    .id-chip.copied {
+      border-color: #10b981;
+      color: #10b981;
+      background-color: #ecfdf5;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    .id-chip:hover {
+      border-color: rgb(var(--color-primary, 19 102 240));
+      color: rgb(var(--color-primary, 19 102 240));
+      background-color: rgb(var(--color-primary, 19 102 240) / 8%);
+    }
+
+    .id-chip.copied {
+      border-color: rgb(var(--status-active, 16 185 129));
+      color: rgb(var(--status-active, 16 185 129));
+      background-color: rgb(var(--status-active, 16 185 129) / 10%);
+    }
+
+    .price-badge {
+      display: inline-block;
+<<<<<<< HEAD
+      padding: 6px 14px;
+      border-radius: 20px;
+      background-color: rgb(var(--color-dark, 15 23 42) / 6%);
+      color: rgb(var(--color-dark, 15 23 42));
+      font-size: 12.5px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    /* Estados: píldora con punto de color de la paleta del proyecto */
+    .status-container {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+=======
+      padding: 5px 12px;
+      border-radius: 20px;
+      background-color: #e0f2fe;
+      color: #0284c7;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .price-badge {
+      background-color: #f1f5f9;
+      color: #475569;
+    }
+
+    /* Estados: badge con punto de color de la paleta */
+    .status-container {
+      display: inline-flex;
+      align-items: center;
+      font-weight: 600;
+      font-size: 0.8rem;
+      padding: 5px 12px;
+      border-radius: 20px;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    .status-container::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: currentColor;
+      margin-right: 7px;
+      flex-shrink: 0;
+    }
+
+<<<<<<< HEAD
+    .status-active { color: rgb(var(--status-active, 16 185 129)); background-color: rgb(var(--status-active, 16 185 129) / 12%); }
+    .status-process { color: rgb(var(--status-in-progress, 245 158 11)); background-color: rgb(var(--status-in-progress, 245 158 11) / 12%); }
+    .status-cancelled { color: rgb(var(--status-cancelled, 218 35 35)); background-color: rgb(var(--status-cancelled, 218 35 35) / 12%); }
+    .status-completed { color: rgb(var(--color-text, 100 116 139)); background-color: rgb(var(--color-text, 100 116 139) / 12%); }
+=======
+    .status-active { color: #059669; background-color: #ecfdf5; }
+    .status-process { color: #d97706; background-color: #fffbeb; }
+    .status-cancelled { color: #dc2626; background-color: #fef2f2; }
+    .status-completed { color: #64748b; background-color: #f1f5f9; }
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+
+    .session-date {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+<<<<<<< HEAD
+      font-size: 13px;
+      font-weight: 600;
+      color: rgb(var(--color-text, 100 116 139));
+    }
+
+    .session-date .bx {
+      font-size: 16px;
+      color: rgb(var(--color-text, 100 116 139) / 60%);
+=======
+      color: #475569;
+      font-weight: 500;
+      font-size: 0.82rem;
+    }
+
+    .session-date .bx {
+      color: #94a3b8;
+      font-size: 1rem;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    .progress-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 130px;
+    }
+
+    .progress-label {
+<<<<<<< HEAD
+      font-size: 12px;
+      font-weight: 800;
+      color: rgb(var(--color-text, 100 116 139));
+=======
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #475569;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      border-radius: 10px;
+      background-color: rgb(var(--color-dark, 15 23 42) / 8%);
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 10px;
+    }
+
+<<<<<<< HEAD
+    .bg-active { background-color: rgb(var(--status-active, 16 185 129)); }
+    .bg-process { background-color: rgb(var(--status-in-progress, 245 158 11)); }
+    .bg-cancelled { background-color: rgb(var(--status-cancelled, 218 35 35)); }
+    .bg-completed { background-color: rgb(var(--color-text, 100 116 139)); }
+=======
+    .bg-active { background-color: #10b981; }
+    .bg-process { background-color: #f59e0b; }
+    .bg-cancelled { background-color: #ef4444; }
+    .bg-completed { background-color: #94a3b8; }
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+
+    .text-center { text-align: center; }
+
+    .actions-cell {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .action-btn {
+<<<<<<< HEAD
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 12px;
+      background-color: rgb(var(--color-primary, 19 102 240) / 10%);
+      color: rgb(var(--color-primary, 19 102 240));
+      font-size: 18px;
+=======
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      border: none;
+      background-color: #eff6ff;
+      color: #2563eb;
+      font-size: 1.05rem;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+<<<<<<< HEAD
+    }
+
+    .action-btn:hover {
+      background-color: rgb(var(--color-primary, 19 102 240));
+      color: rgb(var(--color-white, 255 255 255));
+    }
+
+    .action-btn--danger {
+      background-color: rgb(var(--status-cancelled, 218 35 35));
+      color: rgb(var(--color-white, 255 255 255));
+    }
+
+    .action-btn--danger:hover {
+      background-color: #b91c1c;
+      color: rgb(var(--color-white, 255 255 255));
+=======
+      transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+    }
+
+    .action-btn:hover {
+      background-color: #2563eb;
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .action-btn--danger {
+      background-color: #ef4444;
+      color: #ffffff;
+      box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
+    }
+
+    .action-btn--danger:hover {
+      background-color: #dc2626;
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(239, 68, 68, 0.45);
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    /* ---------- Paginación ---------- */
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+<<<<<<< HEAD
+      flex-wrap: wrap;
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid rgb(var(--color-border, 226 232 240));
+    }
+
+    .pagination-info {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgb(var(--color-text, 100 116 139));
+    }
+
+    .pagination-info strong {
+      font-weight: 800;
+      color: rgb(var(--color-dark, 15 23 42));
+=======
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid #f1f5f9;
+      flex-wrap: wrap;
+    }
+
+    .pagination-info {
+      color: #64748b;
+      font-size: 0.82rem;
+    }
+
+    .pagination-info strong {
+      color: #0f172a;
+      font-weight: 700;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    .pagination-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .page-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+<<<<<<< HEAD
+      padding: 9px 16px;
+      border: 1px solid rgb(var(--color-border, 226 232 240));
+      border-radius: 12px;
+      background-color: rgb(var(--color-white, 255 255 255));
+      color: rgb(var(--color-dark, 15 23 42));
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .page-btn .bx {
+      font-size: 17px;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      border-color: rgb(var(--color-primary, 19 102 240) / 40%);
+      color: rgb(var(--color-primary, 19 102 240));
+      background-color: rgb(var(--color-primary, 19 102 240) / 6%);
+=======
+      padding: 8px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: inherit;
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      color: #334155;
+      cursor: pointer;
+      transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .page-btn .bx {
+      font-size: 1.05rem;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      border-color: #2563eb;
+      color: #2563eb;
+      background-color: #eff6ff;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    .page-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .page-number {
+<<<<<<< HEAD
+      min-width: 48px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background-color: rgb(var(--color-primary, 19 102 240) / 8%);
+      color: rgb(var(--color-primary, 19 102 240));
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+=======
+      min-width: 44px;
+      text-align: center;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background-color: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      font-size: 0.8rem;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+    }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 900px) {
+      .booking-container {
+<<<<<<< HEAD
+        padding: 26px 24px;
+        margin: 24px 16px;
+=======
+        padding: 24px;
+        margin: 20px 16px;
+      }
+
+      .header-section {
+        flex-wrap: wrap;
+      }
+
+      .booking-filters {
+        gap: 12px;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      }
+
+      .filter-control, .page-size {
+        flex: 1 1 200px;
+      }
+
+      .page-size {
+        margin-left: 0;
+      }
+
+      select {
+        flex: 1;
+        min-width: 0;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .booking-container {
+<<<<<<< HEAD
+        padding: 20px 16px;
+        margin: 14px;
+        border-radius: 18px;
+=======
+        padding: 16px;
+        margin: 12px;
+        border-radius: 14px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+      }
+
+      /* Encabezado apilado */
+      .header-section {
+        flex-direction: column;
+        align-items: stretch;
+        margin-bottom: 20px;
+      }
+
+      .header-icon {
+        width: 42px;
+        height: 42px;
+        font-size: 1.2rem;
+        border-radius: 12px;
+      }
+
+      .header-section h2 {
+        font-size: 1.3rem;
+      }
+
+      .btn-primary {
+        justify-content: center;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      }
+
+      /* Filtros en columna, selects a ancho completo */
+      .booking-filters {
+        flex-direction: column;
+        align-items: stretch;
+<<<<<<< HEAD
+=======
+        padding: 12px;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      }
+
+      .filter-control, .page-size {
+        width: 100%;
+        flex: 1 1 auto;
+        justify-content: space-between;
+      }
+
+      /* Tabla convertida en tarjetas apiladas */
+      .booking-table thead {
+        display: none;
+      }
+
+      .booking-table,
+      .booking-table tbody,
+      .booking-table tr,
+      .booking-table td {
+        display: block;
+        width: 100%;
+      }
+
+      .table-row {
+<<<<<<< HEAD
+        border: 1px solid rgb(var(--color-border, 226 232 240));
+        border-radius: 18px;
+        margin-bottom: 14px;
+        padding: 6px 0;
+        background-color: rgb(var(--color-white, 255 255 255));
+=======
+        border: 1px solid #eef2f7;
+        border-radius: 14px;
+        margin-bottom: 14px;
+        padding: 6px 0;
+        background-color: #ffffff;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+        overflow: hidden;
+      }
+
+      /* El acento lateral del estado se conserva sobre la tarjeta */
+<<<<<<< HEAD
+      .table-row.status-active    { box-shadow: inset 3px 0 0 rgb(var(--status-active, 16 185 129)), 0 6px 22px rgb(var(--color-background, 15 23 42) / 6%); }
+      .table-row.status-process   { box-shadow: inset 3px 0 0 rgb(var(--status-in-progress, 245 158 11)), 0 6px 22px rgb(var(--color-background, 15 23 42) / 6%); }
+      .table-row.status-cancelled { box-shadow: inset 3px 0 0 rgb(var(--status-cancelled, 218 35 35)), 0 6px 22px rgb(var(--color-background, 15 23 42) / 6%); }
+      .table-row.status-completed { box-shadow: inset 3px 0 0 rgb(var(--color-text, 100 116 139)), 0 6px 22px rgb(var(--color-background, 15 23 42) / 6%); }
+
+      .table-row:hover {
+        background-color: rgb(var(--color-white, 255 255 255));
+=======
+      .table-row.status-active    { box-shadow: inset 3px 0 0 #10b981, 0 1px 3px rgba(15, 23, 42, 0.06); }
+      .table-row.status-process   { box-shadow: inset 3px 0 0 #f59e0b, 0 1px 3px rgba(15, 23, 42, 0.06); }
+      .table-row.status-cancelled { box-shadow: inset 3px 0 0 #ef4444, 0 1px 3px rgba(15, 23, 42, 0.06); }
+      .table-row.status-completed { box-shadow: inset 3px 0 0 #94a3b8, 0 1px 3px rgba(15, 23, 42, 0.06); }
+
+      .table-row:hover {
+        background-color: #ffffff;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      }
+
+      .booking-table td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+<<<<<<< HEAD
+        padding: 12px 16px;
+        border-bottom: 1px solid rgb(var(--color-border, 226 232 240) / 50%);
+=======
+        padding: 11px 14px;
+        border-bottom: 1px solid #f8fafc;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      }
+
+      .booking-table td:last-child {
+        border-bottom: none;
+      }
+
+      /* Etiqueta de columna a la izquierda, valor a la derecha */
+      .booking-table td::before {
+        content: attr(data-label);
+<<<<<<< HEAD
+        font-size: 10.5px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: rgb(var(--color-text, 100 116 139) / 70%);
+=======
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #94a3b8;
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+        flex-shrink: 0;
+      }
+
+      .service-cell {
+        flex: 1;
+        min-width: 0;
+        justify-content: flex-end;
+      }
+
+<<<<<<< HEAD
+=======
+      .service-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 1.1rem;
+      }
+
+      .service-title {
+        font-size: 0.85rem;
+      }
+
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      .progress-container {
+        width: 140px;
+        flex-shrink: 0;
+      }
+
+      .actions-cell {
+        justify-content: flex-end;
+      }
+
+      /* Paginación centrada */
+      .pagination {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+      }
+
+      .pagination-info {
+        text-align: center;
+      }
+
+      .pagination-actions {
+        justify-content: center;
+      }
+    }

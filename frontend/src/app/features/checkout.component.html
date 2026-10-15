@@ -1,0 +1,146 @@
+<div *ngIf="error" style="display: flex; justify-content: center; align-items: center; height: 50vh; flex-direction: column; gap: 1rem;">
+    <p>{{ error }}</p>
+</div>
+
+<section class="section" *ngIf="offering && !error">
+    <!-- Stepper -->
+    <div class="stepper" id="stepper">
+        <div class="stepper__step is-complete" data-step="1">
+            <span class="stepper__circle"><i class="bx bx-check"></i></span>
+            <span class="stepper__label">Personal</span>
+        </div>
+        <span class="stepper__line is-complete" data-line="1"></span>
+
+        <div class="stepper__step" [class.is-active]="currentStep === 2" [class.is-complete]="currentStep > 2" data-step="2">
+            <span class="stepper__circle">
+              <ng-container *ngIf="currentStep === 2">2</ng-container>
+              <ng-container *ngIf="currentStep > 2"><i class="bx bx-check"></i></ng-container>
+            </span>
+            <span class="stepper__label">Pago</span>
+        </div>
+        <span class="stepper__line" [class.is-complete]="currentStep > 2" data-line="2"></span>
+
+        <div class="stepper__step" [class.is-active]="currentStep === 3" data-step="3">
+            <span class="stepper__circle">3</span>
+            <span class="stepper__label">Confirmar</span>
+        </div>
+    </div>
+
+    <div class="card checkout">
+        <!-- ===== Card del servicio ===== -->
+        <article class="service-card">
+            <div class="service-card__image">
+                <img src="/images/Group 23.jpg" alt="Service Image" style="width: 100%; height: 100%; object-fit: cover;">
+                <span class="service-card__tag">{{ offering.category }}</span>
+            </div>
+
+            <div class="service-card__body">
+                <h3 class="service-card__title">{{ offering.title }}</h3>
+                <p class="service-card__description">
+                    Inscripción al servicio.
+                </p>
+
+                <div class="service-card__meta">
+                    <div class="service-card__meta-item">
+                        <span class="service-card__meta-label">Instructor</span>
+                        <span class="service-card__meta-value">{{ instructorName }}</span>
+                    </div>
+                    <div class="service-card__meta-item">
+                        <span class="service-card__meta-label">Horario</span>
+                        <span class="service-card__meta-value">{{ scheduleText }}</span>
+                    </div>
+                </div>
+
+                <div class="service-card__price">
+                    {{ offering.price | currency:"COP":"symbol-narrow":"1.0-0" }} <small>COP</small>
+                </div>
+            </div>
+        </article>
+
+        <!-- ===== Pasarela de pago ===== -->
+        <div class="payment">
+            <div *ngIf="!isPaid" id="payment-form-view">
+                <h2 class="payment__title">Detalles de Pago</h2>
+                <p class="payment__subtitle">
+                    Selecciona tu método de pago y completa la transacción de forma segura.
+                </p>
+
+                <!-- Métodos -->
+                <div class="payment__methods">
+                    <button type="button" class="payment-method" [class.is-selected]="selectedMethod === 'tarjeta'" (click)="selectMethod('tarjeta')" [disabled]="isProcessing">
+                        <i class="bx bx-credit-card"></i> Tarjeta
+                    </button>
+                    <button type="button" class="payment-method" [class.is-selected]="selectedMethod === 'transferencia'" (click)="selectMethod('transferencia')" [disabled]="isProcessing">
+                        <i class="bx bx-building"></i> Transferencia
+                    </button>
+                    <button type="button" class="payment-method" [class.is-selected]="selectedMethod === 'paypal'" (click)="selectMethod('paypal')" [disabled]="isProcessing">
+                        <i class="bx bxl-paypal"></i> PayPal
+                    </button>
+                </div>
+
+                <!-- Panel: Tarjeta -->
+                <div class="payment__panel" [class.is-active]="selectedMethod === 'tarjeta'">
+                    <div class="form-group">
+                        <label class="form-label" for="card-holder">Titular de la tarjeta</label>
+                        <input class="form-input" id="card-holder" type="text" placeholder="Nombre como aparece en la tarjeta" [disabled]="isProcessing">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="card-number">Número de tarjeta</label>
+                        <div class="form-field">
+                            <i class="bx bx-credit-card form-field__icon"></i>
+                            <input class="form-input" id="card-number" type="text" inputmode="numeric" placeholder="•••• •••• •••• 4242" maxlength="19" (input)="formatCardNumber($event)" [disabled]="isProcessing">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="card-exp">Expira</label>
+                            <input class="form-input" id="card-exp" type="text" inputmode="numeric" placeholder="MM/AA" maxlength="5" (input)="formatCardExp($event)" [disabled]="isProcessing">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="card-cvv">CVV</label>
+                            <input class="form-input" id="card-cvv" type="password" inputmode="numeric" placeholder="•••" maxlength="4" [disabled]="isProcessing">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel: Transferencia -->
+                <div class="payment__panel" [class.is-active]="selectedMethod === 'transferencia'">
+                    <div class="payment-info">
+                        <strong>Banco:</strong> Bancolombia<br>
+                        <strong>Titular:</strong> SkillBridge AI S.A.S.<br>
+                        <strong>Cuenta:</strong> 698-123456-78<br>
+                        <strong>NIT:</strong> 901.456.789-0<br><br>
+                        Una vez realizada la transferencia, envía el comprobante a
+                        <strong>pagos@skillbridge.ai</strong> para activar tu inscripción.
+                    </div>
+                </div>
+
+                <!-- Panel: PayPal -->
+                <div class="payment__panel" [class.is-active]="selectedMethod === 'paypal'">
+                    <div class="payment-info">
+                        Serás redirigido a <strong>PayPal</strong> para completar el pago
+                        de forma segura con tu cuenta PayPal o tarjeta asociada.
+                    </div>
+                </div>
+
+                <button class="payment__button" type="button" (click)="pay()" [disabled]="isProcessing">
+                    {{ isProcessing ? 'Procesando...' : 'Pagar ' + (offering.price | currency:"COP":"symbol-narrow":"1.0-0") + ' COP' }}
+                </button>
+            </div>
+
+            <!-- Vista de éxito -->
+            <div class="payment__success" [class.is-visible]="isPaid">
+                <div class="payment__success-icon">
+                    <i class="bx bx-check"></i>
+                </div>
+                <h3 class="payment__success-title">¡Pago y Reserva exitosa!</h3>
+                <p class="payment__success-text">
+                    Tu inscripción a <strong>{{ offering.title }}</strong> ha sido confirmada.
+                    Recibirás los detalles por correo.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>

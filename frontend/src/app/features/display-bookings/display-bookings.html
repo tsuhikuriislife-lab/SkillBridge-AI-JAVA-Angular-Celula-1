@@ -1,0 +1,222 @@
+<div class="booking-container">
+      <div class="header-section">
+<<<<<<< HEAD
+        <span class="kicker"><i class="bx bx-calendar-check"></i> Panel de reservas</span>
+        <h2>Mis Reservas</h2>
+        <p class="subtitle">Gestiona y consulta tus sesiones programadas</p>
+=======
+        <div class="header-title">
+          <span class="header-icon"><i class="bx bx-calendar-check"></i></span>
+          <div>
+            <h2>Mis Reservas</h2>
+            <p class="subtitle">Gestiona y consulta tus sesiones programadas</p>
+          </div>
+        </div>
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+      </div>
+
+      <section class="booking-filters" aria-label="Filtros de reservas">
+        <label class="filter-control">
+          <span class="filter-label"><i class="bx bx-sort-alt-2"></i> Ordenar por</span>
+          <select [ngModel]="sort()" (ngModelChange)="changeSort($event)" [disabled]="loading()">
+            <option value="TITLE_ASC">Nombre A–Z</option>
+            <option value="TITLE_DESC">Nombre Z–A</option>
+            <option value="DATE_DESC">Fecha más reciente</option>
+            <option value="DATE_ASC">Fecha más antigua</option>
+            <option value="PRICE_ASC">Precio menor a mayor</option>
+            <option value="PRICE_DESC">Precio mayor a menor</option>
+          </select>
+        </label>
+        <label class="filter-control">
+          <span class="filter-label"><i class="bx bx-filter"></i> Estado</span>
+          <select [ngModel]="activity()" (ngModelChange)="changeActivity($event)" [disabled]="loading()">
+            <option value="ALL">Todas</option>
+            <option value="ACTIVE">Activas</option>
+            <option value="INACTIVE">No activas</option>
+          </select>
+        </label>
+        <label class="page-size">
+          <span class="filter-label">Mostrar</span>
+          <select [ngModel]="pageSize()" (ngModelChange)="changePageSize($event)" [disabled]="loading()">
+            <option [ngValue]="10">10</option>
+            <option [ngValue]="25">25</option>
+            <option [ngValue]="50">50</option>
+          </select>
+          <span class="filter-label">por página</span>
+        </label>
+      </section>
+
+      <!-- ESTADO DE CARGA -->
+      @if (loading()) {
+        <div class="state-container">
+          <div class="spinner"></div>
+          <p>Cargando tus reservas...</p>
+        </div>
+      }
+
+      <!-- ESTADO DE ERROR -->
+      @else if (error()) {
+        <div class="state-container error-state">
+          <i class="bx bx-error-circle state-icon state-icon--error"></i>
+          <h3>Ocurrió un error</h3>
+          <p>{{ error() }}</p>
+<<<<<<< HEAD
+          <button class="btn-secondary" (click)="loadPage()"><i class="bx bx-refresh"></i> Reintentar</button>
+=======
+          <button class="btn-retry" (click)="loadPage()"><i class="bx bx-refresh"></i> Reintentar</button>
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+        </div>
+      }
+
+      <!-- ESTADO VACÍO -->
+      @else if (reservas().length === 0) {
+        <div class="state-container empty-state">
+          <div class="empty-icon-wrapper">
+            <i class="bx bx-calendar-x"></i>
+          </div>
+          @if (totalElements() === 0 && activity() === 'ALL') {
+            <h3>Aún no tienes reservas</h3>
+            <p>Explora nuestro catálogo de mentorías y servicios para programar tu primera sesión.</p>
+            <a routerLink="/book" class="btn-primary"><i class="bx bx-compass"></i> Explorar Servicios</a>
+          } @else {
+            <h3>No hay reservas que coincidan</h3>
+            <p>Prueba con otro estado o criterio de orden.</p>
+          }
+        </div>
+      }
+
+      <!-- ESTADO CON DATOS -->
+      @else {
+        <div class="table-responsive">
+          <table class="booking-table">
+            <thead>
+              <tr>
+                <th>Servicio</th>
+                <th>Precio</th>
+                <th>Estado</th>
+                <th>Fecha / Sesión</th>
+                <th>Progreso</th>
+                <th class="text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (reserva of reservas(); track reserva.id) {
+                <tr class="table-row" [ngClass]="getStatusClass(reserva.status)">
+                  <!-- Servicio -->
+                  <td data-label="Servicio">
+                    <div class="service-cell">
+                      <div class="service-icon">
+<<<<<<< HEAD
+                        <i class="bx bxs-graduation"></i>
+=======
+                        <i class="bx bx-container"></i>
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+                      </div>
+                      <div class="service-info">
+                        <span class="service-title">{{ reserva.offeringTitle || ('Reserva #' + shortId(reserva.id)) }}</span>
+                        <button
+                          type="button"
+                          class="id-chip"
+                          [class.copied]="copiedId() === reserva.id"
+                          (click)="copiarId(reserva.id)"
+                          title="Copiar ID completo"
+                        >
+<<<<<<< HEAD
+                          <i class="bx" [ngClass]="copiedId() === reserva.id ? 'bx-check' : 'bx-copy'"></i>
+=======
+                          <i class="bx" [ngClass]="copiedId() === reserva.id ? 'bx-copy-check' : 'bx-copy'"></i>
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+                          ID: {{ shortId(reserva.id) }}
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Precio -->
+<<<<<<< HEAD
+                  <td data-label="Precio">
+                    <span class="price-badge">
+=======
+                  <td>
+                    <span class="category-badge price-badge">
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+                      {{ reserva.price | currency:'COP':'symbol-narrow':'1.0-0':'es-CO' }}
+                    </span>
+                  </td>
+
+                  <!-- Estado -->
+                  <td data-label="Estado">
+                    <div class="status-container" [ngClass]="getStatusClass(reserva.status)">
+                      <span class="status-text">{{ getStatusLabel(reserva.status) }}</span>
+                    </div>
+                  </td>
+
+                  <!-- Fecha -->
+<<<<<<< HEAD
+                  <td data-label="Fecha / Sesión">
+                    <span class="session-date"><i class="bx bx-time"></i> {{ formatearFecha(reserva.scheduledAt) }}</span>
+=======
+                  <td>
+                    <span class="session-date"><i class="bx bx-time-five"></i> {{ formatearFecha(reserva.scheduledAt) }}</span>
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+                  </td>
+
+                  <!-- Progreso -->
+                  <td data-label="Progreso">
+                    <div class="progress-container">
+                      <span class="progress-label">{{ getCalculatedProgress(reserva.status) }}%</span>
+                      <div class="progress-bar-bg">
+                        <div
+                          class="progress-bar-fill"
+                          [style.width.%]="getCalculatedProgress(reserva.status)"
+                          [ngClass]="getProgressBarClass(reserva.status)"
+                        ></div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Acción -->
+<<<<<<< HEAD
+                  <td class="text-center actions-cell" data-label="Acción">
+                    <button class="action-btn" (click)="verDetalle(reserva.id)" title="Ver Detalle">
+                      <i class="bx bx-show"></i>
+                    </button>
+                    @if (!isCancelled(reserva.status)) {
+                      <button class="action-btn action-btn--danger" (click)="confirmarCancelacion(reserva.id)" title="Cancelar Reserva">
+                        <i class="bx bx-x-circle"></i>
+=======
+                  <td class="text-center actions-cell">
+                    <button class="action-btn" (click)="verDetalle(reserva.id)" title="Ver Detalle">
+                      <i class="bx bx-eye"></i>
+                    </button>
+                    @if (!isCancelled(reserva.status)) {
+                      <button class="action-btn action-btn--danger" (click)="confirmarCancelacion(reserva.id)" title="Cancelar Reserva">
+                        <i class="bx bx-x"></i>
+>>>>>>> 195af65 (feat(bookings): rediseño de la lista de reservas con ID copiable, estados remarcados y responsive mejorado)
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <footer class="pagination">
+          <span class="pagination-info">
+            Mostrando <strong>{{ firstVisible() }}–{{ lastVisible() }}</strong> de <strong>{{ totalElements() }}</strong> reservas
+          </span>
+          <div class="pagination-actions">
+            <button class="page-btn" type="button" (click)="loadPage(currentPage() - 1)" [disabled]="loading() || currentPage() === 0">
+              <i class="bx bx-chevron-left"></i> Anterior
+            </button>
+            <span class="page-number">
+              {{ currentPage() + 1 }} / {{ totalPages() }}
+            </span>
+            <button class="page-btn" type="button" (click)="loadPage(currentPage() + 1)" [disabled]="loading() || currentPage() + 1 >= totalPages()">
+              Siguiente <i class="bx bx-chevron-right"></i>
+            </button>
+          </div>
+        </footer>
+      }
+    </div>
