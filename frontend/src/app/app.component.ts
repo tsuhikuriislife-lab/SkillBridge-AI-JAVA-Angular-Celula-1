@@ -85,9 +85,14 @@ import { HistoryService } from './core/history.service';
         <!-- Plataforma (solo enlaces existentes) -->
         <div class="footer__column">
           <h4 class="footer__title">Plataforma</h4>
-          <a routerLink="/" class="footer__link">Servicios</a>
-          <a routerLink="/book" class="footer__link">Reservar</a>
-          <a routerLink="/ai" class="footer__link">Asistente IA</a>
+          @if (auth.role() === 'ADMIN') {
+            <a routerLink="/admin" class="footer__link">Panel Admin</a>
+            <a routerLink="/notifications" class="footer__link">Notificaciones</a>
+          } @else {
+            <a routerLink="/" class="footer__link">Servicios</a>
+            <a routerLink="/book" class="footer__link">Reservar</a>
+            <a routerLink="/ai" class="footer__link">Asistente IA</a>
+          }
         </div>
 
         <!-- Cuenta (según autenticación y rol, enlaces existentes) -->
@@ -98,7 +103,11 @@ import { HistoryService } from './core/history.service';
             <!-- TODO: enlace de registro cuando exista la ruta pública -->
             <span class="footer__link footer__link--placeholder">Crear cuenta</span>
           } @else {
-            <a routerLink="/bookings" class="footer__link">Mis reservas</a>
+            @if (auth.role() === 'ADMIN') {
+              <a routerLink="/admin" class="footer__link">Panel Admin</a>
+            } @else {
+              <a routerLink="/bookings" class="footer__link">Mis reservas</a>
+            }
             <a routerLink="/notifications" class="footer__link">Notificaciones</a>
             @if (auth.role() === 'PROVIDER') {
               <a routerLink="/provider" class="footer__link">Panel de proveedor</a>

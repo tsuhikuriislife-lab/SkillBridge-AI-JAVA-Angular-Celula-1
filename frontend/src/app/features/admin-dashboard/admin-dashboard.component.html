@@ -90,7 +90,7 @@
                     <span class="icon-avatar">👤</span>
                     <div>
                       <div class="item-title">{{ $any(item).nombre }}</div>
-                      <div class="item-sub">ID: {{ item.id }}</div>
+                      <div class="item-sub">ID: {{ formatId(item.id) }}</div>
                     </div>
                   </div>
                 </td>
@@ -122,7 +122,7 @@
                     <span class="icon-avatar blue">⚡</span>
                     <div>
                       <div class="item-title">{{ $any(item).titulo }}</div>
-                      <div class="item-sub">ID: {{ item.id }}</div>
+                      <div class="item-sub">ID: {{ formatId(item.id) }}</div>
                     </div>
                   </div>
                 </td>
@@ -182,7 +182,7 @@
       <div class="modal-body">
         <div class="detail-row">
           <span class="detail-label">ID:</span>
-          <span class="detail-val">{{ detailItem().id }}</span>
+          <span class="detail-val">{{ formatId(detailItem().id) }}</span>
         </div>
         @if (selectedTab() === 'usuarios') {
           <div class="detail-row">

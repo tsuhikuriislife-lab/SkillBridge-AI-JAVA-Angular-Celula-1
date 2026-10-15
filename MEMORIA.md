@@ -456,3 +456,73 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
      - Backend: `JwtServiceTest` (6 pruebas que cubren rechazo de secretos inseguros, entropía, longitud y generación) y `AuthSessionSecurityTest` (7 pruebas que cubren login con cookie HttpOnly, registro sin token en JSON, logout invalidando cookie, acceso autenticado con cookie a `/api/users/me`, rechazo sin cookie con 401, rechazo CSRF con 403 y éxito con token CSRF válido). Suite total: 68 pruebas pasando al 100%.
      - Frontend: `auth.service.spec.ts` (5 pruebas unitarias verificando ausencia de tokens en localStorage, restauración con `GET /api/users/me`, manejo de 401, login y logout con cookie). Suite total: 7 pruebas pasando al 100% en Edge Headless.
 
+## [2026-10-14] Formato en español para auditoría de cambio de rol
+- **Contexto:** Se solicitó reemplazar la acción `USER_ROLE_CHANGED` en las notificaciones administrativas y mostrar el detalle del cambio con una estructura legible.
+- **Cambios realizados:** La acción ahora se registra como `ROL MODIFICADO`; el mensaje contiene ID Usuario, Correo, Rol Anterior y Rol Nuevo, sin repetir el título. La vista ubica `Recibida` después de Rol Nuevo, oculta la fila redundante `USER: ID` y normaliza notificaciones antiguas sin modificar la base. Se agregó una prueba unitaria del formato.
+- **Validación:** `mvn -Dtest=AdminUserServiceTest test` pasó (11 pruebas), `npx ng build` completó y la vista se verificó en navegador con dos eventos históricos. Backend y frontend quedaron saludables.
+
+## [2026-10-14] Recorte visual de IDs de usuario y servicio
+- **Contexto:** Se solicitó mejorar el aspecto de los UUID visibles sin agregar campos ni cambiar los IDs internos.
+- **Cambios realizados:** Se agregó `compactDisplayId`, que muestra `...` y los últimos cinco caracteres en el panel admin (filas y detalles) y en notificaciones (ID de usuario y target de usuario/servicio). Los IDs completos siguen en datos, rutas y peticiones; no se alteraron IDs de reservas.
+- **Validación:** `npx ng build` pasó y se verificaron en navegador filas, modales y notificaciones. Se reconstruyó el frontend.
+
+## [2026-10-14] Notificación de usuario creado
+- **Contexto:** Se solicitó que el evento de alta se muestre como `USUARIO CREADO` con el formato de actividad administrativa.
+- **Cambios realizados:** El backend registra título, ID, nombre, correo y rol; no incluye contraseña. La vista muestra el mismo formato y adapta eventos históricos `USER_CREATED` al presentarlos.
+- **Validación:** `AdminUserServiceTest` pasó (11 pruebas), `npx ng build` completó y se reconstruyeron backend y frontend. Las pruebas no insertaron usuarios en la base local.
+
+
+## [2026-10-14] Rediseño de la vista admin de Notificaciones (/notifications)
+- **Agente:** Antigravity
+- **Contexto:** Se solicitó rediseñar completamente la vista `/notifications` para el rol ADMIN, manteniendo intacta la vista de cliente regular, sin agregar librerías externas de UI y respetando la arquitectura hexagonal en los cambios de backend.
+- **Cambios realizados:**
+  - **Backend (aditivos, sin romper contratos existentes):**
+    - `AdminActivity.java` (dominio): Se amplió el `record` con 4 campos nuevos (`userId`, `userEmail`, `previousRole`, `newRole`) y se añadió constructor de compatibilidad de 7 parámetros que delega al canónico con `null`, de forma que `AdminActivityServiceTest` y `AdminUserServiceTest` siguen pasando sin cambios.
+    - `AdminActivityPersistenceAdapter.java`: Se agregó lógica de parseo con `Pattern` (regex) en `toDomain()` para extraer `userEmail`, `previousRole` y `newRole` del campo `message` de texto plano de la BD, soportando los formatos `ROL MODIFICADO` (multi-línea), `USER_UPDATED` (línea simple `->`) y `USUARIO CREADO`.
+    - `AdminNotificationController.java`: El record `AdminNotificationOut` ahora incluye `userId`, `userEmail`, `previousRole`, `newRole`; el mapeo en `listMine()` los popula desde `AdminActivity`.
+  - **Frontend (solo vista admin, cliente regular sin cambios):**
+    - `notification.service.ts`: Se ampliaron las interfaces `NotificationSummary` y `NotificationPage` con los campos opcionales nuevos (`userId?`, `userEmail?`, `previousRole?`, `newRole?`).
+    - `my-notifications.component.ts`: Componente reescrito con vista admin nueva que incluye: cabecera con etiqueta ACTIVIDAD ADMINISTRATIVA y botón Actualizar, 3 tarjetas de resumen, agrupación por día, tarjetas con ícono temático, badge de estado, avatar circular, flujo de roles y timestamp formateado. Paginación con indicador X–Y de Z. Responsive para móvil.
+    - Se corrigió bug en `formatDateTime`: eliminado array `months` duplicado con índice 0 incorrecto.
+- **Validación:** `docker compose build frontend` y `docker compose build backend` completaron exitosamente. Todos los servicios Docker están `healthy`. El endpoint `GET /api/admin/notifications` retorna los campos estructurados `userId`, `userEmail`, `previousRole`, `newRole`.
+
+## [2026-10-14] Corrección de redirección tras login y manejo de expiración de sesión por rol
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Se reportaron dos problemas al iniciar sesión con cuentas administrativas (`yamit@gmail.com`):
+  1. Al iniciar sesión no redirigía al panel de administración (`/admin`).
+  2. Al intentar acceder a vistas no autorizadas o de cliente, la aplicación mostraba erróneamente el modal bloqueante de "Sesión expirada".
+- **Causas Identificadas:**
+  - `LoginComponent` (`login.ts`) tenía una redirección fija a `/ai` (`this.router.navigateByUrl('/ai')`), ignorando el rol del usuario autenticado y el parámetro `returnUrl`.
+  - En `SecurityConfiguration.java`, las rutas `/api/bookings/**` y `/api/enrollments/**` restringen el acceso a `CUSTOMER` y `PROVIDER`. Al ingresar un `ADMIN`, la falta de un `accessDeniedHandler` explícito provocaba que Spring Security delegara la respuesta al `authenticationEntryPoint`, retornando un código `401 Unauthorized` en lugar de `403 Forbidden`.
+  - El interceptor `auth.interceptor.ts` reaccionaba ante cualquier código `401` disparando `authService.triggerSessionExpired()`, lo que expulsaba al usuario y mostraba el modal de expiración aunque el token de sesión fuera totalmente válido.
+  - En el pie de página (`app.component.ts`), los enlaces a "Mis reservas" se mostraban indiscriminadamente incluso para administradores.
+  - La plantilla de Nginx permitía el almacenamiento en caché de `index.html`, sirviendo en ocasiones scripts antiguos de bundles previos.
+- **Cambios Realizados:**
+  - **Frontend:**
+    - Se refactorizó `LoginComponent` (`login.ts` y `login.component.ts`) para incluir el método `navigatePostAuth()`, redirigiendo dinámicamente según el rol (`ADMIN` -> `/admin`, `PROVIDER` -> `/provider`, `CUSTOMER` -> `/ai`) y respetando `returnUrl` (desviando rutas no administrativas hacia `/admin` si el rol es `ADMIN`).
+    - En `AppComponent` (`app.component.ts`), se condicionaron los enlaces del footer según el rol: para administradores se muestra "Panel Admin" y "Notificaciones", ocultando "Mis reservas".
+    - En `nginx.conf.template`, se configuró `location = /index.html` con cabeceras `Cache-Control: no-store, no-cache, must-revalidate` para garantizar la descarga de los bundles JS actualizados.
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se configuró explícitamente `.accessDeniedHandler((request, response, accessDeniedException) -> response.setStatus(HttpStatus.FORBIDDEN.value()))` y se añadió `/error` a la lista de `permitAll()`.
+- **Validación:**
+  - Pruebas unitarias de backend pasando al 100% (69 de 69 tests en Maven).
+  - Compilación de Angular (`CI=true npm run build`) exitosa.
+  - Verificación en contenedores en vivo: inicio de sesión de `yamit@gmail.com` valida con rol `ADMIN`, `/api/admin/users` devuelve `200 OK`, y el acceso a `/api/enrollments/me` devuelve `403 Forbidden` (en lugar de `401`), evitando que se dispare el modal de sesión expirada.
+
+## [2026-10-14] Corrección de la doble pulsación en login y creación de usuarios (Ciclo de Vida de Token CSRF)
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Al iniciar sesión o al crear usuarios en la vista administrativa, el primer clic fallaba mostrando error ("No fue posible realizar la autenticación" / "No fue posible crear el usuario") y al presionar por segunda vez la acción se completaba exitosamente.
+- **Causas Raíz Identificadas:**
+  1. **Destrucción de Cookie CSRF en Solicitudes Autenticadas (Backend):** Spring Security, por defecto con protección CSRF activada, registra `CsrfAuthenticationStrategy` dentro de su estrategia de autenticación de sesión. En aplicaciones con autenticación JWT sin estado (`SessionCreationPolicy.STATELESS`), cada petición entrante con cookie de sesión es evaluada por `SessionManagementFilter` como una "nueva autenticación" (al no existir `HttpSession`). Como resultado, `CsrfAuthenticationStrategy` ejecutaba en cada solicitud autenticada `this.csrfTokenRepository.saveToken(null, request, response)`, enviando la cabecera `Set-Cookie: XSRF-TOKEN=; Max-Age=0;` e invalidando la cookie CSRF en el navegador inmediatamente después de cada lectura (`GET /api/admin/users`, `GET /api/users/me`).
+  2. **Ausencia de Token en el Primer Envío Mutante (Frontend):** En el primer intento (en login o tras la invalidación previa), el interceptor HTTP de Angular no encontraba la cookie `XSRF-TOKEN` y enviaba la petición mutante (`POST`) sin el encabezado `X-XSRF-TOKEN`. Spring Security rechazaba la solicitud con `403 Forbidden` y, como efecto colateral, generaba una nueva cookie `XSRF-TOKEN`. Al presionar el botón por segunda vez, la cookie ya estaba disponible en el navegador, permitiendo que la petición fuera aceptada.
+- **Cambios Realizados:**
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se configuró explícitamente `NullAuthenticatedSessionStrategy` tanto en el bloque `.csrf(...)` como en `.sessionManagement(...)`. Esto previene que `CsrfAuthenticationStrategy` borre la cookie CSRF (`Max-Age=0`) en cada petición JWT sin estado, manteniendo el token CSRF persistente y válido a lo largo de toda la sesión del usuario.
+    - Se añadió una prueba unitaria en `AuthSessionSecurityTest.java` (`authenticatedEndpoint_preservesXsrfToken`) que verifica formalmente que las peticiones autenticadas conservan la cookie `XSRF-TOKEN` sin emitir `Max-Age=0`.
+  - **Frontend:**
+    - En `AuthService` (`auth.service.ts`), se implementó el método `fetchCsrfToken(): Observable<void>`, el cual invoca `GET /api/auth/csrf` con credenciales para obtener o refrescar proactivamente el token CSRF.
+    - En `authInterceptor` (`auth.interceptor.ts`), si se detecta un método mutante (`POST`, `PUT`, `PATCH`, `DELETE`) y el navegador no tiene la cookie `XSRF-TOKEN`, el interceptor realiza una llamada transparente y previa a `authService.fetchCsrfToken()` antes de enviar la petición mutante con la cabecera `X-XSRF-TOKEN`, garantizando que jamás falle en el primer clic.
+- **Validación:**
+  - Backend: Se ejecutó la suite completa de pruebas unitarias (`mvn test`), pasando el 100% (70 de 70 pruebas exitosas).
+  - Frontend: Compilación de producción con Angular CLI (`CI=true npm run build`) exitosa con 0 errores.
+  - Verificación en contenedores en vivo: Se comprobó que `GET /api/users/me` y `POST /api/admin/users` ya no emiten `Max-Age=0`. Las creaciones consecutivas de usuarios en la API administrativa se completaron al primer intento con HTTP 201 Created. Se limpiaron los registros de prueba generados.

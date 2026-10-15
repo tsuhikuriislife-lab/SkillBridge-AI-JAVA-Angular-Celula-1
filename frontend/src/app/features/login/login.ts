@@ -51,6 +51,10 @@ export class LoginComponent {
           this.error = '';
         }
       });
+
+    if (this.auth.isLoggedIn()) {
+      this.navigatePostAuth(this.auth.role());
+    }
   }
 
   // Propiedad calculada para obtener el título y descripción según el modo actual
@@ -69,6 +73,27 @@ export class LoginComponent {
     this.showPassword = !this.showPassword;
   }
 
+  // Redirección dinámica según el rol y parámetro de retorno
+  private navigatePostAuth(role: string | null | undefined): void {
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+    if (returnUrl) {
+      if (role === 'ADMIN' && (returnUrl === '/' || returnUrl.startsWith('/ai') || returnUrl.startsWith('/book') || returnUrl.startsWith('/bookings'))) {
+        this.router.navigateByUrl('/admin');
+        return;
+      }
+      this.router.navigateByUrl(returnUrl);
+      return;
+    }
+
+    if (role === 'ADMIN') {
+      this.router.navigateByUrl('/admin');
+    } else if (role === 'PROVIDER') {
+      this.router.navigateByUrl('/provider');
+    } else {
+      this.router.navigateByUrl('/ai');
+    }
+  }
+
   // Procesar autenticación o registro
   submit() {
     this.error = '';
@@ -78,8 +103,8 @@ export class LoginComponent {
       : this.auth.register(this.name, this.email, this.password);
 
     request$.subscribe({
-      next: () => {
-        this.router.navigateByUrl('/ai');
+      next: (profile) => {
+        this.navigatePostAuth(profile?.role || this.auth.role());
       },
       error: err => {
         this.error = err?.error?.detail || 'No fue posible realizar la autenticación.';

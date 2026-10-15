@@ -30,10 +30,21 @@ public class AdminNotificationController {
             @RequestParam(defaultValue = "20") int size) {
         PageResult<AdminActivity> result = adminActivity.listMine(authentication.getName(), page, size);
         List<AdminNotificationOut> content = result.content().stream()
-                .map(activity -> new AdminNotificationOut(activity.id().toString(), "ADMIN_ACTIVITY",
-                        activity.message(), "PROCESSED", activity.createdAt().toString(), null,
-                        activity.action(), activity.targetId() == null ? null : activity.targetId().toString(),
-                        activity.targetType()))
+                .map(activity -> new AdminNotificationOut(
+                        activity.id().toString(),
+                        "ADMIN_ACTIVITY",
+                        activity.message(),
+                        "PROCESSED",
+                        activity.createdAt().toString(),
+                        null,
+                        activity.action(),
+                        activity.targetId() == null ? null : activity.targetId().toString(),
+                        activity.targetType(),
+                        activity.userId(),
+                        activity.userEmail(),
+                        activity.previousRole(),
+                        activity.newRole()
+                ))
                 .toList();
         return new PageResult<>(content, result.totalPages(), result.totalElements(), result.number());
     }
@@ -47,6 +58,10 @@ public class AdminNotificationController {
             String readAt,
             String title,
             String targetId,
-            String targetType
+            String targetType,
+            String userId,
+            String userEmail,
+            String previousRole,
+            String newRole
     ) {}
 }
