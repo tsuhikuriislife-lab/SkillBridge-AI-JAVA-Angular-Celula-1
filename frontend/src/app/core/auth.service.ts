@@ -1,53 +1,140 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { tap } from 'rxjs';
+import { Observable, tap, catchError, of, switchMap } from 'rxjs';
 import { apiBase } from './api';
 
-interface AuthResponse { token: string; tokenType: string; }
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  image?: string | null;
+  gender?: string | null;
+  birthDate?: string | null;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AuthMessageResponse {
+  message: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly key = 'skillbridge_token';
-  readonly authenticated = signal(!!localStorage.getItem(this.key));
-  readonly userRole = signal(this.extractRole(localStorage.getItem(this.key)));
+  readonly authenticated = signal<boolean>(false);
+  readonly userRole = signal<string | null>(null);
+  readonly currentUser = signal<UserProfile | null>(null);
+  readonly sessionExpired = signal<boolean>(false);
+  readonly initialized = signal<boolean>(false);
 
   constructor(private http: HttpClient, private router: Router) {}
 
-  login(email: string, password: string) {
-    return this.http.post<AuthResponse>(`${apiBase()}/auth/login`, { email, password })
-      .pipe(tap(r => this.save(r.token)));
+  restoreSession(): Observable<UserProfile | null> {
+    return this.http.get<UserProfile>(`${apiBase()}/users/me`, { withCredentials: true }).pipe(
+      tap(profile => {
+        this.currentUser.set(profile);
+        this.authenticated.set(true);
+        this.userRole.set(profile.role);
+        this.sessionExpired.set(false);
+        this.initialized.set(true);
+      }),
+      catchError(() => {
+        this.clearLocalState();
+        this.initialized.set(true);
+        return of(null);
+      })
+    );
   }
 
-  register(name: string, email: string, password: string) {
-    return this.http.post<AuthResponse>(`${apiBase()}/auth/register`, { name, email, password })
-      .pipe(tap(r => this.save(r.token)));
+  login(email: string, password: string): Observable<UserProfile> {
+    return this.http.post<AuthMessageResponse>(
+      `${apiBase()}/auth/login`,
+      { email, password },
+      { withCredentials: true }
+    ).pipe(
+      switchMap(() => this.fetchProfile())
+    );
   }
 
-  token(): string | null { return localStorage.getItem(this.key); }
-  isAuthenticated(): boolean { return this.authenticated(); }
-  isLoggedIn(): boolean { return this.isAuthenticated(); }
-  
-  role(): string | null { return this.userRole(); }
+  register(name: string, email: string, password: string): Observable<UserProfile> {
+    return this.http.post<AuthMessageResponse>(
+      `${apiBase()}/auth/register`,
+      { name, email, password },
+      { withCredentials: true }
+    ).pipe(
+      switchMap(() => this.fetchProfile())
+    );
+  }
 
-  logout(): void { 
-    localStorage.removeItem(this.key); 
-    this.authenticated.set(false); 
+  fetchCsrfToken(): Observable<void> {
+    return this.http.get<void>(`${apiBase()}/auth/csrf`, { withCredentials: true }).pipe(
+      catchError(() => of(void 0))
+    );
+  }
+
+  private fetchProfile(): Observable<UserProfile> {
+    return this.http.get<UserProfile>(`${apiBase()}/users/me`, { withCredentials: true }).pipe(
+      tap(profile => {
+        this.currentUser.set(profile);
+        this.authenticated.set(true);
+        this.userRole.set(profile.role);
+        this.sessionExpired.set(false);
+      })
+    );
+  }
+
+  /**
+   * El token no se almacena en el frontend; se gestiona exclusivamente
+   * en el navegador mediante cookies HttpOnly por motivos de seguridad (HU-14).
+   */
+  token(): string | null {
+    return null;
+  }
+
+  isAuthenticated(): boolean {
+    return this.authenticated();
+  }
+
+  isLoggedIn(): boolean {
+    return this.isAuthenticated();
+  }
+
+  role(): string | null {
+    return this.userRole();
+  }
+
+  user(): UserProfile | null {
+    return this.currentUser();
+  }
+
+  logout(): void {
+    this.http.post<AuthMessageResponse>(`${apiBase()}/auth/logout`, {}, { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe(() => {
+        this.clearLocalState();
+        this.router.navigateByUrl('/');
+      });
+  }
+
+  triggerSessionExpired(): void {
+    this.sessionExpired.set(true);
+  }
+
+  forceLogout(): void {
+    this.http.post<AuthMessageResponse>(`${apiBase()}/auth/logout`, {}, { withCredentials: true })
+      .pipe(catchError(() => of(null)))
+      .subscribe(() => {
+        this.clearLocalState();
+        this.sessionExpired.set(false);
+        this.router.navigateByUrl('/login');
+      });
+  }
+
+  private clearLocalState(): void {
+    this.authenticated.set(false);
     this.userRole.set(null);
-    this.router.navigateByUrl('/'); 
-  }
-
-  private save(token: string): void { 
-    localStorage.setItem(this.key, token); 
-    this.authenticated.set(true); 
-    this.userRole.set(this.extractRole(token));
-  }
-
-  private extractRole(token: string | null): string | null {
-    if (!token) return null;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.role || null;
-    } catch { return null; }
+    this.currentUser.set(null);
   }
 }

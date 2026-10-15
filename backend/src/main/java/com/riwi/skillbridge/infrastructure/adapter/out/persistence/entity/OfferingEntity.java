@@ -1,74 +1,81 @@
 package com.riwi.skillbridge.infrastructure.adapter.out.persistence.entity;
 
+import com.riwi.skillbridge.domain.enums.ServiceStatus;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "offerings")
+@Table(name = "services")
 public class OfferingEntity {
     @Id
     private UUID id;
-    private String title;
-    private String description;
-    private String category;
-    private BigDecimal price;
-    private boolean active;
-    @Column(name = "created_at")
-    private Instant createdAt;
 
-    @Column(name = "provider_id")
-    private UUID providerId;
-    @Column(name = "start_time")
-    private LocalTime startTime;
-    @Column(name = "end_time")
-    private LocalTime endTime;
-    @Column(name = "end_day")
-    private String endDay;
-    @Column(name = "photo_url")
-    private String photoUrl;
+    @Column(nullable = false, length = 160)
+    private String name;
+
+    @Column(name = "category_id", nullable = false)
+    private UUID categoryId;
+
+    @Column(nullable = false)
+    private BigDecimal price;
+
+    @Column(columnDefinition = "TEXT")
+    private String detail;
+
+    @Column(name = "short_description", length = 500)
+    private String shortDescription;
+
+    @Column(name = "learning_objectives", columnDefinition = "TEXT")
+    private String learningObjectives;
+
+    @Column(columnDefinition = "TEXT")
+    private String prerequisites;
+
+    private Integer capacity;
+
+    @Column(nullable = false, unique = true, length = 50)
+    private String code;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private ServiceStatus status;
+
+    @Column(name = "created_by", nullable = false)
+    private UUID createdBy;
+
+    @Column(name = "created_at", nullable = false)
+    private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
 
     protected OfferingEntity() {}
 
-    public OfferingEntity(UUID id, String title, String description, String category, BigDecimal price, boolean active, UUID providerId, LocalTime startTime, LocalTime endTime, String endDay, String photoUrl) {
-        this.id = id;
-        this.title = title;
-        this.description = description;
-        this.category = category;
-        this.price = price;
-        this.active = active;
-        this.providerId = providerId;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.endDay = endDay;
-        this.photoUrl = photoUrl;
-        this.createdAt = Instant.now();
+    public OfferingEntity(UUID id, String name, UUID categoryId, BigDecimal price, String detail,
+            String shortDescription, String learningObjectives, String prerequisites,
+            Integer capacity, String code, ServiceStatus status, UUID createdBy,
+            OffsetDateTime createdAt, OffsetDateTime updatedAt) {
+        this.id = id; this.name = name; this.categoryId = categoryId; this.price = price;
+        this.detail = detail; this.shortDescription = shortDescription;
+        this.learningObjectives = learningObjectives; this.prerequisites = prerequisites;
+        this.capacity = capacity; this.code = code; this.status = status;
+        this.createdBy = createdBy; this.createdAt = createdAt; this.updatedAt = updatedAt;
     }
 
     public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
+    public String getName() { return name; }
+    public UUID getCategoryId() { return categoryId; }
     public BigDecimal getPrice() { return price; }
-    public void setPrice(BigDecimal price) { this.price = price; }
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-    public UUID getProviderId() { return providerId; }
-    public void setProviderId(UUID providerId) { this.providerId = providerId; }
-    public LocalTime getStartTime() { return startTime; }
-    public void setStartTime(LocalTime startTime) { this.startTime = startTime; }
-    public LocalTime getEndTime() { return endTime; }
-    public void setEndTime(LocalTime endTime) { this.endTime = endTime; }
-    public String getEndDay() { return endDay; }
-    public void setEndDay(String endDay) { this.endDay = endDay; }
-    public String getPhotoUrl() { return photoUrl; }
-    public void setPhotoUrl(String photoUrl) { this.photoUrl = photoUrl; }
+    public String getDetail() { return detail; }
+    public String getShortDescription() { return shortDescription; }
+    public String getLearningObjectives() { return learningObjectives; }
+    public String getPrerequisites() { return prerequisites; }
+    public Integer getCapacity() { return capacity; }
+    public String getCode() { return code; }
+    public ServiceStatus getStatus() { return status; }
+    public UUID getCreatedBy() { return createdBy; }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public OffsetDateTime getUpdatedAt() { return updatedAt; }
 }

@@ -162,6 +162,31 @@ Estas historias no forman parte automáticamente del compromiso del Sprint. El P
 
 **Tareas candidatas:** revisar excepciones del adaptador Spring AI; definir respuestas y estados HTTP; actualizar el manejo de errores de Angular; probar casos de cuota agotada y proveedor no disponible.
 
+#### HU-14 — Proteger la sesión de usuario en el navegador
+
+**Prioridad:** Alta.  
+**Estado:** Implementada.  
+**Incluye:** Cookies HttpOnly/Secure/SameSite/Path=/api, protección CSRF con CookieCsrfTokenRepository y SpaCsrfTokenRequestHandler, remoción de tokens en localStorage y encabezado Bearer, restauración reactiva de perfil con GET /api/users/me, cierre de sesión con invalidación de cookie, validación estricta de secreto JWT sin fallbacks, y suite de pruebas automatizadas en backend y frontend.
+
+**Como** usuario autenticado, **quiero** que mi sesión se gestione sin exponer mi token de acceso a scripts del navegador, **para** reducir el riesgo de robo de sesión y proteger mi cuenta.
+
+**Criterios de aceptación:**
+- Al registrarse o iniciar sesión, el backend entrega el token de acceso únicamente mediante una cookie con `HttpOnly`, `Secure`, `SameSite` y una ruta limitada a la API; la respuesta JSON no expone el token.
+- El frontend no guarda, lee ni envía JWT desde `localStorage`, `sessionStorage` o el encabezado `Authorization`.
+- El backend autentica las solicitudes protegidas con la cookie de sesión y conserva las reglas actuales de expiración y validación de firma.
+- Las solicitudes que cambian datos (`POST`, `PUT`, `PATCH`, `DELETE`) requieren un token CSRF válido; una solicitud sin él recibe `403` y no modifica datos.
+- Cerrar sesión invalida la cookie en el navegador y la interfaz restablece el estado de usuario no autenticado.
+- La aplicación no inicia en un entorno de despliegue si `JWT_SECRET` falta, es débil o coincide con un valor conocido; la clave se obtiene exclusivamente de secretos del entorno.
+- Las pruebas automatizadas cubren inicio de sesión, acceso autenticado con cookie, cierre de sesión, rechazo por CSRF y rechazo de configuración JWT insegura.
+
+**Tareas candidatas:**
+- Definir propiedades de cookie por ambiente y exigir HTTPS en producción.
+- Adaptar `AuthController` para emitir y eliminar la cookie; adaptar `JwtAuthenticationFilter` para leerla.
+- Habilitar CSRF con `CookieCsrfTokenRepository` y ajustar CORS solamente si frontend y API se separan por origen.
+- Eliminar el almacenamiento local y el Bearer interceptor de Angular; restaurar el perfil con `GET /api/users/me` al cargar la aplicación.
+- Eliminar las claves JWT de respaldo de `application.yml`, Docker Compose y ejemplos de entorno; documentar cómo inyectar el secreto.
+- Añadir pruebas de seguridad y planificar el cierre de sesión de los tokens emitidos con el esquema anterior.
+
 ### Definición de Terminado para el Sprint
 
 - Criterios de aceptación verificados por el equipo y Product Owner.
