@@ -931,6 +931,9 @@ export class MyNotificationsComponent implements OnInit {
     if (notification.title === 'ROL MODIFICADO' || notification.title === 'USER_ROLE_CHANGED') {
       return 'Rol modificado';
     }
+    if (notification.title === 'OFFERING_STATUS_CHANGED') {
+      return 'Oferta modificada';
+    }
     if (notification.title === 'USER_UPDATED') {
       return 'Usuario actualizado';
     }
@@ -947,11 +950,14 @@ export class MyNotificationsComponent implements OnInit {
     if (notification.title === 'ROL MODIFICADO' || notification.title === 'USER_ROLE_CHANGED') {
       return 'ROL';
     }
+    if (notification.title === 'OFFERING_STATUS_CHANGED') {
+      return 'Cambio de estado';
+    }
     if (notification.title === 'USER_UPDATED') {
       return 'USER_UPDATED';
     }
     if (notification.title === 'USUARIO CREADO' || notification.title === 'USER_CREATED') {
-      return 'USER_CREATED';
+      return 'Nueva cuenta';
     }
     return notification.title || 'ACCIÓN';
   }
