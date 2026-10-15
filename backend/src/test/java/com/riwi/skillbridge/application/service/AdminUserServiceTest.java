@@ -95,6 +95,13 @@ class AdminUserServiceTest {
         assertEquals("new@test.com", created.email());
         assertEquals("encoded", created.password());
         assertEquals(Role.CUSTOMER, created.role());
+
+        String expectedMessage = "-----------------------------------------\n"
+            + "    ID Usuario  : " + created.id() + "\n"
+            + "    Nombre      : New User\n"
+            + "    Correo      : new@test.com\n"
+            + "    Rol         : CUSTOMER\n";
+        verify(adminActivity).record("admin@test.com", "USUARIO CREADO", "USER", created.id(), expectedMessage);
     }
 
         @Test
@@ -133,6 +140,23 @@ class AdminUserServiceTest {
 
         verify(userRepository, never()).save(any());
         }
+
+    @Test
+    void updateUser_whenRoleChanges_shouldRecordSpanishAdminActivity() {
+        UUID id = UUID.randomUUID();
+        UserAccount current = user(id, "Customer", "customer@test.com", "hash", Role.CUSTOMER);
+        when(userRepository.findById(id)).thenReturn(Optional.of(current));
+        when(userRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        adminUserService.updateUser(id, null, null, Role.PROVIDER, "admin@test.com");
+
+        String expectedMessage = "-----------------------------------------\n"
+            + "        ID Usuario  : " + id + "\n"
+            + "        Correo      : " + current.email() + "\n"
+            + "        Rol Anterior: " + Role.CUSTOMER + "\n"
+            + "        Rol Nuevo   : " + Role.PROVIDER + "\n";
+        verify(adminActivity).record("admin@test.com", "ROL MODIFICADO", "USER", id, expectedMessage);
+    }
 
     @Test
     void deleteUser_whenExists_shouldCallDelete() {
