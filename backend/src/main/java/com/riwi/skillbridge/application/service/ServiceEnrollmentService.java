@@ -161,8 +161,15 @@ public class ServiceEnrollmentService implements EnrollUserUseCase, RetrieveEnro
 
     private WithdrawalResult doCancel(UUID userId, UUID serviceId, boolean refund) {
         ServiceEnrollment existing = enrollmentPort.findByUserIdAndServiceId(userId, serviceId)
-                .filter(e -> e.status() == EnrollmentStatus.ACTIVE)
                 .orElseThrow(() -> new DomainNotFoundException("No tienes una inscripción activa en este servicio"));
+
+        if (existing.status() == EnrollmentStatus.CANCELLED) {
+            throw new BusinessRuleException("Ya se ha hecho la cancelación de este recurso o de este servicio.");
+        }
+
+        if (existing.status() != EnrollmentStatus.ACTIVE) {
+            throw new BusinessRuleException("No tienes una inscripción activa en este servicio");
+        }
         ServiceEnrollment cancelled = new ServiceEnrollment(
                 existing.userId(), existing.serviceId(), EnrollmentStatus.CANCELLED,
                 existing.remainingSessions(), existing.startDate(), existing.endDate());
