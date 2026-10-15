@@ -1,6 +1,6 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError } from 'rxjs/operators';
+import { catchError, switchMap } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
@@ -19,6 +19,15 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     withCredentials: true
   });
 
+  const handleAuthError = (error: HttpErrorResponse) => {
+    if (error.status === 401 && !req.url.includes('/auth/login') && !req.url.includes('/auth/register') && !req.url.includes('/users/me')) {
+      if (authService.isAuthenticated()) {
+        authService.triggerSessionExpired();
+      }
+    }
+    return throwError(() => error);
+  };
+
   // HU-14: Las solicitudes que modifican datos requieren token CSRF en el encabezado X-XSRF-TOKEN
   const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
   if (mutatingMethods.includes(req.method.toUpperCase()) && !req.headers.has('X-XSRF-TOKEN')) {
@@ -29,17 +38,19 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           'X-XSRF-TOKEN': xsrfToken
         }
       });
+    } else if (!req.url.includes('/auth/csrf')) {
+      return authService.fetchCsrfToken().pipe(
+        switchMap(() => {
+          const freshToken = getXsrfCookie();
+          const reqWithToken = freshToken
+            ? modifiedReq.clone({ setHeaders: { 'X-XSRF-TOKEN': freshToken } })
+            : modifiedReq;
+          return next(reqWithToken).pipe(catchError(handleAuthError));
+        }),
+        catchError(handleAuthError)
+      );
     }
   }
 
-  return next(modifiedReq).pipe(
-    catchError((error: HttpErrorResponse) => {
-      if (error.status === 401 && !req.url.includes('/auth/login') && !req.url.includes('/auth/register') && !req.url.includes('/users/me')) {
-        if (authService.isAuthenticated()) {
-          authService.triggerSessionExpired();
-        }
-      }
-      return throwError(() => error);
-    })
-  );
+  return next(modifiedReq).pipe(catchError(handleAuthError));
 };

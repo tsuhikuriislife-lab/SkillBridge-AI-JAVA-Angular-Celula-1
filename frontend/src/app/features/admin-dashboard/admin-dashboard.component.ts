@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { OfferingService, Offering } from '../../core/offering.service';
 import { UserService, UserDto } from '../../core/userDto.service';
 import { ToastService } from '../../core/toast.service';
+import { compactDisplayId } from '../../core/display-id';
 
 export type ViewType = 'usuarios' | 'servicios';
 
@@ -35,6 +36,10 @@ export class AdminDashboardComponent implements OnInit {
   private offeringService = inject(OfferingService);
   private userService = inject(UserService);
   private toastService = inject(ToastService);
+
+  formatId(id: string | null | undefined): string {
+    return compactDisplayId(id);
+  }
 
   // Estado principal con Signals
   selectedTab = signal<ViewType>('usuarios');

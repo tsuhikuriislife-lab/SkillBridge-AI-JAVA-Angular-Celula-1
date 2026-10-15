@@ -3,211 +3,1004 @@ import { Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NotificationPage, NotificationService, NotificationSummary } from '../core/notification.service';
 import { AuthService } from '../core/auth.service';
+import { compactDisplayId } from '../core/display-id';
+
+interface NotificationGroup {
+  dateLabel: string;
+  items: NotificationSummary[];
+}
 
 @Component({
-    standalone: true,
-    imports: [DatePipe, RouterLink],
-    template: `
+  standalone: true,
+  imports: [DatePipe, RouterLink],
+  template: `
     <section class="container notifications-page">
-      <header class="page-heading">
-        <div>
-          <p class="eyebrow">{{ isAdmin ? 'ACTIVIDAD ADMINISTRATIVA' : 'TU ACTIVIDAD' }}</p>
-          <h1>{{ isAdmin ? 'Acciones del administrador' : 'Mis notificaciones' }}</h1>
-          <p class="muted">{{ isAdmin ? 'Consulta los cambios realizados desde el panel de administración.' : 'Consulta el resultado del procesamiento de las notificaciones de tus reservas.' }}</p>
-        </div>
-        <button class="btn secondary" type="button" (click)="loadPage()" [disabled]="loading">
-          Actualizar
-        </button>
-      </header>
+      <!-- ================= VISTA ADMINISTRADOR ================= -->
+      @if (isAdmin) {
+        <header class="admin-page-header">
+          <div class="header-left">
+            <span class="eyebrow">ACTIVIDAD ADMINISTRATIVA</span>
+            <h1 class="header-title">Acciones del administrador</h1>
+            <p class="header-subtitle">Consulta los cambios realizados desde el panel de administración.</p>
+          </div>
+          <button class="btn-refresh" type="button" (click)="loadPage()" [disabled]="loading">
+            <i class="bx bx-refresh"></i> Actualizar
+          </button>
+        </header>
 
-      @if (error) {
-        <div class="message error" role="alert">
-          <span>{{ error }}</span>
-          <button class="text-button" type="button" (click)="loadPage()" [disabled]="loading">Reintentar</button>
+        <!-- Tarjetas de resumen -->
+        <div class="summary-cards">
+          <div class="summary-card">
+            <div class="summary-number">{{ totalElements }}</div>
+            <div class="summary-label">Acciones registradas</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-number">{{ countRoleChanges }}</div>
+            <div class="summary-label">Cambios de rol</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-number">{{ countProcessed }} / {{ notifications.length }}</div>
+            <div class="summary-label">Procesadas</div>
+          </div>
         </div>
+
+        @if (error) {
+          <div class="alert-error" role="alert">
+            <span>{{ error }}</span>
+            <button class="text-button" type="button" (click)="loadPage()" [disabled]="loading">Reintentar</button>
+          </div>
+        }
+
+        @if (loading) {
+          <div class="loading-state">
+            <p class="muted">Cargando acciones del administrador...</p>
+          </div>
+        } @else if (!error && notifications.length === 0) {
+          <div class="empty-state">
+            <h2>No hay acciones registradas</h2>
+            <p class="muted">Las operaciones administrativas realizadas en el panel aparecerán aquí.</p>
+          </div>
+        } @else if (!error) {
+          <div class="activity-feed">
+            @for (group of groupedNotifications; track group.dateLabel) {
+              <div class="date-group">
+                <div class="date-group-label">{{ group.dateLabel }}</div>
+
+                <div class="notification-cards-list">
+                  @for (notification of group.items; track notification.id) {
+                    <article class="notification-card">
+                      <!-- Ícono lateral temático -->
+                      <div class="card-icon" [class.icon-role]="isRoleAction(notification)" [class.icon-user]="!isRoleAction(notification)">
+                        @if (isRoleAction(notification)) {
+                          <i class="bx bx-transfer-alt"></i>
+                        } @else {
+                          <i class="bx bx-pencil"></i>
+                        }
+                      </div>
+
+                      <!-- Cuerpo principal -->
+                      <div class="card-body">
+                        <!-- Fila 1: Título, Código y Estado -->
+                        <div class="card-header-row">
+                          <div class="card-title-group">
+                            <h2 class="card-title">{{ getActionTitle(notification) }}</h2>
+                            <span class="action-tag" [class.tag-role]="isRoleAction(notification)" [class.tag-user]="!isRoleAction(notification)">
+                              {{ getActionTag(notification) }}
+                            </span>
+                          </div>
+
+                          <span class="status-badge" [class.status-processed]="notification.status === 'PROCESSED'"
+                                [class.status-failed]="notification.status === 'FAILED'">
+                            ✓ {{ statusLabel(notification.status) }}
+                          </span>
+                        </div>
+
+                        <!-- Fila 2: Usuario (Avatar, Correo e ID corto) -->
+                        <div class="user-row">
+                          <span class="avatar">{{ getAvatarInitial(notification) }}</span>
+                          <span class="user-email">{{ getUserEmail(notification) }}</span>
+                          <span class="user-id">ID {{ getShortUserId(notification) }}</span>
+                        </div>
+
+                        <!-- Fila 3: Cambio de rol o estados -->
+                        @if (getPreviousRole(notification) && getNewRole(notification)) {
+                          <div class="role-row">
+                            <span class="role-pill" [class.role-provider]="getPreviousRole(notification) === 'PROVIDER'"
+                                  [class.role-customer]="getPreviousRole(notification) === 'CUSTOMER'"
+                                  [class.role-admin]="getPreviousRole(notification) === 'ADMIN'">
+                              {{ getPreviousRole(notification) }}
+                            </span>
+                            <span class="role-arrow">→</span>
+                            <span class="role-pill" [class.role-provider]="getNewRole(notification) === 'PROVIDER'"
+                                  [class.role-customer]="getNewRole(notification) === 'CUSTOMER'"
+                                  [class.role-admin]="getNewRole(notification) === 'ADMIN'">
+                              {{ getNewRole(notification) }}
+                            </span>
+
+                            @if (getPreviousRole(notification) === getNewRole(notification)) {
+                              <span class="role-no-change">Sin cambio de rol</span>
+                            }
+                          </div>
+                        }
+
+                        <!-- Fila 4: Fecha y hora con ícono de reloj -->
+                        <div class="time-row">
+                          <i class="bx bx-time"></i>
+                          <span>{{ formatDateTime(notification.createdAt) }}</span>
+                        </div>
+                      </div>
+                    </article>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Pie de paginación -->
+          <footer class="pagination-footer">
+            <span class="pagination-info">{{ firstVisible }}–{{ lastVisible }} de {{ totalElements }}</span>
+            <div class="pagination-buttons">
+              <button class="btn-page" type="button" (click)="loadPage(currentPage - 1)"
+                      [disabled]="loading || currentPage === 0">
+                Anterior
+              </button>
+              <span class="page-current">{{ currentPage + 1 }} / {{ totalPages || 1 }}</span>
+              <button class="btn-page" type="button" (click)="loadPage(currentPage + 1)"
+                      [disabled]="loading || currentPage + 1 >= totalPages">
+                Siguiente
+              </button>
+            </div>
+          </footer>
+        }
       }
 
-      @if (loading) {
-        <p class="message muted" role="status">Cargando notificaciones...</p>
-      } @else if (!error && notifications.length === 0) {
-        <div class="empty-state">
-          <h2>Aún no tienes notificaciones</h2>
-          <p class="muted">Cuando se procese una reserva, su notificación aparecerá aquí.</p>
-        </div>
-      } @else if (!error) {
-        <div class="notification-list" aria-live="polite">
-          @for (notification of notifications; track notification.id) {
-            <article class="notification-row">
-              <div class="notification-main">
-                <h2>
-                  <a [routerLink]="['/service', notification.bookingId]" class="service-link">
-                    {{ notification.title }}
-                  </a>
-                </h2>
-                <p class="notification-message">{{ formatMessage(notification.message) }}</p>
-                @if (isAdmin && notification.targetId) {
-                  <p class="muted">{{ notification.targetType }}: {{ formatId(notification.targetId) }}</p>
-                } @else if (notification.bookingId && !hasReservationInMessage(notification.message)) {
-                  <p class="muted">Reserva: {{ formatId(notification.bookingId) }}</p>
-                }
-                <p class="muted">Recibida: {{ notification.createdAt | date:'medium' }}</p>
-              </div>
-              <span class="status" [class.status-processed]="notification.status === 'PROCESSED'"
-                    [class.status-failed]="notification.status === 'FAILED'">
-                {{ statusLabel(notification.status) }}
-              </span>
-            </article>
-          }
-        </div>
-
-        <footer class="pagination">
-          <span class="muted">{{ firstVisible }}–{{ lastVisible }} de {{ totalElements }}</span>
-          <div class="pagination-actions">
-            <button class="btn secondary" type="button" (click)="loadPage(currentPage - 1)"
-                    [disabled]="loading || currentPage === 0">Anterior</button>
-            <span class="page-number">{{ currentPage + 1 }} / {{ totalPages }}</span>
-            <button class="btn secondary" type="button" (click)="loadPage(currentPage + 1)"
-                    [disabled]="loading || currentPage + 1 >= totalPages">Siguiente</button>
+      <!-- ================= VISTA CLIENTE REGULAR ================= -->
+      @else {
+        <header class="page-heading">
+          <div>
+            <p class="eyebrow">TU ACTIVIDAD</p>
+            <h1>Mis notificaciones</h1>
+            <p class="muted">Consulta el resultado del procesamiento de las notificaciones de tus reservas.</p>
           </div>
-        </footer>
+          <button class="btn secondary" type="button" (click)="loadPage()" [disabled]="loading">
+            Actualizar
+          </button>
+        </header>
+
+        @if (error) {
+          <div class="message error" role="alert">
+            <span>{{ error }}</span>
+            <button class="text-button" type="button" (click)="loadPage()" [disabled]="loading">Reintentar</button>
+          </div>
+        }
+
+        @if (loading) {
+          <p class="message muted" role="status">Cargando notificaciones...</p>
+        } @else if (!error && notifications.length === 0) {
+          <div class="empty-state">
+            <h2>Aún no tienes notificaciones</h2>
+            <p class="muted">Cuando se procese una reserva, su notificación aparecerá aquí.</p>
+          </div>
+        } @else if (!error) {
+          <div class="notification-list" aria-live="polite">
+            @for (notification of notifications; track notification.id) {
+              <article class="notification-row">
+                <div class="notification-main">
+                  <h2>
+                    <a [routerLink]="['/service', notification.bookingId]" class="service-link">
+                      {{ notification.title }}
+                    </a>
+                  </h2>
+                  <p class="notification-message">{{ notification.message }}</p>
+                  @if (notification.bookingId) {
+                    <p class="muted">Reserva: {{ notification.bookingId }}</p>
+                  }
+                  <p class="muted">Recibida: {{ notification.createdAt | date:'medium' }}</p>
+                </div>
+                <span class="status" [class.status-processed]="notification.status === 'PROCESSED'"
+                      [class.status-failed]="notification.status === 'FAILED'">
+                  {{ statusLabel(notification.status) }}
+                </span>
+              </article>
+            }
+          </div>
+
+          <footer class="pagination">
+            <span class="muted">{{ firstVisible }}–{{ lastVisible }} de {{ totalElements }}</span>
+            <div class="pagination-actions">
+              <button class="btn secondary" type="button" (click)="loadPage(currentPage - 1)"
+                      [disabled]="loading || currentPage === 0">Anterior</button>
+              <span class="page-number">{{ currentPage + 1 }} / {{ totalPages }}</span>
+              <button class="btn secondary" type="button" (click)="loadPage(currentPage + 1)"
+                      [disabled]="loading || currentPage + 1 >= totalPages">Siguiente</button>
+            </div>
+          </footer>
+        }
       }
     </section>
   `,
-    styles: [`
-    .notifications-page{padding:42px 0 64px;max-width:900px}
-    .page-heading{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:24px}
-    .eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;color:#397367;margin:0 0 8px}
-    h1{font-size:30px;margin:0 0 8px;color:#17332d}
-    .muted{color:#667085}
-    .notification-list{border-top:1px solid #dfe7e4}
-    .notification-row{display:flex;justify-content:space-between;align-items:start;gap:18px;padding:20px 4px;border-bottom:1px solid #dfe7e4}
-    .notification-main h2{font-size:17px;margin:0 0 7px;color:#17332d}
-    .notification-main p{margin:4px 0}
-    .notification-message{white-space:pre-line}
-    .status{white-space:nowrap;font-size:12px;font-weight:700;color:#475467;background:#eef2f1;padding:6px 9px;border-radius:4px}
-    .status-processed{color:#176b4d;background:#e7f4ec}
-    .status-failed{color:#8c3d27;background:#faeee8}
-    .pagination{display:flex;justify-content:space-between;align-items:center;gap:18px;padding-top:18px;font-size:14px}
-    .pagination-actions{display:flex;align-items:center;gap:12px}
-    .page-number{min-width:52px;text-align:center;color:#344054}
-    .btn{padding:8px 12px;border-radius:6px}
-    .btn:disabled{cursor:not-allowed;opacity:.48}
-    .empty-state{padding:44px 4px;border-top:1px solid #dfe7e4;border-bottom:1px solid #dfe7e4}
-    .empty-state h2{margin:0 0 8px;font-size:20px;color:#17332d}
-    .message{padding:16px 4px}
-    .error{color:#b42318;display:flex;justify-content:space-between;gap:12px;align-items:center}
-    .text-button{border:0;background:none;color:#9f241b;text-decoration:underline;cursor:pointer}
-    @media(max-width:600px){
-      .notifications-page{padding-top:28px}
-      .page-heading{align-items:start;flex-direction:column}
-      .notification-row{align-items:start;flex-direction:column}
-      .pagination{align-items:start;flex-direction:column}
-      .pagination-actions{width:100%;justify-content:space-between}
+  styles: [`
+    /* ============================================================
+       CONTENEDOR GENERAL
+       ============================================================ */
+    .notifications-page {
+      padding: 36px 16px 64px;
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    /* ============================================================
+       CABECERA ADMINISTRATIVA
+       ============================================================ */
+    .admin-page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.09em;
+      color: #0f766e;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .header-title {
+      font-size: 30px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.025em;
+      margin: 0 0 6px 0;
+      line-height: 1.15;
+    }
+
+    .header-subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin: 0;
+    }
+
+    .btn-refresh {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-refresh:hover:not(:disabled) {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+
+    .btn-refresh:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-refresh i {
+      font-size: 16px;
+    }
+
+    /* ============================================================
+       TARJETAS DE RESUMEN
+       ============================================================ */
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .summary-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .summary-number {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+
+    .summary-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #64748b;
+    }
+
+    /* ============================================================
+       GRUPOS DE FECHA
+       ============================================================ */
+    .date-group {
+      margin-bottom: 24px;
+    }
+
+    .date-group-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #64748b;
+      letter-spacing: 0.06em;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+    }
+
+    .notification-cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ============================================================
+       TARJETA DE NOTIFICACIÓN (ADMIN)
+       ============================================================ */
+    .notification-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 20px 24px;
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+      transition: box-shadow 0.15s ease;
+    }
+
+    .notification-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Ícono temático lateral */
+    .card-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .card-icon.icon-role {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .card-icon.icon-user {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    /* Contenido de la tarjeta */
+    .card-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    /* Fila 1: Título y Estado */
+    .card-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    .action-tag {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .action-tag.tag-role {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .action-tag.tag-user {
+      background: #e2e8f0;
+      color: #475569;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .status-badge.status-processed {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .status-badge.status-failed {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    /* Fila 2: Usuario */
+    .user-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #dbeafe;
+      color: #2563eb;
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    .user-email {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .user-id {
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    /* Fila 3: Roles */
+    .role-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .role-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.04em;
+    }
+
+    .role-pill.role-provider {
+      background: #f3e8ff;
+      color: #7e22ce;
+    }
+
+    .role-pill.role-customer {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .role-pill.role-admin {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .role-arrow {
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .role-no-change {
+      font-size: 13px;
+      font-weight: 500;
+      color: #64748b;
+      margin-left: 6px;
+    }
+
+    /* Fila 4: Timestamp */
+    .time-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .time-row i {
+      font-size: 14px;
+    }
+
+    /* ============================================================
+       PAGINACIÓN (ADMIN)
+       ============================================================ */
+    .pagination-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 0 0;
+      font-size: 13.5px;
+    }
+
+    .pagination-info {
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .pagination-buttons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-page {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-page:hover:not(:disabled) {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #0f172a;
+    }
+
+    .btn-page:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .page-current {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #0f172a;
+      padding: 0 4px;
+    }
+
+    /* ============================================================
+       VISTA CLIENTE (HEREDADA Y PRESERVADA)
+       ============================================================ */
+    .page-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .page-heading h1 {
+      font-size: 30px;
+      margin: 0 0 8px;
+      color: #17332d;
+    }
+
+    .muted {
+      color: #667085;
+    }
+
+    .notification-list {
+      border-top: 1px solid #dfe7e4;
+    }
+
+    .notification-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      padding: 20px 4px;
+      border-bottom: 1px solid #dfe7e4;
+    }
+
+    .notification-main h2 {
+      font-size: 17px;
+      margin: 0 0 7px;
+      color: #17332d;
+    }
+
+    .notification-main p {
+      margin: 4px 0;
+    }
+
+    .notification-message {
+      white-space: pre-wrap;
+    }
+
+    .service-link {
+      color: #17332d;
+      text-decoration: underline;
+    }
+
+    .status {
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 700;
+      color: #475467;
+      background: #eef2f1;
+      padding: 6px 9px;
+      border-radius: 4px;
+    }
+
+    .status.status-processed {
+      color: #176b4d;
+      background: #e7f4ec;
+    }
+
+    .status.status-failed {
+      color: #8c3d27;
+      background: #faeee8;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      padding-top: 18px;
+      font-size: 14px;
+    }
+
+    .pagination-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-number {
+      min-width: 52px;
+      text-align: center;
+      color: #344054;
+    }
+
+    .btn {
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn.secondary {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .empty-state {
+      padding: 44px 4px;
+      border-top: 1px solid #dfe7e4;
+      border-bottom: 1px solid #dfe7e4;
+      text-align: center;
+    }
+
+    .empty-state h2 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      color: #17332d;
+    }
+
+    .alert-error, .message.error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      color: #b91c1c;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .text-button {
+      border: 0;
+      background: none;
+      color: #9f241b;
+      text-decoration: underline;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .loading-state {
+      padding: 32px 0;
+      text-align: center;
+    }
+
+    /* ============================================================
+       RESPONSIVE
+       ============================================================ */
+    @media (max-width: 768px) {
+      .admin-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .btn-refresh {
+        align-self: flex-start;
+      }
+
+      .summary-cards {
+        grid-template-columns: 1fr;
+      }
+
+      .notification-card {
+        padding: 16px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .notifications-page {
+        padding-top: 24px;
+      }
+
+      .card-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .pagination-footer {
+        flex-direction: column;
+        gap: 14px;
+        align-items: flex-start;
+      }
+
+      .pagination-buttons {
+        width: 100%;
+        justify-content: space-between;
+      }
     }
   `]
 })
 export class MyNotificationsComponent implements OnInit {
   private readonly auth = inject(AuthService);
-    private readonly pageSize = 20;
-    notifications: NotificationSummary[] = [];
-    currentPage = 0;
-    totalElements = 0;
-    totalPages = 0;
-    loading = false;
-    error = '';
+  private readonly notificationService = inject(NotificationService);
+  private readonly pageSize = 20;
 
-    get isAdmin(): boolean {
-      return this.auth.role() === 'ADMIN';
+  notifications: NotificationSummary[] = [];
+  currentPage = 0;
+  totalElements = 0;
+  totalPages = 0;
+  loading = false;
+  error = '';
+
+  get isAdmin(): boolean {
+    return this.auth.role() === 'ADMIN';
+  }
+
+  get countRoleChanges(): number {
+    return this.notifications.filter(n => {
+      if (n.title === 'ROL MODIFICADO' || n.title === 'USER_ROLE_CHANGED') return true;
+      if (n.previousRole && n.newRole && n.previousRole !== n.newRole) return true;
+      return false;
+    }).length;
+  }
+
+  get countProcessed(): number {
+    return this.notifications.filter(n => n.status === 'PROCESSED').length;
+  }
+
+  get groupedNotifications(): NotificationGroup[] {
+    const map = new Map<string, NotificationSummary[]>();
+
+    for (const item of this.notifications) {
+      const label = this.formatGroupDate(item.createdAt);
+      if (!map.has(label)) {
+        map.set(label, []);
+      }
+      map.get(label)!.push(item);
     }
 
-    constructor(private readonly notificationService: NotificationService) {}
+    return Array.from(map.entries()).map(([dateLabel, items]) => ({
+      dateLabel,
+      items
+    }));
+  }
 
-    get firstVisible(): number {
-        return this.totalElements === 0 ? 0 : this.currentPage * this.pageSize + 1;
+  get firstVisible(): number {
+    return this.totalElements === 0 ? 0 : this.currentPage * this.pageSize + 1;
+  }
+
+  get lastVisible(): number {
+    return Math.min((this.currentPage + 1) * this.pageSize, this.totalElements);
+  }
+
+  ngOnInit(): void {
+    this.loadPage();
+  }
+
+  loadPage(page = this.currentPage): void {
+    this.loading = true;
+    this.error = '';
+    this.notificationService.listMine(page, this.pageSize).subscribe({
+      next: (result: NotificationPage) => {
+        this.notifications = result.content;
+        this.currentPage = result.number !== undefined ? result.number : (result.page ?? 0);
+        this.totalElements = result.totalElements;
+        this.totalPages = result.totalPages;
+        this.loading = false;
+      },
+      error: () => {
+        this.error = 'No fue posible cargar tus notificaciones.';
+        this.loading = false;
+      }
+    });
+  }
+
+  formatGroupDate(dateStr: string): string {
+    if (!dateStr) return 'ACTIVIDAD';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'ACTIVIDAD';
+
+    const today = new Date();
+    const isToday = date.getFullYear() === today.getFullYear() &&
+                    date.getMonth() === today.getMonth() &&
+                    date.getDate() === today.getDate();
+
+    const months = [
+      'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+      'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+    ];
+    const formatted = `${date.getDate()} DE ${months[date.getMonth()]} DE ${date.getFullYear()}`;
+    return isToday ? `HOY · ${formatted}` : formatted;
+  }
+
+  formatDateTime(dateStr: string): string {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+
+    const day = date.getDate();
+    const shortMonths = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const month = shortMonths[date.getMonth()];
+    const year = date.getFullYear();
+
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+
+    return `${day} ${month} ${year} · ${hours}:${minutes}:${seconds} ${ampm}`;
+  }
+
+  isRoleAction(notification: NotificationSummary): boolean {
+    return notification.title === 'ROL' ||
+           notification.title === 'ROL MODIFICADO' ||
+           notification.title === 'USER_ROLE_CHANGED' ||
+           (!!notification.previousRole && !!notification.newRole && notification.previousRole !== notification.newRole);
+  }
+
+  getActionTitle(notification: NotificationSummary): string {
+    if (notification.title === 'ROL MODIFICADO' || notification.title === 'USER_ROLE_CHANGED') {
+      return 'Rol modificado';
     }
-
-    get lastVisible(): number {
-        return Math.min((this.currentPage + 1) * this.pageSize, this.totalElements);
+    if (notification.title === 'USER_UPDATED') {
+      return 'Usuario actualizado';
     }
-
-    ngOnInit(): void {
-        this.loadPage();
+    if (notification.title === 'USUARIO CREADO' || notification.title === 'USER_CREATED') {
+      return 'Usuario creado';
     }
-
-    loadPage(page = this.currentPage): void {
-        this.loading = true;
-        this.error = '';
-        this.notificationService.listMine(page, this.pageSize).subscribe({
-            next: (result: NotificationPage) => {
-                this.notifications = result.content;
-                this.currentPage = result.number !== undefined ? result.number : (result.page ?? 0);
-                this.totalElements = result.totalElements;
-                this.totalPages = result.totalPages;
-                this.loading = false;
-            },
-            error: () => {
-                this.error = 'No fue posible cargar tus notificaciones.';
-                this.loading = false;
-            }
-        });
+    if (notification.title === 'USER_DELETED') {
+      return 'Usuario eliminado';
     }
+    return notification.title || 'Acción administrativa';
+  }
 
-    formatMessage(rawMessage: string): string {
-        if (!rawMessage) return '';
-        const formattedPattern = rawMessage.replace(
-            /(El estado de tu inscripción es ahora:\s*)(ACTIVE|CANCELLED|COMPLETED|CREATED|CONFIRMED|PENDING)\s*Reserva:\s*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/i,
-            (_match, prefix: string, status: string, reservationId: string) =>
-                `${prefix}${status}\n\nReserva: ${reservationId}`
-        );
-        let msg = formattedPattern;
-        const reservationMatch = formattedPattern.match(/Reserva:\s*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/i);
-
-        // Traducir estados técnicos al español amigable
-        msg = msg.replace(/\bCANCELLED\b/g, 'Cancelada')
-                 .replace(/\bACTIVE\b/g, 'Activa')
-                 .replace(/\bCOMPLETED\b/g, 'Completada')
-                 .replace(/\bCREATED\b/g, 'En Proceso')
-                 .replace(/\bCONFIRMED\b/g, 'Confirmada')
-                 .replace(/\bPENDING\b/g, 'Pendiente');
-
-        // Formatear patrón: "Reserva: <UUID>" a "Reserva: #11111111"
-        msg = msg.replace(/Reserva:\s*([0-9a-fA-F]{8})-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/gi, 'Reserva: #$1');
-
-        // Cualquier otro UUID en el mensaje lo formatea a #XXXXXXXX
-        msg = msg.replace(/\b([0-9a-fA-F]{8})-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/g, '#$1');
-
-        if (reservationMatch) {
-            msg = msg.replace(/Reserva:\s*#?[0-9a-fA-F]{8}/i, `Reserva: ${reservationMatch[1]}`);
-        }
-
-        return msg;
+  getActionTag(notification: NotificationSummary): string {
+    if (notification.title === 'ROL MODIFICADO' || notification.title === 'USER_ROLE_CHANGED') {
+      return 'ROL';
     }
-
-    formatId(id?: string): string {
-        if (!id) return '';
-        const match = id.match(/([0-9a-fA-F]{8})-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
-        if (match) {
-            return '#' + match[1].toUpperCase();
-        }
-        if (id.length >= 8) {
-            return '#' + id.substring(0, 8).toUpperCase();
-        }
-        return id;
+    if (notification.title === 'USER_UPDATED') {
+      return 'USER_UPDATED';
     }
-
-    hasReservationInMessage(message?: string): boolean {
-        return !!message && /Reserva:\s*#?[0-9a-fA-F]{8}/i.test(message);
+    if (notification.title === 'USUARIO CREADO' || notification.title === 'USER_CREATED') {
+      return 'USER_CREATED';
     }
+    return notification.title || 'ACCIÓN';
+  }
 
-    statusLabel(status: string): string {
-        const labels: Record<string, string> = {
-            PENDING: 'Pendiente',
-            PROCESSED: 'Procesada',
-            FAILED: 'Cancelada',
-            ACTIVE: 'Activa',
-            CANCELLED: 'Cancelada',
-            COMPLETED: 'Completada'
-        };
-        return labels[status] ?? status;
-    }
+  getUserEmail(notification: NotificationSummary): string {
+    if (notification.userEmail) return notification.userEmail;
+    const match = notification.message?.match(/Correo\s*:\s*([^\\r\\n]+)/);
+    if (match) return match[1].trim();
+    const matchUpdated = notification.message?.match(/Se actualiz[oó]\s+([^;]+);/);
+    if (matchUpdated) return matchUpdated[1].trim();
+    return 'usuario@skillbridge.com';
+  }
+
+  getShortUserId(notification: NotificationSummary): string {
+    const rawId = notification.userId || notification.targetId || '';
+    return compactDisplayId(rawId);
+  }
+
+  getPreviousRole(notification: NotificationSummary): string | null {
+    if (notification.previousRole) return notification.previousRole;
+    const match = notification.message?.match(/Rol Anterior\s*:\s*(\\w+)/);
+    if (match) return match[1].trim();
+    const matchArrow = notification.message?.match(/rol:\s*(\\w+)\s*->\s*(\\w+)/);
+    if (matchArrow) return matchArrow[1].trim();
+    return null;
+  }
+
+  getNewRole(notification: NotificationSummary): string | null {
+    if (notification.newRole) return notification.newRole;
+    const match = notification.message?.match(/Rol Nuevo\s*:\s*(\\w+)/);
+    if (match) return match[1].trim();
+    const matchArrow = notification.message?.match(/rol:\s*(\\w+)\s*->\s*(\\w+)/);
+    if (matchArrow) return matchArrow[2].trim();
+    const matchSingle = notification.message?.match(/Rol\s*:\s*(\\w+)/);
+    if (matchSingle) return matchSingle[1].trim();
+    return null;
+  }
+
+  getAvatarInitial(notification: NotificationSummary): string {
+    const email = this.getUserEmail(notification);
+    return email ? email.charAt(0).toUpperCase() : 'U';
+  }
+
+  statusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      PENDING: 'Pendiente',
+      PROCESSED: 'Procesada',
+      FAILED: 'Fallida'
+    };
+    return labels[status] ?? status;
+  }
 }
