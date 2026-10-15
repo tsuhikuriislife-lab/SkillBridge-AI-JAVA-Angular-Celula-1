@@ -19,6 +19,7 @@ export interface NotificationSummary {
     userEmail?: string;
     previousRole?: string;
     newRole?: string;
+    enrollmentStatus?: string;
 }
 
 export interface NotificationPage {
