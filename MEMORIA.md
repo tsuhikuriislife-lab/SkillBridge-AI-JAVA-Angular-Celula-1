@@ -539,3 +539,20 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 ## [2026-10-15] Etiquetas de actividad administrativa
 - **Cambios realizados:** En el feed administrativo, `OFFERING_STATUS_CHANGED` ahora se muestra como “Oferta modificada” con la etiqueta “Cambio de estado”; `USUARIO CREADO` conserva su título “Usuario creado” y muestra “Nueva cuenta”. Los demás datos y comportamientos permanecen iguales.
 - **Validación:** `npm --prefix frontend run build` completó correctamente. El spec enfocado no pudo ejecutarse porque ya referencia `formatMessage`, método inexistente en el componente.
+
+## [2026-10-16] Ajuste de estados e insignia en tarjetas de notificación del cliente
+- **Agente:** Antigravity
+- **Contexto:** En la vista regular de notificaciones del cliente (`/notifications` cuando no es ADMIN), se requirió actualizar las tarjetas de cada notificación:
+  1. Reemplazar la insignia "Procesada"/"Fallida" por el estado de la inscripción en español en la esquina superior derecha con punto indicador (`• Activa`, `• Cancelada`, `• Pendiente`, `• Completada`, o valor crudo neutro si es desconocido).
+  2. Sustituir el mensaje técnico "El estado de tu inscripción es ahora..." y la etiqueta en inglés por un mensaje descriptivo y claro en español según el estado (`ACTIVE`, `CANCELLED`, `PENDING`, `COMPLETED`).
+  3. Evitar duplicar el estado en la tarjeta (mostrado únicamente en la insignia superior).
+  4. Mantener intactas las 3 tarjetas de resumen, paginación, enlace al servicio y la vista del administrador.
+- **Archivos modificados:**
+  - `frontend/src/app/features/my-notifications.component.ts`: Template, estilos CSS (`.status-badge.badge-*`, `.notification-description`), mapa `statusMessages` y métodos de apoyo `getStatusLabel`, `getStatusClass`, `getStatusMessage`; las etiquetas conocidas reutilizan `formatMessage`.
+  - `frontend/src/app/features/my-notifications.component.spec.ts`: Cobertura de traducciones, mensajes, estado desconocido y conservación del conteo de inscripciones activas.
+- **Validación:**
+  - Compilación exitosa en Angular (`npm run build`).
+  - Despliegue en contenedor Docker `frontend` completado y en estado Healthy.
+  - Verificación complementaria: compilación de producción exitosa y pruebas frontend 16/16; los estados desconocidos conservan su valor original y el conteo previo sin estado se mantiene.
+  - La ruta `/notifications` responde localmente, pero redirige al login sin autenticación; el proxy no pudo conectar con el backend local (`localhost:8080`). Por ello, no fue posible validar en navegador con sesiones autenticadas ni datos reales de cliente/ADMIN en esta ejecución.
+  - Sin commits en Git según instrucción del usuario.

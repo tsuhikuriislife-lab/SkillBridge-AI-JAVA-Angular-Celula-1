@@ -215,7 +215,7 @@ interface NotificationGroup {
 
                       <!-- Cuerpo principal -->
                       <div class="card-body">
-                        <!-- Fila 1: Título de Servicio, Badge de Inscripción y Estado Procesada -->
+                        <!-- Fila 1: Título de Servicio, etiqueta de inscripción y estado -->
                         <div class="card-header-row">
                           <div class="card-title-group">
                             <h2 class="card-title">
@@ -230,19 +230,13 @@ interface NotificationGroup {
                             <span class="badge-inscription">INSCRIPCIÓN</span>
                           </div>
 
-                          <span class="status-badge" [class.status-processed]="notification.status === 'PROCESSED'"
-                                [class.status-failed]="notification.status === 'FAILED'">
-                            ✓ {{ statusLabel(notification.status) }}
+                          <span class="status-badge" [class]="getStatusClass(notification)">
+                            <span class="status-dot">•</span> {{ getStatusLabel(notification) }}
                           </span>
                         </div>
 
-                        <!-- Fila 2: Mensaje y Estado de la inscripción -->
-                        <div class="enrollment-status-row">
-                          <span class="enrollment-text">El estado de tu inscripción es ahora</span>
-                          <span class="enrollment-pill" [class]="getEnrollmentStatusClass(notification)">
-                            <span class="status-dot">•</span> {{ getEnrollmentStatus(notification) }}
-                          </span>
-                        </div>
+                        <!-- Fila 2: Mensaje claro según el estado de la inscripción -->
+                        <p class="notification-description">{{ getStatusMessage(notification) }}</p>
 
                         <!-- Fila 3: Fecha y hora con ícono de reloj (última línea) -->
                         <div class="time-row">
@@ -520,6 +514,31 @@ interface NotificationGroup {
       color: #b91c1c;
     }
 
+    .status-badge.badge-active {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .status-badge.badge-cancelled {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .status-badge.badge-pending {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .status-badge.badge-completed {
+      background: #e0e7ff;
+      color: #4338ca;
+    }
+
+    .status-badge.badge-default {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
     /* Fila 2: Usuario */
     .user-row {
       display: flex;
@@ -712,54 +731,11 @@ interface NotificationGroup {
       color: #2563eb;
     }
 
-    .enrollment-status-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .notification-description {
       font-size: 14px;
       color: #334155;
-      font-weight: 500;
-      flex-wrap: wrap;
-    }
-
-    .enrollment-text {
-      color: #334155;
-    }
-
-    .enrollment-pill {
-      font-size: 12px;
-      font-weight: 700;
-      padding: 3px 10px;
-      border-radius: 6px;
-      letter-spacing: 0.03em;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .enrollment-pill.enrollment-active {
-      background: #e6f7ed;
-      color: #15803d;
-    }
-
-    .enrollment-pill.enrollment-cancelled {
-      background: #fee2e2;
-      color: #b91c1c;
-    }
-
-    .enrollment-pill.enrollment-completed {
-      background: #e0e7ff;
-      color: #4338ca;
-    }
-
-    .enrollment-pill.enrollment-pending {
-      background: #fef3c7;
-      color: #b45309;
-    }
-
-    .enrollment-pill.enrollment-default {
-      background: #f1f5f9;
-      color: #475569;
+      line-height: 1.5;
+      margin: 0;
     }
 
     .status-dot {
@@ -1090,13 +1066,54 @@ export class MyNotificationsComponent implements OnInit {
     return labels[status] ?? status;
   }
 
+  private readonly statusMessages: Record<string, string> = {
+    ACTIVE: 'Tu inscripción está confirmada. Ya puedes acceder al servicio y a sus sesiones.',
+    CANCELLED: 'Tu inscripción fue cancelada. Si fue un error, puedes volver a reservar este servicio.',
+    PENDING: 'Estamos esperando la confirmación de tu inscripción. Te avisaremos cuando cambie.',
+    COMPLETED: 'Tu inscripción fue completada. ¡Gracias por participar!'
+  };
+
   getEnrollmentStatus(notification: NotificationSummary): string {
+    return (this.getEnrollmentStatusValue(notification) || 'ACTIVE').toUpperCase();
+  }
+
+  private getEnrollmentStatusValue(notification: NotificationSummary): string {
     if (notification.enrollmentStatus) {
-      return notification.enrollmentStatus.toUpperCase();
+      return notification.enrollmentStatus;
     }
-    const match = notification.message?.match(/El estado de tu inscripción es ahora:?\s*(\w+)/i);
-    if (match) return match[1].toUpperCase();
-    return 'ACTIVE';
+    const match = notification.message?.match(/El estado de tu inscripción es ahora:?\s*([^\s\r\n]+)/i);
+    if (match) return match[1];
+    const fallbackMatch = notification.message?.match(/\b(ACTIVE|CANCELLED|PENDING|COMPLETED)\b/i);
+    return fallbackMatch?.[1] ?? '';
+  }
+
+  getStatusLabel(notification: NotificationSummary): string {
+    const status = this.getEnrollmentStatusValue(notification);
+    if (!status) {
+      return 'Desconocido';
+    }
+    const normalizedStatus = status.toUpperCase();
+    const translatedStatus = this.formatMessage(normalizedStatus);
+    return translatedStatus === normalizedStatus ? status : translatedStatus;
+  }
+
+  getStatusClass(notification: NotificationSummary): string {
+    const status = this.getEnrollmentStatusValue(notification).toUpperCase();
+    switch (status) {
+      case 'ACTIVE': return 'badge-active';
+      case 'CANCELLED': return 'badge-cancelled';
+      case 'PENDING': return 'badge-pending';
+      case 'COMPLETED': return 'badge-completed';
+      default: return 'badge-default';
+    }
+  }
+
+  getStatusMessage(notification: NotificationSummary): string {
+    const status = this.getEnrollmentStatusValue(notification).toUpperCase();
+    if (this.statusMessages[status]) {
+      return this.statusMessages[status];
+    }
+    return this.formatMessage(notification.message || '');
   }
 
   getEnrollmentStatusClass(notification: NotificationSummary): string {
