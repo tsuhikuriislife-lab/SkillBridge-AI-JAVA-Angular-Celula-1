@@ -539,3 +539,22 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 ## [2026-10-15] Etiquetas de actividad administrativa
 - **Cambios realizados:** En el feed administrativo, `OFFERING_STATUS_CHANGED` ahora se muestra como “Oferta modificada” con la etiqueta “Cambio de estado”; `USUARIO CREADO` conserva su título “Usuario creado” y muestra “Nueva cuenta”. Los demás datos y comportamientos permanecen iguales.
 - **Validación:** `npm --prefix frontend run build` completó correctamente. El spec enfocado no pudo ejecutarse porque ya referencia `formatMessage`, método inexistente en el componente.
+
+## [2026-10-16] Limpieza de código basura y archivos obsoletos
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Se realizó una auditoría de código muerto, recursos redundantes y configuraciones huérfanas en el proyecto.
+- **Acciones Realizadas:**
+  - **Frontend:**
+    - Se eliminó el archivo obsoleto `frontend/src/app/features/login.component.ts` (reemplazado por `features/login/login.ts`).
+    - Se eliminó el modelo sin uso `frontend/src/app/core/models/booking.model.ts` (el sistema utiliza `BookingSummary`).
+    - Se eliminó el directorio duplicado `frontend/src/app/images/` y la imagen duplicada `frontend/public/images/Group 23 (1).jpg`.
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se eliminó la ruta inexistente `/api/bookings/**` de `requestMatchers()`, conservando únicamente las rutas activas como `/api/enrollments/**`.
+  - **Raíz y Scripts:**
+    - Se eliminó el directorio `deprecated/` (`Inicio (1).html`, `ai.component.ts.old`, `ia.html.old`).
+    - Se eliminó el `package-lock.json` huérfano de la raíz.
+    - Se corrigió `scripts/smoke-test.sh` para apuntar a `/api/services` en lugar del endpoint obsoleto `/api/offerings`.
+    - Se actualizó el target `test-back-unit` en el `Makefile` para referenciar pruebas unitarias existentes (`OfferingCrudServiceTest,OfferingCatalogServiceTest,ServiceEnrollmentServiceTest`).
+- **Validación:**
+  - Backend: Compilación exitosa de fuentes y pruebas (`mvn test-compile`).
+  - Frontend: Generación exitosa del bundle de producción (`npm run build`) sin advertencias ni errores.

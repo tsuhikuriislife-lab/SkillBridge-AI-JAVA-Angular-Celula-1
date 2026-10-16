@@ -24,7 +24,7 @@ test-back:
 	cd backend && mvn test
 
 test-back-unit:
-	cd backend && mvn -Dtest=BookingServiceTest,OfferingServiceTest test
+	cd backend && mvn -Dtest=OfferingCrudServiceTest,OfferingCatalogServiceTest,ServiceEnrollmentServiceTest test
 
 test-front:
 	cd frontend && npm ci && npm test -- --watch=false
