@@ -539,3 +539,24 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 ## [2026-10-15] Etiquetas de actividad administrativa
 - **Cambios realizados:** En el feed administrativo, `OFFERING_STATUS_CHANGED` ahora se muestra como “Oferta modificada” con la etiqueta “Cambio de estado”; `USUARIO CREADO` conserva su título “Usuario creado” y muestra “Nueva cuenta”. Los demás datos y comportamientos permanecen iguales.
 - **Validación:** `npm --prefix frontend run build` completó correctamente. El spec enfocado no pudo ejecutarse porque ya referencia `formatMessage`, método inexistente en el componente.
+
+## [2026-10-16] Verificación de Contenedores y Provisión de Dashboard en Grafana
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Diagnóstico del ciclo de construcción y arranque de contenedores Docker, y configuración de visualización de métricas en Prometheus y Grafana.
+- **Cambios realizados:**
+  - Se diagnosticó y verificó el ciclo multi-stage de los Dockerfiles y el estado saludable (`healthy`) de los 5 contenedores principales (`postgres`, `redis`, `rabbitmq`, `backend`, `frontend`).
+  - Se verificó la recolección de métricas de Spring Boot Actuator (`/actuator/prometheus`) por parte de Prometheus en el puerto 9090.
+  - Se creó el dashboard provisionado `system-metrics.json` en `ops/grafana/provisioning/dashboards/` para Grafana ("SkillBridge - Sistema y API") con 6 paneles clave: peticiones HTTP por segundo por endpoint/estado, latencia promedio, uso de memoria heap de la JVM, porcentaje de CPU (backend vs sistema), hilos activos y pool de conexiones HikariCP.
+- **Validación:**
+  - Prometheus scrapéa exitosamente cada 15s el endpoint `http://backend:8080/actuator/prometheus` (estado `up`).
+  - Grafana aprovisionó automáticamente el nuevo dashboard bajo la carpeta `SkillBridge` (`uid: skillbridge-system-api`).
+## [2026-10-16] Unificación First-Party y Proxy de Reescritura en Vercel (HU-14 Prod Fix)
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** En producción, el frontend desplegado en Vercel (`https://skillbridge-blond-two.vercel.app`) y el backend en Render (`https://skillbridge-xmkr.onrender.com`) operaban en dominios cruzados (Cross-Site). Al intentar registrar usuarios (`POST /api/auth/register`), el navegador bloqueaba el acceso a la cookie `Set-Cookie: XSRF-TOKEN; SameSite=Lax`, provocando que Angular enviara la solicitud mutante sin el encabezado `X-XSRF-TOKEN` y Spring Security respondiera con `403 Forbidden`.
+- **Cambios realizados:**
+  - **`frontend/vercel.json`:** Se reemplazó la directiva legacy `routes` por `rewrites`, enrutando de forma transparente `/api/:path*` hacia `https://skillbridge-xmkr.onrender.com/api/:path*`, y `/(.*)` hacia `/index.html` para la SPA de Angular. Se preservaron `buildCommand: "npm run build"` y `outputDirectory: "dist/skillbridge-ai/browser"`.
+  - **`frontend/scripts/generate-env.mjs`:** Se añadió normalización para que cualquier valor de `API_URL` que comience con `http` se transforme automáticamente en la ruta relativa `/api`, previniendo que variables de entorno obsoletas o mal configuradas en Vercel fuercen llamadas cross-origin directas.
+  - **`frontend/src/app/core/api.ts`:** Se incorporó un mecanismo de salvaguarda en `apiBase()` para garantizar que siempre se retorne `/api` si `window.__env?.API_URL` contiene una URL absoluta externa.
+- **Validación:**
+  - `npm run build` en frontend completó con éxito (código de salida 0), generando `dist/skillbridge-ai/browser` con `env.js` apuntando a `/api`.
+  - Con esta configuración, el navegador gestiona todas las peticiones y cookies (`access_token`, `XSRF-TOKEN`) bajo el mismo dominio de Vercel (First-Party), permitiendo al interceptor de Angular leer la cookie CSRF y adjuntar `X-XSRF-TOKEN` válidamente en peticiones mutantes sin degradar la seguridad del backend.
