@@ -52,7 +52,8 @@ public class BookingHistoryController {
             
             return new HistoryNotificationOut(
                     h.id().toString(), "HISTORY", message, statusMapped,
-                    h.createdAt().toString(), null, title, h.serviceId().toString()
+                    h.createdAt().toString(), null, title, h.serviceId().toString(),
+                    h.status().name()
             );
         }).toList();
 
@@ -78,6 +79,12 @@ public class BookingHistoryController {
             String createdAt,
             String readAt,
             String title,
-            String bookingId
-    ) {}
+            String bookingId,
+            String enrollmentStatus
+    ) {
+        public HistoryNotificationOut(String id, String type, String message, String status,
+                                      String createdAt, String readAt, String title, String bookingId) {
+            this(id, type, message, status, createdAt, readAt, title, bookingId, null);
+        }
+    }
 }
