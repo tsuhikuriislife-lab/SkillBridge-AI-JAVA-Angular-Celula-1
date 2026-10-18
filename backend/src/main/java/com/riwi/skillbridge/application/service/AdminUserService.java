@@ -57,8 +57,14 @@ public class AdminUserService implements AdminManageUsersUseCase {
             UUID.randomUUID(), name, email.trim().toLowerCase(), userRole, null,
             encodedPassword, null, null, Status.ACTIVE, now, now);
         UserAccount saved = userRepository.save(newAccount);
-        adminActivity.record(actorEmail, "USER_CREATED", "USER", saved.id(),
-            "Se creó el usuario " + saved.name() + " (" + saved.email() + ") con rol " + saved.role() + ".");
+        String message = """
+            -----------------------------------------
+                ID Usuario  : %s
+                Nombre      : %s
+                Correo      : %s
+                Rol         : %s
+            """.formatted(saved.id(), saved.name(), saved.email(), saved.role());
+        adminActivity.record(actorEmail, "USUARIO CREADO", "USER", saved.id(), message);
         return saved;
     }
 
@@ -88,9 +94,18 @@ public class AdminUserService implements AdminManageUsersUseCase {
             current.id(), newName, newEmail, newRole, current.image(), current.password(),
             current.gender(), current.birthDate(), current.status(), current.createdAt(), OffsetDateTime.now());
         UserAccount saved = userRepository.save(updated);
-        String action = current.role() == saved.role() ? "USER_UPDATED" : "USER_ROLE_CHANGED";
-        adminActivity.record(actorEmail, action, "USER", saved.id(),
-            "Se actualizó " + saved.email() + "; rol: " + current.role() + " -> " + saved.role() + ".");
+        boolean roleChanged = current.role() != saved.role();
+        String action = roleChanged ? "ROL MODIFICADO" : "USER_UPDATED";
+        String message = roleChanged
+            ? """
+                -----------------------------------------
+                        ID Usuario  : %s
+                        Correo      : %s
+                        Rol Anterior: %s
+                        Rol Nuevo   : %s
+                """.formatted(saved.id(), saved.email(), current.role(), saved.role())
+            : "Se actualizó " + saved.email() + "; rol: " + current.role() + " -> " + saved.role() + ".";
+        adminActivity.record(actorEmail, action, "USER", saved.id(), message);
         return saved;
     }
 

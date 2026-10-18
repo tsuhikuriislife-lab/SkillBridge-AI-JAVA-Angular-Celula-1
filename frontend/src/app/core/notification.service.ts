@@ -15,6 +15,11 @@ export interface NotificationSummary {
     bookingId?: string;
     targetId?: string;
     targetType?: string;
+    userId?: string;
+    userEmail?: string;
+    previousRole?: string;
+    newRole?: string;
+    enrollmentStatus?: string;
 }
 
 export interface NotificationPage {

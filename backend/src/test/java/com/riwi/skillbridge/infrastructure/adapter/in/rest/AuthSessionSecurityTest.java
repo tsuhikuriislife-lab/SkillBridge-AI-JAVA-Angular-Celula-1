@@ -161,6 +161,36 @@ class AuthSessionSecurityTest {
     }
 
     @Test
+    @DisplayName("Solicitud autenticada no destruye la cookie XSRF-TOKEN en solicitudes subsiguientes")
+    void authenticatedEndpoint_preservesXsrfToken() throws Exception {
+        String token = jwtService.generate("carlos@test.com", "CUSTOMER");
+
+        when(userDetailsService.loadUserByUsername("carlos@test.com"))
+                .thenReturn(new User("carlos@test.com", "hash", Collections.emptyList()));
+
+        UserAccount user = new UserAccount(
+                UUID.randomUUID(),
+                "Carlos Gomez",
+                "carlos@test.com",
+                Role.CUSTOMER,
+                null,
+                "hash",
+                Gender.MALE,
+                LocalDate.of(1995, 5, 20),
+                Status.ACTIVE,
+                OffsetDateTime.now(),
+                OffsetDateTime.now()
+        );
+
+        when(retrieveUseCase.getUserAccountByEmail("carlos@test.com")).thenReturn(Optional.of(user));
+
+        mockMvc.perform(get("/api/users/me")
+                        .cookie(new Cookie("access_token", token), new Cookie("XSRF-TOKEN", "test-token-123")))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, not(containsString("XSRF-TOKEN=;"))));
+    }
+
+    @Test
     @DisplayName("Acceso a /api/users/me sin cookie de sesión es rechazado con 401 Unauthorized")
     void authenticatedEndpoint_rejectedWithoutCookie() throws Exception {
         mockMvc.perform(get("/api/users/me"))
