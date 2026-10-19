@@ -1,3 +1,7 @@
 export function apiBase(): string {
-  return window.__env?.API_URL || '/api';
+  const url = window.__env?.API_URL;
+  if (url && !url.startsWith('http')) {
+    return url;
+  }
+  return '/api';
 }
