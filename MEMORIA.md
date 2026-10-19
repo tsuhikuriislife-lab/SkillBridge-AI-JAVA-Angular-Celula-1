@@ -558,3 +558,14 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Validación:**
   - Backend: Compilación exitosa de fuentes y pruebas (`mvn test-compile`).
   - Frontend: Generación exitosa del bundle de producción (`npm run build`) sin advertencias ni errores.
+
+## [2026-10-17] Despliegue y configuración del SFU LiveKit con Docker Compose
+- **Contexto:** Despliegue del servidor LiveKit (SFU) para soportar videoconferencias interactivas de ultra baja latencia (audio, video, pantalla compartida) sin incurrir en costos de procesamiento ni almacenamiento en la nube.
+- **Acciones Realizadas:**
+  - **Variables de Entorno (`.env` / `.env.example`):** Se definieron `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_RTC_USE_EXTERNAL_IP` y los puertos `LIVEKIT_HTTP_PORT` (7880), `LIVEKIT_TCP_PORT` (7881) y `LIVEKIT_UDP_PORT` (7882).
+  - **Configuración Declarativa (`ops/livekit/livekit.yaml`):** Se creó la configuración del motor WebRTC escuchando en TCP 7881 y UDP 7882 sin requerir servicios de Egress ni buckets S3/GCP.
+  - **Orquestación (`docker-compose.yml`):** Se integró el servicio oficial `livekit/livekit-server:v1.8` con mapeo de puertos 7880/tcp, 7881/tcp y 7882/udp, inyección de claves mediante `LIVEKIT_KEYS` y montaje del archivo declarativo en `/etc/livekit.yaml:ro`.
+- **Validación:**
+  - El contenedor `skillbridge-ai-livekit-1` arrancó limpiamente con estado `Up` y enrutamiento `single-node`.
+  - Puertos 7880/tcp, 7881/tcp y 7882/udp expuestos y accesibles correctamente en `0.0.0.0`.
+  - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2 y CA 1.3.
