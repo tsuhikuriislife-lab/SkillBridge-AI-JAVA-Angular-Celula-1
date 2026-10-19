@@ -1,5 +1,0 @@
-port: 7880
-bind_addresses:
-  - 0.0.0.0
-keys:
-  skillbridge: "CAMBIA-ESTO-POR-UN-SECRETO-LARGO-DE-MAS-DE-32-CARACTERES"
