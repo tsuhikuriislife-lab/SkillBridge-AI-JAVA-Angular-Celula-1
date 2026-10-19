@@ -1,0 +1,10 @@
+port: 7880
+
+# Config motor WebRTC
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+
+logging:
+  json: false
+  level: info

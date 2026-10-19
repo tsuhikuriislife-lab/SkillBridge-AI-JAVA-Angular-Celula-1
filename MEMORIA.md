@@ -539,3 +539,46 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 ## [2026-10-15] Etiquetas de actividad administrativa
 - **Cambios realizados:** En el feed administrativo, `OFFERING_STATUS_CHANGED` ahora se muestra como “Oferta modificada” con la etiqueta “Cambio de estado”; `USUARIO CREADO` conserva su título “Usuario creado” y muestra “Nueva cuenta”. Los demás datos y comportamientos permanecen iguales.
 - **Validación:** `npm --prefix frontend run build` completó correctamente. El spec enfocado no pudo ejecutarse porque ya referencia `formatMessage`, método inexistente en el componente.
+
+## [2026-10-16] Limpieza de código basura y archivos obsoletos
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Se realizó una auditoría de código muerto, recursos redundantes y configuraciones huérfanas en el proyecto.
+- **Acciones Realizadas:**
+  - **Frontend:**
+    - Se eliminó el archivo obsoleto `frontend/src/app/features/login.component.ts` (reemplazado por `features/login/login.ts`).
+    - Se eliminó el modelo sin uso `frontend/src/app/core/models/booking.model.ts` (el sistema utiliza `BookingSummary`).
+    - Se eliminó el directorio duplicado `frontend/src/app/images/` y la imagen duplicada `frontend/public/images/Group 23 (1).jpg`.
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se eliminó la ruta inexistente `/api/bookings/**` de `requestMatchers()`, conservando únicamente las rutas activas como `/api/enrollments/**`.
+  - **Raíz y Scripts:**
+    - Se eliminó el directorio `deprecated/` (`Inicio (1).html`, `ai.component.ts.old`, `ia.html.old`).
+    - Se eliminó el `package-lock.json` huérfano de la raíz.
+    - Se corrigió `scripts/smoke-test.sh` para apuntar a `/api/services` en lugar del endpoint obsoleto `/api/offerings`.
+    - Se actualizó el target `test-back-unit` en el `Makefile` para referenciar pruebas unitarias existentes (`OfferingCrudServiceTest,OfferingCatalogServiceTest,ServiceEnrollmentServiceTest`).
+- **Validación:**
+  - Backend: Compilación exitosa de fuentes y pruebas (`mvn test-compile`).
+  - Frontend: Generación exitosa del bundle de producción (`npm run build`) sin advertencias ni errores.
+
+## [2026-10-17] Despliegue y configuración del SFU LiveKit con Docker Compose
+- **Contexto:** Despliegue del servidor LiveKit (SFU) para soportar videoconferencias interactivas de ultra baja latencia (audio, video, pantalla compartida) sin incurrir en costos de procesamiento ni almacenamiento en la nube.
+- **Acciones Realizadas:**
+  - **Variables de Entorno (`.env` / `.env.example`):** Se definieron `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_RTC_USE_EXTERNAL_IP` y los puertos `LIVEKIT_HTTP_PORT` (7880), `LIVEKIT_TCP_PORT` (7881) y `LIVEKIT_UDP_PORT` (7882).
+  - **Configuración Declarativa (`ops/livekit/livekit.yaml`):** Se creó la configuración del motor WebRTC escuchando en TCP 7881 y UDP 7882 sin requerir servicios de Egress ni buckets S3/GCP.
+  - **Orquestación (`docker-compose.yml`):** Se integró el servicio oficial `livekit/livekit-server:v1.8` con mapeo de puertos 7880/tcp, 7881/tcp y 7882/udp, inyección de claves mediante `LIVEKIT_KEYS` y montaje del archivo declarativo en `/etc/livekit.yaml:ro`.
+- **Validación:**
+  - El contenedor `skillbridge-ai-livekit-1` arrancó limpiamente con estado `Up` y enrutamiento `single-node`.
+  - Puertos 7880/tcp, 7881/tcp y 7882/udp expuestos y accesibles correctamente en `0.0.0.0`.
+  - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2 y CA 1.3.
+
+## [2026-10-19] HU-29.4 — Integración de Redis para estado efímero y enrutamiento SFU
+- **Cambios:**
+  - **Redis dedicado (`docker-compose.yml`):** Se agregó `redis-livekit` con la imagen `redis:8-alpine`, solo RAM mediante `--save ""`, `--appendonly no` y `tmpfs` en `/data`; sin volumen ni puertos publicados. Se configuró `--requirepass`, límite de memoria `256mb`, política `noeviction` y healthcheck autenticado.
+  - **LiveKit (`docker-compose.yml`):** Se agregaron `REDIS_HOST` y `REDIS_PASSWORD`, además de `depends_on` con condición `service_healthy` para `redis-livekit`.
+  - **Entorno (`.env.example`):** Se agregó `LIVEKIT_REDIS_PASSWORD`.
+  - No se modificaron `ops/livekit/livekit.yaml`, el servicio Redis existente ni el backend.
+- **Decisión:** Se utiliza un Redis dedicado para LiveKit para no afectar la caché de IA del backend y cumplir el requisito de “0 bytes en disco” para el estado efímero.
+- **Validación:**
+  - **CA 4.1:** Los logs de LiveKit muestran `connecting to redis` sin errores; al probar con una contraseña incorrecta se obtiene `WRONGPASS`.
+  - **CA 4.2:** `save` está vacío, `appendonly` es `no`, `aof_enabled` es `0`, `maxmemory` es `268435456`, `Mounts` está vacío y `/data` no contiene archivos. `docker inspect` muestra `HostConfig.Tmpfs` `{"/data":""}` y `df /data` reporta `tmpfs` con 0 bytes usados.
+  - **CA 4.3:** `DBSIZE` cambia de 2 a 6 al crear una sala, baja a 4 al finalizarla con `DeleteRoom` y vuelve a 2 tras unos segundos, sin claves huérfanas. La finalización se probó con `DeleteRoom` por la API de LiveKit; no se probó un webhook `room_finished` hacia el backend. Tras finalizar, aparecen dos claves temporales que LiveKit elimina solo en segundos.
+- **Nota para el equipo:** Definir `LIVEKIT_REDIS_PASSWORD` en el `.env` local; de lo contrario, `docker compose` falla.
