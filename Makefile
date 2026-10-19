@@ -1,4 +1,4 @@
-.PHONY: up down reset logs ps observability test-back test-back-unit test-front build
+.PHONY: up down reset logs ps observability test-back test-back-unit test-front test-livekit build
 
 up:
 	docker compose up --build -d
@@ -24,10 +24,13 @@ test-back:
 	cd backend && mvn test
 
 test-back-unit:
-	cd backend && mvn -Dtest=BookingServiceTest,OfferingServiceTest test
+	cd backend && mvn -Dtest=OfferingCrudServiceTest,OfferingCatalogServiceTest,ServiceEnrollmentServiceTest test
 
 test-front:
 	cd frontend && npm ci && npm test -- --watch=false
+
+test-livekit:
+	node scripts/validate-livekit-metrics.js
 
 build:
 	docker compose build

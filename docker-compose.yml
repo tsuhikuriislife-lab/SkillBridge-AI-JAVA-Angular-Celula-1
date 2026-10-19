@@ -87,11 +87,28 @@ services:
       - "8088:80"
     networks: [skillbridge]
 
+  livekit:
+    image: livekit/livekit-server:v1.8.3
+    command: ["--config", "/etc/livekit.yaml"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7880:7880"
+      - "127.0.0.1:7881:7881"
+      - "127.0.0.1:6789:6789"
+      - "50000-50020:50000-50020/udp"
+    volumes:
+      - ./ops/livekit/livekit.yaml:/etc/livekit.yaml:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [skillbridge]
+
   prometheus:
     image: prom/prometheus:v3.5.0
     profiles: ["observability"]
     volumes:
       - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/prometheus/rules:/etc/prometheus/rules:ro
     ports:
       - "127.0.0.1:9090:9090"
     networks: [skillbridge]

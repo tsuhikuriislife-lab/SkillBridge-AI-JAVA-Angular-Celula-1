@@ -1,0 +1,28 @@
+# LiveKit Server Configuration for SkillBridge AI
+port: 7880
+bind_ip: "0.0.0.0"
+
+# Redis backend for distributed state and room coordination
+redis:
+  address: redis:6379
+
+# API Keys and Secrets for authentication
+# In production, replace with secure secrets from environment
+keys:
+  devkey: secret
+
+# WebRTC and RTC Transport configuration
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50020
+  use_external_ip: false
+
+# Prometheus Metrics Exporter configuration (scrapable at :6789/metrics)
+prometheus:
+  port: 6789
+
+logging:
+  json: false
+  level: info
+

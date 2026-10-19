@@ -539,3 +539,48 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 ## [2026-10-15] Etiquetas de actividad administrativa
 - **Cambios realizados:** En el feed administrativo, `OFFERING_STATUS_CHANGED` ahora se muestra como “Oferta modificada” con la etiqueta “Cambio de estado”; `USUARIO CREADO` conserva su título “Usuario creado” y muestra “Nueva cuenta”. Los demás datos y comportamientos permanecen iguales.
 - **Validación:** `npm --prefix frontend run build` completó correctamente. El spec enfocado no pudo ejecutarse porque ya referencia `formatMessage`, método inexistente en el componente.
+
+## [2026-10-16] Limpieza de código basura y archivos obsoletos
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Se realizó una auditoría de código muerto, recursos redundantes y configuraciones huérfanas en el proyecto.
+- **Acciones Realizadas:**
+  - **Frontend:**
+    - Se eliminó el archivo obsoleto `frontend/src/app/features/login.component.ts` (reemplazado por `features/login/login.ts`).
+    - Se eliminó el modelo sin uso `frontend/src/app/core/models/booking.model.ts` (el sistema utiliza `BookingSummary`).
+    - Se eliminó el directorio duplicado `frontend/src/app/images/` y la imagen duplicada `frontend/public/images/Group 23 (1).jpg`.
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se eliminó la ruta inexistente `/api/bookings/**` de `requestMatchers()`, conservando únicamente las rutas activas como `/api/enrollments/**`.
+  - **Raíz y Scripts:**
+    - Se eliminó el directorio `deprecated/` (`Inicio (1).html`, `ai.component.ts.old`, `ia.html.old`).
+    - Se eliminó el `package-lock.json` huérfano de la raíz.
+    - Se corrigió `scripts/smoke-test.sh` para apuntar a `/api/services` en lugar del endpoint obsoleto `/api/offerings`.
+    - Se actualizó el target `test-back-unit` en el `Makefile` para referenciar pruebas unitarias existentes (`OfferingCrudServiceTest,OfferingCatalogServiceTest,ServiceEnrollmentServiceTest`).
+- **Validación:**
+  - Backend: Compilación exitosa de fuentes y pruebas (`mvn test-compile`).
+  - Frontend: Generación exitosa del bundle de producción (`npm run build`) sin advertencias ni errores.
+
+## [2026-10-18] Integración de Servidor LiveKit e Instrumentación de Métricas SRE (HU DevOps/SRE)
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Instrumentación y monitoreo de métricas críticas de sesiones activas y calidad de red en LiveKit para detectar saturación de salas, desconexiones masivas y degradación de conectividad (pérdida de paquetes > 5% y variación de jitter).
+- **Cambios realizados:**
+  - **Servidor LiveKit e Infraestructura:**
+    - Creación de `ops/livekit/livekit.yaml` configurando puertos de señalización WebSockets (7880), fallback TCP RTC (7881), rango UDP WebRTC (50000-50020), persistencia en Redis (`redis:6379`) y exportador de métricas Prometheus en puerto dedicado (`6789/metrics`).
+    - Actualización de `docker-compose.yml` para desplegar el servicio `livekit` (`livekit/livekit-server:v1.8.3`), vinculado a la red `skillbridge` y con dependencia a `redis`.
+    - Actualización de `.env` y `.env.example` con las variables de configuración (`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`).
+  - **Prometheus y Reglas PromQL:**
+    - Actualización de `ops/prometheus/prometheus.yml` añadiendo el target de recolección `livekit:6789` y la ruta de reglas `/etc/prometheus/rules/*.yml`.
+    - Creación de `ops/prometheus/rules/livekit-rules.yml` con reglas de agregación y alertas:
+      - **CA 9.1:** Concurrencia de salas y usuarios (`livekit_room_total` y `livekit_participant_total`).
+      - **CA 9.2:** Tasa de procesamiento de paquetes global y por pista (`sum(rate(livekit_packet_total[1m]))`).
+      - **CA 9.3:** Cálculo de tasa de pérdida de paquetes porcentual y alerta crítica `LiveKitHighPacketLoss` con expresión `(sum(rate(livekit_packet_drop_total[2m])) / clamp_min(sum(rate(livekit_packet_total[2m])), 1)) * 100 > 5`.
+      - Métricas de calidad QoS: Jitter en ms (`avg(livekit_jitter_us) / 1000`) y ratio de disponibilidad de transmisión por participante.
+      - Alertas complementarias: `LiveKitRoomSaturation` (> 50 usuarios), `LiveKitMassiveDisconnection` (pérdida de >10 usuarios/min) y `LiveKitHighJitter` (> 30 ms).
+    - Creación de especificación unitaria PromQL en `ops/prometheus/rules/livekit-rules.test.yml`.
+  - **Visualización en Grafana:**
+    - Creación del dashboard `ops/grafana/provisioning/dashboards/livekit.json` ("SkillBridge - LiveKit SRE & QoS Monitoring") con 7 paneles para salas, participantes, disponibilidad de transmisión, tasa de paquetes procesados, pérdida con umbral al 5% y fluctuación de retardo.
+  - **Validación Automatizada y Documentación:**
+    - Creación de script de validación `scripts/validate-livekit-metrics.js` y target `make test-livekit` en `Makefile`.
+    - Creación de guía técnica de observabilidad en `docs/LIVEKIT-MONITORING.md`.
+- **Validación:**
+  - Ejecución de `node scripts/validate-livekit-metrics.js`: 26 de 26 pruebas aprobadas (100% de éxito en CA 9.1, CA 9.2 y CA 9.3).
+  - Pruebas unitarias de backend (`mvn "-Dtest=OfferingCrudServiceTest,OfferingCatalogServiceTest,ServiceEnrollmentServiceTest" test`): 18 pruebas ejecutadas, 0 fallos, BUILD SUCCESS.

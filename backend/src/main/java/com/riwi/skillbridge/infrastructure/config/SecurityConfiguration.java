@@ -90,7 +90,7 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/services/**", "/api/catalog/**").permitAll()
                         .requestMatchers("/actuator/prometheus").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/bookings/**", "/api/enrollments/**")
+                        .requestMatchers("/api/enrollments/**")
                         .hasAnyRole("CUSTOMER", "PROVIDER")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
