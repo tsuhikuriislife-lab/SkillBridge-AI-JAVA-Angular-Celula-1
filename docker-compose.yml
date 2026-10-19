@@ -54,7 +54,7 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     ports:
-      - "127.0.0.1:15672:15672"
+      - "127.0.0.1:15673:15672"
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 8s
@@ -150,6 +150,7 @@ services:
       - "${LIVEKIT_HTTP_PORT:-7880}:7880"
       - "${LIVEKIT_TCP_PORT:-7881}:7881"
       - "${LIVEKIT_UDP_PORT:-7882}:7882/udp"
+      - "127.0.0.1:6789:6789"
     networks: [ skillbridge ]
 
 networks:
