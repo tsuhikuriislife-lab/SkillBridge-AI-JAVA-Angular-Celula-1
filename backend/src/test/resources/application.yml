@@ -11,4 +11,7 @@ app:
     require-https: false
   cors:
     allowed-origins: http://localhost:8088,http://localhost:4200
-
+  livekit:
+    url: ${LIVEKIT_URL}
+    api-key: ${LIVEKIT_API_KEY}
+    api-secret: ${LIVEKIT_API_SECRET}

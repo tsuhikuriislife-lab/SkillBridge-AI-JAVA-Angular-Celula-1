@@ -117,6 +117,7 @@ services:
     restart: unless-stopped
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-devkey}: ${LIVEKIT_API_SECRET}"
+      LIVEKIT_URL: ${LIVEKIT_URL}
       LIVEKIT_RTC_USE_EXTERNAL_IP: ${LIVEKIT_RTC_USE_EXTERNAL_IP:-false}
     volumes:
       - ./ops/livekit/livekit.yaml:/etc/livekit.yaml:ro
