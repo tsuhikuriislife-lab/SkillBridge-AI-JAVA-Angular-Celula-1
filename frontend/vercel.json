@@ -1,8 +1,14 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist/skillbridge-ai/browser",
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/index.html" }
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://skillbridge-xmkr.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

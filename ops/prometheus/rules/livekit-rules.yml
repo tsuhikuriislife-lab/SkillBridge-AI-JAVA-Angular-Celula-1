@@ -1,0 +1,81 @@
+# SkillBridge AI - LiveKit Prometheus Aggregation and Alerting Rules
+groups:
+  - name: livekit_recording_rules
+    rules:
+      # CA 9.1: Concurrencia de participantes total (1 Tutor + N Alumnos = N + 1)
+      - record: job:livekit_participant_total:sum
+        expr: sum(livekit_participant_total) by (job)
+
+      # Concurrencia de salas activas
+      - record: job:livekit_room_total:sum
+        expr: sum(livekit_room_total) by (job)
+
+      # Promedio de participantes por sala activa
+      - record: job:livekit_participants_per_room:avg
+        expr: sum(livekit_participant_total) by (job) / clamp_min(sum(livekit_room_total) by (job), 1)
+
+      # CA 9.2: Tasa de paquetes procesados (Throughput global y por pista)
+      - record: job:livekit_packet_rate:sum
+        expr: sum(rate(livekit_packet_total[1m])) by (job)
+
+      - record: track:livekit_packet_rate:rate1m
+        expr: rate(livekit_packet_total[1m])
+
+      # CA 9.3: Regla de agregación para tasa porcentual de pérdida de paquetes (%)
+      - record: job:livekit_packet_loss_percentage:rate2m
+        expr: (sum(rate(livekit_packet_drop_total[2m])) by (job, instance) / clamp_min(sum(rate(livekit_packet_total[2m])) by (job, instance), 1)) * 100
+
+      # Variación de retardo (Jitter convertido a milisegundos)
+      - record: job:livekit_jitter_ms:avg
+        expr: avg(livekit_jitter_us) by (job, instance) / 1000
+
+      # Disponibilidad de transmisión por participante activo (ratio entre participantes transmitiendo y total)
+      - record: job:livekit_participant_transmission_availability:ratio
+        expr: count(rate(livekit_packet_total[1m]) > 0) by (job) / clamp_min(sum(livekit_participant_total) by (job), 1)
+
+  - name: livekit_alerting_rules
+    rules:
+      # CA 9.3: Consulta PromQL de alerta configurada para detectar picos de pérdida de paquetes > 5%
+      - alert: LiveKitHighPacketLoss
+        expr: (sum(rate(livekit_packet_drop_total[2m])) by (instance) / clamp_min(sum(rate(livekit_packet_total[2m])) by (instance), 1)) * 100 > 5
+        for: 1m
+        labels:
+          severity: critical
+          service: livekit
+        annotations:
+          summary: "Pérdida de paquetes crítica en LiveKit (> 5%)"
+          description: "La tasa de pérdida de paquetes en {{ $labels.instance }} es del {{ $value | printf \"%.2f\" }}%, superando el umbral de degradación del 5%."
+
+      # Alerta por degradación de variación de retardo (Jitter > 30 ms)
+      - alert: LiveKitHighJitter
+        expr: (avg(livekit_jitter_us) by (instance) / 1000) > 30
+        for: 2m
+        labels:
+          severity: warning
+          service: livekit
+        annotations:
+          summary: "Variación de retardo (Jitter) alta en LiveKit (> 30ms)"
+          description: "El jitter medio en {{ $labels.instance }} ha alcanzado {{ $value | printf \"%.2f\" }} ms."
+
+      # Alerta por saturación de concurrencia en salas (> 50 participantes)
+      - alert: LiveKitRoomSaturation
+        expr: livekit_participant_total > 50
+        for: 2m
+        labels:
+          severity: warning
+          service: livekit
+        annotations:
+          summary: "Saturación de participantes en sala LiveKit"
+          description: "La concurrencia de participantes en {{ $labels.instance }} superó la capacidad recomendada de 50 usuarios (actual: {{ $value }})."
+
+      # Alerta por desconexión masiva abrupta (> 10 participantes desconectados en 1 minuto)
+      - alert: LiveKitMassiveDisconnection
+        expr: (delta(livekit_participant_total[1m]) < -10) and (livekit_room_total > 0)
+        for: 30s
+        labels:
+          severity: critical
+          service: livekit
+        annotations:
+          summary: "Desconexión masiva de participantes detectada"
+          description: "Se detectó una caída abrupta de más de 10 participantes en menos de 1 minuto en {{ $labels.instance }}."
+
