@@ -2,6 +2,12 @@
 groups:
   - name: livekit_recording_rules
     rules:
+      # Build metadata uses the configured Docker image tag; only report it while LiveKit is up.
+      - record: livekit_server_build_info
+        expr: up{job="livekit"} == 1
+        labels:
+          version: "v1.8"
+
       # CA 9.1: Concurrencia de participantes total (1 Tutor + N Alumnos = N + 1)
       - record: job:livekit_participant_total:sum
         expr: sum(livekit_participant_total) by (job)
@@ -78,4 +84,3 @@ groups:
         annotations:
           summary: "Desconexión masiva de participantes detectada"
           description: "Se detectó una caída abrupta de más de 10 participantes en menos de 1 minuto en {{ $labels.instance }}."
-
