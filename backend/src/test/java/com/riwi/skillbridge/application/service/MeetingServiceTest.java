@@ -204,6 +204,92 @@ class MeetingServiceTest {
         assertThrows(BusinessRuleException.class, () -> s.extendMeeting(providerId, inProgress.id()));
     }
 
+    // ---------------------------------------------------- Webhooks LiveKit (HU-29.3)
+
+    @Test
+    void handleRoomStarted_transitionsProgramadaToEnCurso() {
+        Meeting programmed = programmedMeeting(UUID.randomUUID());
+        when(meetingPort.findById(programmed.id())).thenReturn(Optional.of(programmed));
+        MeetingService s = service();
+        OffsetDateTime startTime = OffsetDateTime.parse("2026-10-20T15:01:00Z");
+
+        s.handleRoomStarted(programmed.id(), startTime);
+
+        ArgumentCaptor<Meeting> captor = ArgumentCaptor.forClass(Meeting.class);
+        verify(meetingPort).save(captor.capture());
+        assertEquals(MeetingStatus.EN_CURSO, captor.getValue().status());
+        assertEquals(startTime, captor.getValue().actualStart());
+        verify(historyPort).save(any());
+    }
+
+    @Test
+    void handleRoomFinished_transitionsEnCursoToFinalizadaAndClosesParticipants() {
+        Meeting inProgress = inProgressMeeting();
+        when(meetingPort.findById(inProgress.id())).thenReturn(Optional.of(inProgress));
+        MeetingParticipant participant = new MeetingParticipant(UUID.randomUUID(), inProgress.id(),
+            customerId, MeetingRole.PARTICIPANT, com.riwi.skillbridge.domain.enums.MeetingParticipantStatus.EN_SESION,
+            OffsetDateTime.now().minusMinutes(30), null, null, OffsetDateTime.now(), OffsetDateTime.now());
+        when(participantPort.findByMeetingId(inProgress.id())).thenReturn(List.of(participant));
+        MeetingService s = service();
+        OffsetDateTime endTime = OffsetDateTime.parse("2026-10-20T16:50:00Z");
+
+        s.handleRoomFinished(inProgress.id(), endTime);
+
+        ArgumentCaptor<Meeting> meetingCaptor = ArgumentCaptor.forClass(Meeting.class);
+        verify(meetingPort).save(meetingCaptor.capture());
+        assertEquals(MeetingStatus.FINALIZADA, meetingCaptor.getValue().status());
+        assertEquals(endTime, meetingCaptor.getValue().actualEnd());
+
+        ArgumentCaptor<MeetingParticipant> partCaptor = ArgumentCaptor.forClass(MeetingParticipant.class);
+        verify(participantPort).save(partCaptor.capture());
+        assertEquals(com.riwi.skillbridge.domain.enums.MeetingParticipantStatus.SALIDA_REGISTRADA, partCaptor.getValue().status());
+        assertEquals(endTime, partCaptor.getValue().leftAt());
+    }
+
+    @Test
+    void handleParticipantJoined_updatesParticipantStatusToEnSesion() {
+        Meeting inProgress = inProgressMeeting();
+        when(meetingPort.findById(inProgress.id())).thenReturn(Optional.of(inProgress));
+        MeetingParticipant authorized = new MeetingParticipant(UUID.randomUUID(), inProgress.id(),
+            customerId, MeetingRole.PARTICIPANT, com.riwi.skillbridge.domain.enums.MeetingParticipantStatus.AUTORIZADO,
+            null, null, null, OffsetDateTime.now(), OffsetDateTime.now());
+        when(participantPort.findByMeetingIdAndUserId(inProgress.id(), customerId))
+            .thenReturn(Optional.of(authorized));
+        MeetingService s = service();
+        OffsetDateTime joinedTime = OffsetDateTime.parse("2026-10-20T15:03:00Z");
+
+        s.handleParticipantJoined(inProgress.id(), customerId, joinedTime);
+
+        ArgumentCaptor<MeetingParticipant> captor = ArgumentCaptor.forClass(MeetingParticipant.class);
+        verify(participantPort).save(captor.capture());
+        assertEquals(com.riwi.skillbridge.domain.enums.MeetingParticipantStatus.EN_SESION, captor.getValue().status());
+        assertEquals(joinedTime, captor.getValue().joinedAt());
+        verify(historyPort).save(any());
+    }
+
+    @Test
+    void handleParticipantLeft_updatesParticipantStatusToSalidaRegistrada() {
+        Meeting inProgress = inProgressMeeting();
+        when(meetingPort.findById(inProgress.id())).thenReturn(Optional.of(inProgress));
+        OffsetDateTime joinedTime = OffsetDateTime.parse("2026-10-20T15:03:00Z");
+        MeetingParticipant active = new MeetingParticipant(UUID.randomUUID(), inProgress.id(),
+            customerId, MeetingRole.PARTICIPANT, com.riwi.skillbridge.domain.enums.MeetingParticipantStatus.EN_SESION,
+            joinedTime, null, null, OffsetDateTime.now(), OffsetDateTime.now());
+        when(participantPort.findByMeetingIdAndUserId(inProgress.id(), customerId))
+            .thenReturn(Optional.of(active));
+        MeetingService s = service();
+        OffsetDateTime leftTime = OffsetDateTime.parse("2026-10-20T16:15:00Z");
+
+        s.handleParticipantLeft(inProgress.id(), customerId, leftTime);
+
+        ArgumentCaptor<MeetingParticipant> captor = ArgumentCaptor.forClass(MeetingParticipant.class);
+        verify(participantPort).save(captor.capture());
+        assertEquals(com.riwi.skillbridge.domain.enums.MeetingParticipantStatus.SALIDA_REGISTRADA, captor.getValue().status());
+        assertEquals(joinedTime, captor.getValue().joinedAt());
+        assertEquals(leftTime, captor.getValue().leftAt());
+        verify(historyPort).save(any());
+    }
+
     // ---------------------------------------------------------- utilidades
 
     private Meeting inProgressMeeting() {

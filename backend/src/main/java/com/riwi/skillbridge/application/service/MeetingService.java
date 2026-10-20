@@ -3,6 +3,7 @@ package com.riwi.skillbridge.application.service;
 import com.riwi.skillbridge.application.model.MeetingAccess;
 import com.riwi.skillbridge.application.port.in.meeting.JoinMeetingUseCase;
 import com.riwi.skillbridge.application.port.in.meeting.ManageMeetingUseCase;
+import com.riwi.skillbridge.application.port.in.meeting.ProcessLiveKitWebhookUseCase;
 import com.riwi.skillbridge.application.port.in.meeting.RetrieveMeetingUseCase;
 import com.riwi.skillbridge.application.port.out.LiveKitPort;
 import com.riwi.skillbridge.application.port.out.MeetingHistoryPort;
@@ -57,7 +58,7 @@ import java.util.UUID;
  *  EN_CURSO   → CANCELADA | FINALIZADA (por límite, evento CIERRE_POR_LIMITE)
  */
 @Service
-public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase, RetrieveMeetingUseCase {
+public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase, RetrieveMeetingUseCase, ProcessLiveKitWebhookUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(MeetingService.class);
 
@@ -335,22 +336,88 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
         closeParticipants(closed.id());
     }
 
-    /** Registro de ingreso/salida confirmado por el webhook de LiveKit. */
-    public void registerWebhookEvent(UUID meetingId, UUID userId, MeetingEventType eventType) {
+    // -------------------------------------------------- Webhooks LiveKit (HU-29.3)
+
+    @Override
+    public void handleRoomStarted(UUID meetingId, OffsetDateTime timestamp) {
         Meeting meeting = meetingPort.findById(meetingId).orElse(null);
         if (meeting == null) {
-            log.warn("Webhook de LiveKit para reunión inexistente: {}", meetingId);
+            log.warn("Webhook room_started para reunión inexistente: {}", meetingId);
             return;
         }
-        OffsetDateTime now = now();
-        if (eventType == MeetingEventType.PARTICIPANTE_INGRESO) {
-            participantPort.findByMeetingIdAndUserId(meetingId, userId).ifPresent(p ->
-                participantPort.save(updateParticipant(p, MeetingParticipantStatus.EN_SESION, now, null)));
+        OffsetDateTime effectiveStart = timestamp != null ? timestamp : now();
+        if (meeting.status() == MeetingStatus.PROGRAMADA) {
+            OffsetDateTime maxEnd = effectiveStart.plusMinutes(meeting.durationMinutes());
+            Meeting started = save(meeting, MeetingStatus.EN_CURSO,
+                effectiveStart, null, maxEnd, null, null);
+            recordEvent(started, null, MeetingEventType.REUNION_INICIADA, "CONFIRMADO_LIVEKIT", null, null);
+        } else if (meeting.status() == MeetingStatus.EN_CURSO) {
+            if (meeting.actualStart() == null) {
+                OffsetDateTime maxEnd = effectiveStart.plusMinutes(meeting.durationMinutes());
+                save(meeting, MeetingStatus.EN_CURSO, effectiveStart, null, maxEnd, null, null);
+            }
+            recordEvent(meeting, null, MeetingEventType.REUNION_INICIADA, "CONFIRMADO_LIVEKIT_IDEMPOTENTE", null, null);
+        } else {
+            log.info("Webhook room_started ignorado por estado actual de reunión {}: {}", meetingId, meeting.status());
+        }
+    }
+
+    @Override
+    public void handleRoomFinished(UUID meetingId, OffsetDateTime timestamp) {
+        Meeting meeting = meetingPort.findById(meetingId).orElse(null);
+        if (meeting == null) {
+            log.warn("Webhook room_finished para reunión inexistente: {}", meetingId);
+            return;
+        }
+        OffsetDateTime effectiveEnd = timestamp != null ? timestamp : now();
+        if (meeting.status() == MeetingStatus.EN_CURSO || meeting.status() == MeetingStatus.PROGRAMADA) {
+            Meeting finished = closeMeeting(meeting, MeetingStatus.FINALIZADA, effectiveEnd,
+                MeetingEventType.REUNION_FINALIZADA, "Finalización confirmada por LiveKit");
+            closeParticipants(finished.id(), effectiveEnd);
+        } else {
+            log.info("Webhook room_finished para reunión {} en estado {} (idempotente)", meetingId, meeting.status());
+        }
+    }
+
+    @Override
+    public void handleParticipantJoined(UUID meetingId, UUID userId, OffsetDateTime timestamp) {
+        Meeting meeting = meetingPort.findById(meetingId).orElse(null);
+        if (meeting == null) {
+            log.warn("Webhook participant_joined para reunión inexistente: {}", meetingId);
+            return;
+        }
+        OffsetDateTime effectiveTime = timestamp != null ? timestamp : now();
+        participantPort.findByMeetingIdAndUserId(meetingId, userId).ifPresentOrElse(p -> {
+            participantPort.save(updateParticipant(p, MeetingParticipantStatus.EN_SESION, effectiveTime, null));
             recordEvent(meeting, userId, MeetingEventType.PARTICIPANTE_INGRESO, "CONFIRMADO_LIVEKIT", null, null);
-        } else if (eventType == MeetingEventType.PARTICIPANTE_SALIO) {
-            participantPort.findByMeetingIdAndUserId(meetingId, userId).ifPresent(p ->
-                participantPort.save(updateParticipant(p, MeetingParticipantStatus.SALIDA_REGISTRADA, p.joinedAt(), now)));
+        }, () -> {
+            MeetingParticipant newP = new MeetingParticipant(UUID.randomUUID(), meetingId, userId,
+                MeetingRole.PARTICIPANT, MeetingParticipantStatus.EN_SESION, effectiveTime, null, null, effectiveTime, effectiveTime);
+            participantPort.save(newP);
+            recordEvent(meeting, userId, MeetingEventType.PARTICIPANTE_INGRESO, "CONFIRMADO_LIVEKIT", null, null);
+        });
+    }
+
+    @Override
+    public void handleParticipantLeft(UUID meetingId, UUID userId, OffsetDateTime timestamp) {
+        Meeting meeting = meetingPort.findById(meetingId).orElse(null);
+        if (meeting == null) {
+            log.warn("Webhook participant_left para reunión inexistente: {}", meetingId);
+            return;
+        }
+        OffsetDateTime effectiveTime = timestamp != null ? timestamp : now();
+        participantPort.findByMeetingIdAndUserId(meetingId, userId).ifPresent(p -> {
+            participantPort.save(updateParticipant(p, MeetingParticipantStatus.SALIDA_REGISTRADA, p.joinedAt(), effectiveTime));
             recordEvent(meeting, userId, MeetingEventType.PARTICIPANTE_SALIO, "OK", null, null);
+        });
+    }
+
+    /** Registro de ingreso/salida delegado (compatibilidad). */
+    public void registerWebhookEvent(UUID meetingId, UUID userId, MeetingEventType eventType) {
+        if (eventType == MeetingEventType.PARTICIPANTE_INGRESO) {
+            handleParticipantJoined(meetingId, userId, null);
+        } else if (eventType == MeetingEventType.PARTICIPANTE_SALIO) {
+            handleParticipantLeft(meetingId, userId, null);
         }
     }
 
@@ -435,7 +502,11 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
     }
 
     private void closeParticipants(UUID meetingId) {
-        OffsetDateTime now = now();
+        closeParticipants(meetingId, now());
+    }
+
+    private void closeParticipants(UUID meetingId, OffsetDateTime effectiveTime) {
+        OffsetDateTime exitTime = effectiveTime != null ? effectiveTime : now();
         for (MeetingParticipant p : participantPort.findByMeetingId(meetingId)) {
             MeetingParticipantStatus target = switch (p.status()) {
                 case EN_SESION, INGRESO_REGISTRADO -> MeetingParticipantStatus.SALIDA_REGISTRADA;
@@ -443,7 +514,7 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
                 default -> p.status();
             };
             if (target == p.status()) continue;
-            OffsetDateTime left = target == MeetingParticipantStatus.SALIDA_REGISTRADA ? now : p.leftAt();
+            OffsetDateTime left = target == MeetingParticipantStatus.SALIDA_REGISTRADA ? exitTime : p.leftAt();
             participantPort.save(updateParticipant(p, target, p.joinedAt(), left));
         }
     }

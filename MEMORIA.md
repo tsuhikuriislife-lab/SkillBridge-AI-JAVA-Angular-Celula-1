@@ -612,3 +612,32 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
     - Creado script de validación `scripts/validate-livekit-metrics.js` y target `make test-livekit` en `Makefile`.
 - **Validación:**
   - Ejecución de `node scripts/validate-livekit-metrics.js`: 26 de 26 pruebas aprobadas (100% de éxito en CA 9.1, CA 9.2 y CA 9.3).
+
+## [2026-10-20] HU-29.3 — Receptor de Webhooks de LiveKit para Ciclo de Vida de Salas
+- **Rol:** Backend / Eventos
+- **Contexto:** Configurar la entrega y recepción de eventos Webhook de LiveKit en el endpoint seguro `POST /api/webhooks/livekit` para sincronizar en tiempo real el ciclo de vida de reuniones virtuales (`room_started`, `room_finished`) y asistencia de participantes (`participant_joined`, `participant_left`) con validación criptográfica estricta.
+- **Cambios realizados:**
+  - **Infraestructura LiveKit (`ops/livekit/livekit.yaml`):**
+    - Configurado el bloque `webhook:` con la URL `http://backend:8080/api/webhooks/livekit` y `api_key: devkey`.
+  - **Arquitectura Hexagonal (Puertos de Aplicación):**
+    - Creada la interfaz de puerto de entrada `ProcessLiveKitWebhookUseCase` en `application/port/in/meeting/` con métodos para:
+      - `handleRoomStarted(UUID meetingId, OffsetDateTime timestamp)`
+      - `handleRoomFinished(UUID meetingId, OffsetDateTime timestamp)`
+      - `handleParticipantJoined(UUID meetingId, UUID userId, OffsetDateTime timestamp)`
+      - `handleParticipantLeft(UUID meetingId, UUID userId, OffsetDateTime timestamp)`
+    - Implementación de `ProcessLiveKitWebhookUseCase` en `MeetingService.java`:
+      - Transición de sala a `EN_CURSO` y persistencia de `actualStart` y evento en auditoría `MeetingHistory`.
+      - Transición de sala a `FINALIZADA`, persistencia de `actualEnd` y cierre ordenado de asistencias de participantes a `SALIDA_REGISTRADA` con su respectiva marca temporal.
+      - Idempotencia garantizada ante reintentos de LiveKit o cierres forzados con `deleteRoom`.
+  - **Adaptador Inbound REST (`LiveKitWebhookController.java`):**
+    - Inyección desacoplada del puerto `ProcessLiveKitWebhookUseCase` y `ObjectMapper`.
+    - Recepción del cuerpo crudo (`byte[] rawBody`) para validación de integridad.
+    - Validación criptográfica (CA 3.1): Soporta tanto tokens directos como con prefijo `Bearer `, verificación de firma HMAC-SHA256 con la clave compartida (`apiSecret`), validación de emisor (`issuer == apiKey`), y verificación del hash SHA-256 del cuerpo contra el claim `sha256` en Base64 o Hex. Peticiones no firmadas o con firma/hash alterado son rechazadas con `401 Unauthorized`.
+    - Despacho y parseo de eventos para salas y participantes (CA 3.2 y CA 3.3).
+  - **Testing Unitario y de Integración (JUnit 5 + MockMvc):**
+    - Creado `LiveKitWebhookControllerTest.java` con 11 pruebas unitarias cubriendo rechazo 401 por cabecera ausente, firma inválida, emisor incorrecto, payload manipulado, y respuestas exitosas 200 OK con despacho a dominio para los 4 eventos y casos límite.
+    - Ampliado `MeetingServiceTest.java` con 4 pruebas específicas para los métodos del webhook.
+- **Validación:**
+  - Ejecución de `mvn -Dtest=MeetingServiceTest,LiveKitWebhookControllerTest test`: 22 de 22 pruebas aprobadas (100% de éxito).
+  - Ejecución de la suite completa de backend `mvn test`: 99 de 99 pruebas aprobadas sin regresiones.
+
