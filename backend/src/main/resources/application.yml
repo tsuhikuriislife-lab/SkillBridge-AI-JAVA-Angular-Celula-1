@@ -78,3 +78,7 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8088,http://localhost:4200}
   cache:
     offerings-ttl-minutes: ${OFFERINGS_CACHE_TTL_MINUTES:10}
+  livekit:
+    url: ${LIVEKIT_URL:-http://livekit:7880}
+    api-key: ${LIVEKIT_API_KEY}
+    api-secret: ${LIVEKIT_API_SECRET}

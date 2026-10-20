@@ -569,3 +569,20 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - El contenedor `skillbridge-ai-livekit-1` arrancó limpiamente con estado `Up` y enrutamiento `single-node`.
   - Puertos 7880/tcp, 7881/tcp y 7882/udp expuestos y accesibles correctamente en `0.0.0.0`.
   - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2 y CA 1.3.
+
+## [2026-10-19] Integración del SDK de LiveKit y Configuración de Secretos (Arquitectura Hexagonal)
+- **Autor / Implementación:** Juan Vargas
+- **Contexto:** Habilitar el soporte en el backend para la generación de tokens de acceso y comunicación con el servidor de videollamadas LiveKit respetando las reglas de arquitectura hexagonal y seguridad de credenciales.
+- **Cambios realizados:**
+  - **Gestión de Secretos y Variables de Entorno (`.env.example`, `docker-compose.yml`):**
+    - Se definieron y documentaron las variables `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` y `LIVEKIT_URL`.
+    - Se configuró la inyección de estas variables de entorno en el contenedor del servicio `backend` en Docker Compose con fallback seguro para desarrollo local (`http://livekit:7880`).
+    - Se ajustaron las credenciales en el servicio `livekit` (`LIVEKIT_KEYS`) evitando exponer variables innecesarias al contenedor del servidor WebRTC.
+  - **Mapeo de Configuración Spring Boot (`application.yml` y `application.yml` de test):**
+    - Se incorporó el bloque `app.livekit` con propiedades para URL, API Key y Secret en el archivo principal y en el de pruebas.
+  - **Dependencias Maven (`backend/pom.xml`):**
+    - Inclusión del SDK oficial `io.livekit:livekit-server:0.13.0` para la generación criptográfica de tokens y gestión de salas.
+  - **Arquitectura Hexagonal (Backend Java):**
+    - **Configuración (`infrastructure/config/LiveKitConfiguration.java`):** Clase `@Configuration` para inyectar las propiedades desde Spring y exponer el bean `RoomServiceClient` para administración de salas.
+    - **Puerto de Salida (`application/port/out/LiveKitVideoPort.java`):** Definición de la interfaz del contrato para abstraer la generación de tokens JWT de sala (`generateAccessToken`), aislando la lógica de negocio del proveedor de WebRTC.
+    - **Adaptador de Salida (`infrastructure/adapter/out/livekit/LiveKitVideoAdapter.java`):** Implementación técnica del puerto usando el SDK de LiveKit (`AccessToken`, `RoomJoin`, `RoomName`), firmando los tokens con HMAC-SHA256 usando el secreto inyectado sin exponerlo al cliente.

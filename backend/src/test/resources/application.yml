@@ -12,6 +12,6 @@ app:
   cors:
     allowed-origins: http://localhost:8088,http://localhost:4200
   livekit:
-    url: ${LIVEKIT_URL}
+    url: ${LIVEKIT_URL:-http://livekit:7880}
     api-key: ${LIVEKIT_API_KEY}
     api-secret: ${LIVEKIT_API_SECRET}
