@@ -1200,3 +1200,18 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
     - Creado script de validación `scripts/validate-livekit-metrics.js` y target `make test-livekit` en `Makefile`.
 - **Validación:**
   - Ejecución de `node scripts/validate-livekit-metrics.js`: 26 de 26 pruebas aprobadas (100% de éxito en CA 9.1, CA 9.2 y CA 9.3).
+
+## [2026-10-20] Unificación y Mejora del Servicio de Generación de Tokens de Acceso (JWT) por Rol (HU-29.2)
+- **Rol:** Backend Developer
+- **Contexto:** Consolidación de la generación de tokens LiveKit con el SDK oficial (`io.livekit.server.AccessToken`), eliminación de adaptadores duplicados y cumplimiento estricto de los Criterios de Aceptación (CA 2.1, CA 2.2, CA 2.3, CA 2.4).
+- **Cambios realizados:**
+  - **Eliminación de duplicados:** Se removieron los archivos redundantes `LiveKitVideoPort.java`, `LiveKitVideoAdapter.java` y `LiveKitConfiguration.java`.
+  - **Uso del SDK Oficial en Adaptador Hexagonal:** Se actualizó `LiveKitRestAdapter.java` para utilizar `io.livekit.server.AccessToken`, `RoomJoin`, `RoomName`, `CanPublish`, `CanSubscribe`, `CanPublishData` y `RoomAdmin`.
+  - **Permisos por Rol (CA 2.1 y CA 2.2):**
+    - Tutor/Proveedor (`PROVIDER`): `canPublish: true`, `canSubscribe: true`, `canPublishData: true`, `roomAdmin: true`.
+    - Alumno/Participante (`PARTICIPANT`): `canPublish: false`, `canSubscribe: true`, `canPublishData: true`, `roomAdmin: false`.
+  - **TTL Configurable (CA 2.3):** Se incorporó `token-ttl-minutes` (default 120 min) en `LiveKitProperties` y `application.yml`.
+  - **Seguridad y Excepciones (CA 2.4):** Se creó `UnauthorizedMeetingAccessException` mapeada a `403 FORBIDDEN` en `GlobalExceptionHandler`.
+- **Validación:**
+  - `mvn test-compile` exitoso sin errores en las 203 clases.
+  - `mvn test -Dtest=MeetingServiceTest` completado exitosamente (7 de 7 pruebas aprobadas).
