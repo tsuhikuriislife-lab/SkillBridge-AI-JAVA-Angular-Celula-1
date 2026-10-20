@@ -113,6 +113,7 @@ services:
     profiles: [ "observability" ]
     volumes:
       - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/prometheus/rules:/etc/prometheus/rules:ro
     ports:
       - "127.0.0.1:9090:9090"
     networks: [ skillbridge ]
