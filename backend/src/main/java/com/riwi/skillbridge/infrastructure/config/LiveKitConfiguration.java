@@ -17,6 +17,9 @@ public class LiveKitConfiguration {
     @Value("${app.livekit.api-secret:}")
     private String apiSecret;
 
+    @Value ("${app.livekit.token-ttl-minutes:120}")
+    private Long tokenTtlMinutes;
+
     public String getUrl() {
         return url;
     }
@@ -27,6 +30,10 @@ public class LiveKitConfiguration {
 
     public String getApiSecret() {
         return apiSecret;
+    }
+
+    public Long getTokenTtlMinutes() {
+        return tokenTtlMinutes;
     }
 
     /**

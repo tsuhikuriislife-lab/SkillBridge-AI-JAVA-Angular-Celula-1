@@ -7,6 +7,8 @@ import io.livekit.server.RoomJoin;
 import io.livekit.server.RoomName;
 import org.springframework.stereotype.Component;
 
+import java.util.Date;
+
 @Component
 public class LiveKitVideoAdapter implements LiveKitVideoPort {
 
@@ -29,9 +31,9 @@ public class LiveKitVideoAdapter implements LiveKitVideoPort {
                 new RoomName(roomName)
         );
 
-        // Si se desea restringir publicación/suscripción explícitamente:
-        // token.getGrants().getVideo().setCanPublish(canPublish);
-        // token.getGrants().getVideo().setCanSubscribe(true);
+        //Configuracion de tiempo de expiración (por defecto 2 horas / 120 min)
+        long ttlMillis = liveKitConfig.getTokenTtlMinutes() * 60 * 1000L;
+        token.setExpiration(new Date(System.currentTimeMillis() + ttlMillis));
 
         return token.toJwt();
     }

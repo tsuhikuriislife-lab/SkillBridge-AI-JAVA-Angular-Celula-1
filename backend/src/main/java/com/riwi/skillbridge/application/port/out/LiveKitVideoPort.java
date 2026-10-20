@@ -11,5 +11,5 @@ public interface LiveKitVideoPort {
      * @param canPublish          Indica si el participante puede publicar audio/video
      * @return Token JWT firmado listo para ser enviado al cliente
      */
-    String generateAccessToken(String roomName, String participantIdentity, String participantName, boolean canPublish);
+    String generateAccessToken(String roomName, String participantIdentity, String participantName, boolean isTutor);
 }
