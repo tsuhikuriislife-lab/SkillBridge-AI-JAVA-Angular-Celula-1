@@ -582,3 +582,10 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - **CA 4.2:** `save` está vacío, `appendonly` es `no`, `aof_enabled` es `0`, `maxmemory` es `268435456`, `Mounts` está vacío y `/data` no contiene archivos. `docker inspect` muestra `HostConfig.Tmpfs` `{"/data":""}` y `df /data` reporta `tmpfs` con 0 bytes usados.
   - **CA 4.3:** `DBSIZE` cambia de 2 a 6 al crear una sala, baja a 4 al finalizarla con `DeleteRoom` y vuelve a 2 tras unos segundos, sin claves huérfanas. La finalización se probó con `DeleteRoom` por la API de LiveKit; no se probó un webhook `room_finished` hacia el backend. Tras finalizar, aparecen dos claves temporales que LiveKit elimina solo en segundos.
 - **Nota para el equipo:** Definir `LIVEKIT_REDIS_PASSWORD` en el `.env` local; de lo contrario, `docker compose` falla.
+## [2026-10-19] Dashboard Provisionado de LiveKit Server y Experiencia Multimedia (HU-10)
+- **Rol:** DevOps / SRE
+- **Contexto:** Supervisión de recursos del contenedor livekit-server, ancho de banda y estabilidad de sesiones WebRTC.
+- **Cambios realizados:**
+  - Habilitada la exportación de métricas nativas en `ops/livekit/livekit.yaml` en el puerto 6789.
+  - Configurado el scrape job `livekit` en `ops/prometheus/prometheus.yml`.
+  - Creado el dashboard provisionado como código `ops/grafana/provisioning/dashboards/livekit-metrics.json` con paneles de CPU, RAM, ancho de banda (Mbps), concurrencia de salas/participantes y umbrales de alerta visual (CA 10.1, CA 10.2, CA 10.3).
