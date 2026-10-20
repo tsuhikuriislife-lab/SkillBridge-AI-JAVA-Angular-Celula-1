@@ -25,16 +25,29 @@ public class LiveKitVideoAdapter implements LiveKitVideoPort {
         token.setName(participantName);
         token.setIdentity(participantIdentity);
         
-        // Asignación de permisos dentro de la sala
+        //Configuracion de tiempo de expiración (por defecto 2 horas / 120 min)
+        long ttlMillis = liveKitConfig.getTokenTtlMinutes() * 60 * 1000L;
+        token.setExpiration(new Date(System.currentTimeMillis() + ttlMillis));
+
+        // Asignación de permisos dentro de la sala, unirse a la sala y publicar audio/video según el rol del participante
         token.addGrants(
                 new RoomJoin(true),
                 new RoomName(roomName)
         );
 
-        //Configuracion de tiempo de expiración (por defecto 2 horas / 120 min)
-        long ttlMillis = liveKitConfig.getTokenTtlMinutes() * 60 * 1000L;
-        token.setExpiration(new Date(System.currentTimeMillis() + ttlMillis));
-
+        if (isTutor) {
+            // Tutor con todos los permisos multimedia y admin de sala
+            token.getGrants().get.Video().setCanPublish(true);
+            token.getGrants().get.Video().setCanSubscribe(true);
+            token.getGrants().get.Video().setCanPublishData(true);
+            token.getGrants().get.Video().setRoomAdmin(true);
+        } else {
+            // Alumno con suscripción y chat habilitados, pero publicación multimedia denegada
+            token.getGrants().get.Video().setCanPublish(false);
+            token.getGrants().get.Video().setCanSubscribe(true);
+            token.getGrants().get.Video().setCanPublishData(true);
+            token.getGrants().get.Video().setRoomAdmin(false);
+        }
         return token.toJwt();
     }
 }
