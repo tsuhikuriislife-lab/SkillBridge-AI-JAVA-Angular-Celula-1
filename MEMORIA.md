@@ -612,3 +612,13 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
     - Creado script de validación `scripts/validate-livekit-metrics.js` y target `make test-livekit` en `Makefile`.
 - **Validación:**
   - Ejecución de `node scripts/validate-livekit-metrics.js`: 26 de 26 pruebas aprobadas (100% de éxito en CA 9.1, CA 9.2 y CA 9.3).
+
+## [2026-10-20] Corrección de inicio de Prometheus para HU de métricas LiveKit
+- **Contexto:** Prometheus no iniciaba al cargar el archivo de pruebas de `promtool` como si fuera un archivo de reglas de producción.
+- **Cambios realizados:**
+  - En `ops/prometheus/prometheus.yml`, se reemplazó el patrón `/etc/prometheus/rules/*.yml` por la ruta explícita `/etc/prometheus/rules/livekit-rules.yml`, evitando incluir `livekit-rules.test.yml` en la configuración de producción.
+- **Validación:**
+  - `promtool check config /etc/prometheus/prometheus.yml` pasó: configuración válida y 12 reglas cargadas.
+  - Prometheus inició y `http://localhost:9090/-/ready` respondió `200 OK`.
+  - El target `livekit:6789` apareció con estado `up`, sin errores de scrape; `up{job="livekit"}` devolvió `1`.
+  - Consultas PromQL confirmaron ingesta de `livekit_room_total`, `livekit_participant_total` y `livekit_packet_total`.
