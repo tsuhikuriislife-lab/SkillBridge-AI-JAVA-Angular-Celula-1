@@ -589,3 +589,26 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Habilitada la exportación de métricas nativas en `ops/livekit/livekit.yaml` en el puerto 6789.
   - Configurado el scrape job `livekit` en `ops/prometheus/prometheus.yml`.
   - Creado el dashboard provisionado como código `ops/grafana/provisioning/dashboards/livekit-metrics.json` con paneles de CPU, RAM, ancho de banda (Mbps), concurrencia de salas/participantes y umbrales de alerta visual (CA 10.1, CA 10.2, CA 10.3).
+
+## [2026-10-19] Configuración y Monitoreo de Métricas Críticas de Calidad y Sesión WebRTC (HU-29.9)
+- **Rol:** DevOps / SRE
+- **Contexto:** Instrumentación y monitoreo de métricas críticas de sesiones activas y calidad de red en LiveKit para detectar saturación de salas, desconexiones masivas y degradación de conectividad (pérdida de paquetes > 5% y variación de retardo/jitter).
+- **Cambios realizados:**
+  - **Prometheus y Reglas PromQL:**
+    - Creado `ops/prometheus/rules/livekit-rules.yml` con reglas de agregación y alertas:
+      - **CA 9.1:** Concurrencia de salas y participantes (`livekit_room_total` y `livekit_participant_total`).
+      - **CA 9.2:** Tasa de procesamiento de paquetes global y por pista (`sum(rate(livekit_packet_total[1m]))`).
+      - **CA 9.3:** Cálculo de tasa de pérdida de paquetes porcentual y alerta crítica `LiveKitHighPacketLoss` con expresión `(sum(rate(livekit_packet_drop_total[2m])) / clamp_min(sum(rate(livekit_packet_total[2m])), 1)) * 100 > 5`.
+      - Métricas de calidad QoS: Jitter en ms (`avg(livekit_jitter_us) / 1000`) y ratio de disponibilidad de transmisión por participante.
+      - Alertas complementarias: `LiveKitRoomSaturation` (> 50 usuarios), `LiveKitMassiveDisconnection` (pérdida de >10 usuarios/min) y `LiveKitHighJitter` (> 30 ms).
+    - Creada la especificación de pruebas unitarias PromQL en `ops/prometheus/rules/livekit-rules.test.yml`.
+    - Actualizado `ops/prometheus/prometheus.yml` con `evaluation_interval: 15s` y carga de reglas desde `/etc/prometheus/rules/*.yml`.
+  - **Infraestructura Docker Compose:**
+    - Montado el volumen `./ops/prometheus/rules:/etc/prometheus/rules:ro` en el servicio `prometheus` en `docker-compose.yml`.
+  - **Dashboards y Documentación:**
+    - Provisionado dashboard de calidad de sesiones y QoS en `ops/grafana/provisioning/dashboards/livekit.json`.
+    - Documentación técnica detallada en `docs/LIVEKIT-MONITORING.md` con arquitectura, puertos, diccionario de métricas y consultas PromQL.
+  - **Validación Automatizada:**
+    - Creado script de validación `scripts/validate-livekit-metrics.js` y target `make test-livekit` en `Makefile`.
+- **Validación:**
+  - Ejecución de `node scripts/validate-livekit-metrics.js`: 26 de 26 pruebas aprobadas (100% de éxito en CA 9.1, CA 9.2 y CA 9.3).
