@@ -5,6 +5,18 @@ rule_files:
 evaluation_interval: 1m
 
 tests:
+  # Test 0: Build info comes from the configured LiveKit image tag when the target is up
+  - interval: 1m
+    input_series:
+      - series: 'up{job="livekit", instance="livekit:6789"}'
+        values: '1 1'
+    promql_expr_test:
+      - expr: livekit_server_build_info
+        eval_time: 1m
+        exp_samples:
+          - labels: 'livekit_server_build_info{instance="livekit:6789", job="livekit", version="v1.8"}'
+            value: 1
+
   # Test 1: CA 9.1 - Ciclo de vida de participantes (1 Tutor + N Alumnos -> 0)
   - interval: 1m
     input_series:
@@ -70,4 +82,3 @@ tests:
             exp_annotations:
               summary: "Pérdida de paquetes crítica en LiveKit (> 5%)"
               description: "La tasa de pérdida de paquetes en livekit:6789 es del 12.00%, superando el umbral de degradación del 5%."
-
