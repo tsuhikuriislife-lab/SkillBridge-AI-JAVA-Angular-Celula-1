@@ -83,3 +83,4 @@ app:
     api-key: ${LIVEKIT_API_KEY:}
     api-secret: ${LIVEKIT_API_SECRET:}
     room-empty-timeout-seconds: ${LIVEKIT_ROOM_EMPTY_TIMEOUT_SECONDS:3600}
+    token-ttl-minutes: ${LIVEKIT_TOKEN_TTL_MINUTES:120}
