@@ -92,11 +92,11 @@ public class LiveKitRestAdapter implements LiveKitPort {
         Map<String, Object> video = new LinkedHashMap<>();
         video.put("roomJoin", true);
         video.put("room", roomName);
-        // Regla 6: el proveedor publica; los participantes solo reciben y envían datos (foro/chat)
-        video.put("canPublish", role == MeetingRole.PROVIDER);
+        // Regla 6: el proveedor y el admin publican; los participantes solo reciben y envían datos (foro/chat)
+        video.put("canPublish", role == MeetingRole.PROVIDER || role == MeetingRole.ADMIN);
         video.put("canSubscribe", true);
         video.put("canPublishData", true);
-        video.put("canUpdateOwnMetadata", false);
+        video.put("canUpdateOwnMetadata", role == MeetingRole.ADMIN);
 
         return Jwts.builder()
             .issuer(properties.getApiKey())
@@ -121,7 +121,7 @@ public class LiveKitRestAdapter implements LiveKitPort {
                 .uri(URI.create(properties.getApiUrl() + path))
                 .timeout(HTTP_TIMEOUT)
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .header(HttpHeaders.AUTHORIZATION, basicAuth())
+                .header(HttpHeaders.AUTHORIZATION, adminAuthToken())
                 .POST(HttpRequest.BodyPublishers.ofString(toJson(body)))
                 .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -137,9 +137,23 @@ public class LiveKitRestAdapter implements LiveKitPort {
         }
     }
 
-    private String basicAuth() {
-        String credentials = properties.getApiKey() + ":" + properties.getApiSecret();
-        return "Basic " + Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+    private String adminAuthToken() {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        Map<String, Object> video = Map.of(
+            "roomCreate", true,
+            "roomAdmin", true,
+            "roomList", true
+        );
+        String token = Jwts.builder()
+            .issuer(properties.getApiKey())
+            .subject(properties.getApiKey())
+            .issuedAt(Date.from(now.toInstant()))
+            .notBefore(Date.from(now.minusSeconds(10).toInstant()))
+            .expiration(Date.from(now.plusMinutes(10).toInstant()))
+            .claim("video", video)
+            .signWith(signingKey)
+            .compact();
+        return "Bearer " + token;
     }
 
     private static String toJson(Map<String, Object> body) {

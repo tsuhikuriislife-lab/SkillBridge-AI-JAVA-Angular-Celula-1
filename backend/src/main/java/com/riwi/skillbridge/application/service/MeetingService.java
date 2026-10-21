@@ -12,11 +12,14 @@ import com.riwi.skillbridge.application.port.out.MeetingPort;
 import com.riwi.skillbridge.application.port.out.OfferingPort;
 import com.riwi.skillbridge.application.port.out.ServiceEnrollmentPort;
 import com.riwi.skillbridge.application.port.out.ServiceSchedulePort;
+import com.riwi.skillbridge.application.port.out.UserAccountPort;
 import com.riwi.skillbridge.domain.enums.EnrollmentStatus;
+import com.riwi.skillbridge.domain.enums.Frequency;
 import com.riwi.skillbridge.domain.enums.MeetingEventType;
 import com.riwi.skillbridge.domain.enums.MeetingParticipantStatus;
 import com.riwi.skillbridge.domain.enums.MeetingRole;
 import com.riwi.skillbridge.domain.enums.MeetingStatus;
+import com.riwi.skillbridge.domain.enums.Role;
 import com.riwi.skillbridge.domain.exception.BusinessRuleException;
 import com.riwi.skillbridge.domain.exception.DomainNotFoundException;
 import com.riwi.skillbridge.domain.exception.LiveKitIntegrationException;
@@ -26,6 +29,7 @@ import com.riwi.skillbridge.domain.model.MeetingParticipant;
 import com.riwi.skillbridge.domain.model.Offering;
 import com.riwi.skillbridge.domain.model.ServiceEnrollment;
 import com.riwi.skillbridge.domain.model.ServiceSchedule;
+import com.riwi.skillbridge.domain.model.UserAccount;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +39,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Comparator;
@@ -74,21 +79,30 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
     private final OfferingPort offeringPort;
     private final ServiceSchedulePort schedulePort;
     private final ServiceEnrollmentPort enrollmentPort;
+    private final UserAccountPort userAccountPort;
     private final Clock clock;
 
     @Autowired
     public MeetingService(MeetingPort meetingPort, MeetingParticipantPort participantPort,
                           MeetingHistoryPort historyPort, LiveKitPort liveKitPort,
                           OfferingPort offeringPort, ServiceSchedulePort schedulePort,
-                          ServiceEnrollmentPort enrollmentPort) {
+                          ServiceEnrollmentPort enrollmentPort, UserAccountPort userAccountPort) {
         this(meetingPort, participantPort, historyPort, liveKitPort, offeringPort,
-            schedulePort, enrollmentPort, Clock.systemUTC());
+            schedulePort, enrollmentPort, userAccountPort, Clock.systemUTC());
     }
 
     MeetingService(MeetingPort meetingPort, MeetingParticipantPort participantPort,
                    MeetingHistoryPort historyPort, LiveKitPort liveKitPort,
                    OfferingPort offeringPort, ServiceSchedulePort schedulePort,
                    ServiceEnrollmentPort enrollmentPort, Clock clock) {
+        this(meetingPort, participantPort, historyPort, liveKitPort, offeringPort,
+            schedulePort, enrollmentPort, null, clock);
+    }
+
+    MeetingService(MeetingPort meetingPort, MeetingParticipantPort participantPort,
+                   MeetingHistoryPort historyPort, LiveKitPort liveKitPort,
+                   OfferingPort offeringPort, ServiceSchedulePort schedulePort,
+                   ServiceEnrollmentPort enrollmentPort, UserAccountPort userAccountPort, Clock clock) {
         this.meetingPort = meetingPort;
         this.participantPort = participantPort;
         this.historyPort = historyPort;
@@ -96,6 +110,7 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
         this.offeringPort = offeringPort;
         this.schedulePort = schedulePort;
         this.enrollmentPort = enrollmentPort;
+        this.userAccountPort = userAccountPort;
         this.clock = clock;
     }
 
@@ -141,10 +156,14 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
     }
 
     @Override
-    public Meeting finishMeeting(UUID providerId, UUID meetingId) {
+    public Meeting finishMeeting(UUID userId, UUID meetingId) {
         Meeting meeting = meetingPort.findById(meetingId)
             .orElseThrow(() -> new DomainNotFoundException("Reunión no encontrada con id: " + meetingId));
-        assertOwnsService(providerId, meeting.serviceId());
+        boolean isAdmin = userAccountPort != null && userAccountPort.findById(userId)
+            .map(u -> u.role() == Role.ADMIN).orElse(false);
+        if (!isAdmin) {
+            assertOwnsService(userId, meeting.serviceId());
+        }
         if (meeting.status() != MeetingStatus.EN_CURSO)
             throw new BusinessRuleException("Solo se pueden finalizar reuniones en curso");
 
@@ -153,6 +172,73 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
             MeetingEventType.REUNION_FINALIZADA, null);
         closeParticipants(finished.id());
         return finished;
+    }
+
+    @Override
+    public MeetingAccess createTestMeeting(UUID adminUserId, UUID serviceId) {
+        Offering service = offeringPort.findById(serviceId)
+            .orElseThrow(() -> new DomainNotFoundException("Servicio no encontrado con id: " + serviceId));
+
+        if (userAccountPort != null) {
+            UserAccount user = userAccountPort.findById(adminUserId)
+                .orElseThrow(() -> new BusinessRuleException("Usuario administrador no encontrado"));
+            if (user.role() != Role.ADMIN) {
+                throw new BusinessRuleException("Solo un administrador puede crear salas de prueba");
+            }
+        }
+
+        OffsetDateTime now = now();
+        LocalDate today = now.toLocalDate();
+        LocalTime time = now.toLocalTime();
+
+        List<ServiceSchedule> schedules = schedulePort.findByServiceId(serviceId);
+        ServiceSchedule schedule;
+        if (schedules.isEmpty()) {
+            schedule = schedulePort.save(new ServiceSchedule(UUID.randomUUID(), serviceId,
+                now.getDayOfWeek(), 60, Frequency.WEEKLY, 1, today, time, time.plusHours(1)));
+        } else {
+            schedule = schedules.get(0);
+        }
+
+        Optional<Meeting> active = meetingPort.findByServiceId(serviceId).stream()
+            .filter(m -> m.status() == MeetingStatus.EN_CURSO)
+            .findFirst();
+
+        Meeting meeting;
+        if (active.isPresent()) {
+            meeting = active.get();
+        } else {
+            UUID meetingId = UUID.randomUUID();
+            String roomName = "test-room-" + meetingId;
+            liveKitPort.createRoom(roomName);
+
+            meeting = new Meeting(
+                meetingId,
+                serviceId,
+                schedule.id(),
+                today,
+                time,
+                60,
+                MeetingStatus.EN_CURSO,
+                roomName,
+                true,
+                now,
+                now,
+                null,
+                now.plusHours(2),
+                20,
+                false,
+                null,
+                null,
+                now,
+                now
+            );
+            meeting = meetingPort.save(meeting);
+            recordEvent(meeting, adminUserId, MeetingEventType.REUNION_INICIADA, "OK", "SALA_TEST_ADMIN", null);
+        }
+
+        registerParticipant(meeting, adminUserId, MeetingRole.ADMIN, MeetingParticipantStatus.AUTORIZADO);
+        return accessFor(meeting, adminUserId, MeetingRole.ADMIN, participantName(adminUserId));
     }
 
     @Override
@@ -216,7 +302,12 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
             .orElseThrow(() -> new DomainNotFoundException("Servicio no encontrado con id: " + meeting.serviceId()));
 
         MeetingRole role;
-        if (service.createdBy().equals(userId)) {
+        boolean isAdmin = userAccountPort != null && userAccountPort.findById(userId)
+            .map(u -> u.role() == Role.ADMIN).orElse(false);
+
+        if (isAdmin) {
+            role = MeetingRole.ADMIN;
+        } else if (service.createdBy().equals(userId)) {
             role = MeetingRole.PROVIDER;
         } else {
             Optional<ServiceEnrollment> enrollment =
@@ -254,7 +345,7 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
             registerParticipant(meeting, userId, role, MeetingParticipantStatus.INGRESO_REGISTRADO);
         }
         recordEvent(meeting, userId, MeetingEventType.PARTICIPANTE_INGRESO, "TOKEN_EMITIDO",
-            null, "{\"role\":\"" + role + "\",\"canPublish\":" + (role == MeetingRole.PROVIDER) + "}");
+            null, "{\"role\":\"" + role + "\",\"canPublish\":" + (role == MeetingRole.PROVIDER || role == MeetingRole.ADMIN) + "}");
 
         return accessFor(meeting, userId, role, participantName(userId));
     }
@@ -576,6 +667,9 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
     }
 
     private void assertCanView(UUID userId, UUID serviceId) {
+        if (userAccountPort != null && userAccountPort.findById(userId).map(u -> u.role() == Role.ADMIN).orElse(false)) {
+            return;
+        }
         Offering service = offeringPort.findById(serviceId)
             .orElseThrow(() -> new DomainNotFoundException("Servicio no encontrado con id: " + serviceId));
         if (service.createdBy().equals(userId)) return;
@@ -599,10 +693,31 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
     private MeetingParticipant registerParticipant(Meeting meeting, UUID userId, MeetingRole role,
                                                    MeetingParticipantStatus status) {
         OffsetDateTime now = now();
-        MeetingParticipant p = new MeetingParticipant(UUID.randomUUID(), meeting.id(), userId, role, status,
-            status == MeetingParticipantStatus.INGRESO_REGISTRADO ? now : null,
-            null, null, now, now);
-        return participantPort.save(p);
+        return participantPort.findByMeetingIdAndUserId(meeting.id(), userId)
+            .map(existing -> participantPort.save(new MeetingParticipant(
+                existing.id(),
+                existing.meetingId(),
+                existing.userId(),
+                role,
+                status,
+                status == MeetingParticipantStatus.INGRESO_REGISTRADO ? (existing.joinedAt() != null ? existing.joinedAt() : now) : existing.joinedAt(),
+                existing.leftAt(),
+                existing.denialReason(),
+                existing.createdAt(),
+                now
+            )))
+            .orElseGet(() -> participantPort.save(new MeetingParticipant(
+                UUID.randomUUID(),
+                meeting.id(),
+                userId,
+                role,
+                status,
+                status == MeetingParticipantStatus.INGRESO_REGISTRADO ? now : null,
+                null,
+                null,
+                now,
+                now
+            )));
     }
 
     private MeetingParticipant updateParticipant(MeetingParticipant p, MeetingParticipantStatus status,
@@ -625,7 +740,12 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
     }
 
     private String participantName(UUID userId) {
-        return userId.toString(); // identidad estable; el perfil completo vive en el cliente
+        if (userAccountPort != null) {
+            return userAccountPort.findById(userId)
+                .map(u -> (u.name() != null && !u.name().isBlank()) ? u.name() : userId.toString())
+                .orElse(userId.toString());
+        }
+        return userId.toString();
     }
 
     private OffsetDateTime now() {

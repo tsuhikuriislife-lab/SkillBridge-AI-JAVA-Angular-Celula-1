@@ -2,6 +2,57 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-10-21] Resolución de Conectividad WebRTC LiveKit, Sala de Pruebas Admin y Deduplicación
+- **Agente:** Antigravity (Gemini 3.1 Pro)
+- **Contexto:** Diagnóstico y solución del fallo `could not establish pc connection`, error 404 transitorio `/rtc/v1/validate`, y cierre de sesión no deseado al ingresar a reuniones virtuales LiveKit.
+- **Cambios realizados:**
+  - **Actualización de LiveKit Server a v1.13.10 (Compatibilidad de Protocolo 17 y Data Tracks):**
+    - Se descubrió en los logs del servidor la advertencia `unsupported datachannel added ... label: _data_track`.
+    - La versión cliente instalada en frontend (`livekit-client: ^2.23.0`) negociaba el protocolo 17 y un canal de datos dedicado para telemetría/stream (`_data_track`). La imagen anterior de Docker (`livekit-server:v1.8.4`, protocolo 15) no reconocía este canal, causando que la negociación WebRTC nunca se completara y forzara un cierre `CLIENT_REQUEST_LEAVE` / reconexión cada 15 segundos.
+    - Se actualizó `docker-compose.yml` a la imagen oficial `livekit/livekit-server:latest` (v1.13.10, pre-descargada localmente).
+    - Se purgó la caché de Redis efímero (`redis-livekit`) y se reinició el servidor, logrando compatibilidad total con protocolo 17, `_data_track` y modo `SinglePeerConnection`.
+  - **Estabilización de Recepción de Video en Cliente (Eliminación de Cortes cada 3-10s):**
+    - Se identificó que `adaptiveStream: true` y `dynacast: true` provocaban fluctuaciones periódicas ("layout thrashing") entre el `ResizeObserver` del cliente y el SFU local, pausando o alternando capas de video cada 3-10 segundos.
+    - Se configuró `adaptiveStream: false` y `dynacast: false` en `RoomOptions`, asegurando un flujo continuo y estable de reproducción de video sin pausas arbitrarias.
+    - Se corrigió el manejo de re-suscripción en `handleTrackSubscribed`: si el elemento HTML ya existía en el DOM, ahora se re-vincula explícitamente (`track.attach(existingEl)`), evitando que el video se pierda al reiniciar la transmisión.
+    - Se incorporaron escuchas para `RoomEvent.TrackMuted` y `RoomEvent.TrackUnmuted`, garantizando que al apagar/encender la cámara o pantalla la interfaz responda sin requerir recargar la página (`F5`).
+    - Se creó la señal reactiva `hasRemoteVideo` para gobernar el estado de espera del alumno de forma fiable cuando el mentor apaga o enciende sus fuentes de video.
+  - **Estabilización de Transmisión de Pantalla y Prevención de Bucle de Renegociación:**
+    - Se identificó que al activar "Compartir Pantalla" (`setScreenShareEnabled`), el SDK intentaba negociar 3 capas de simulcast de alta resolución por defecto sobre el SFU local, agotando el temporizador de 15 segundos (`NegotiationError: negotiation timed out`).
+    - Al fallar la negociación de pista, el SDK activaba un reintento automático tras reconexión (`publishOrRepublishTrack`), provocando un bucle infinito de reconexión cada 15 segundos (`connected -> reconnecting`).
+    - Se configuró `{ simulcast: false }` en las opciones de publicación de pantalla en `meeting-room.component.ts`, reduciendo drásticamente la carga de negociación SDP a un único stream directo y estable.
+    - Se implementó un semáforo de bloqueo `isScreenShareToggling` en el componente y botón de la UI para prevenir colisiones por múltiples clics concurrentes mientras el selector nativo del navegador está abierto.
+    - Se añadió un listener al evento nativo `ended` del `MediaStreamTrack` para sincronizar el estado reactivo (`isScreenSharing = false`) cuando el usuario pulsa "Dejar de compartir" en la barra flotante del navegador.
+    - Se agregaron listeners a `RoomEvent.Reconnecting`, `RoomEvent.Reconnected` y `RoomEvent.LocalTrackUnpublished`.
+  - **Habilitación de Candidatos Loopback (`enable_loopback_candidate: true`):**
+    - Se identificó que LiveKit Server filtraba los candidatos host de loopback (`[remote][filtered][trickle] udp4 host`) por tener desactivada por defecto la opción `enable_loopback_candidate`.
+    - Se configuró `rtc.enable_loopback_candidate: true` en `ops/livekit/livekit.yaml` y la variable de entorno `LIVEKIT_RTC_ENABLE_LOOPBACK_CANDIDATE: "true"` en `docker-compose.yml`, permitiendo la negociación local tanto en UDP (7882) como en TCP (7881).
+  - **Soporte para Participantes Subscriptores y Pista Remota Preexistente:**
+    - En `meeting-room.component.ts`, se implementó `attachExistingRemoteTracks()` para adjuntar inmediatamente al DOM las pistas de video/audio de participantes que ya se encuentren transmitiendo antes de la entrada del usuario cliente.
+    - Se añadió protección contra duplicidad de elementos DOM de video remoto mediante verificación de identificador `track-${sid}`.
+  - **Resolución WebRTC ICE Host Candidate (`could not establish pc connection`):**
+    - En `ops/livekit/livekit.yaml` y `docker-compose.yml`, LiveKit se ejecutaba dentro de la red puente de Docker publicando su IP interna `172.18.0.x` en los candidatos host ICE.
+    - Se configuró `rtc.node_ip: "127.0.0.1"` y las variables `NODE_IP: 127.0.0.1` / `LIVEKIT_RTC_NODE_IP: 127.0.0.1` en `livekit.yaml`, `docker-compose.yml`, `.env` y `.env.example`.
+    - Con esto, LiveKit anuncia `127.0.0.1:7882` (mapeado hacia el host), permitiendo que el navegador establezca exitosamente el enlace STUN/ICE y la negociación de PeerConnection.
+  - **Aclaración sobre `404 /rtc/v1/validate` y datos "undefined":**
+    - El SDK cliente `livekit-client` v2 prueba primero `/rtc/v1/validate`. Al recibir 404 del servidor v1.8, el cliente realiza un fallback transparente a `ws://localhost:7880/rtc` (v0).
+    - Los registros iniciales de `room: '', roomID: undefined` corresponden al estado transitorio antes de que el servidor emita el evento `JoinResponse`.
+  - **Deduplicación e Idempotencia en Participantes (Solución al 401 / Logout):**
+    - Se creó la migración Flyway `V17__meeting_participants_unique.sql` con la restricción `uq_participant_per_meeting (meeting_id, user_id)`.
+    - Se ajustó `MeetingService.registerParticipant()` y `JpaMeetingParticipantRepository` para ser estrictamente idempotentes.
+    - Se implementó caché de token temporal en `MeetingService` (Angular) para evitar llamadas redundantes de re-inscripción.
+  - **Experiencia de Usuario en Sala Virtual (Admin y Mentor):**
+    - Se habilitó la inicialización automática de periféricos (cámara/micrófono) para usuarios con rol `ADMIN` en `meeting-room.component.ts`.
+    - Se añadió escucha de `RoomEvent.LocalTrackPublished` para adjuntar la cámara automáticamente tan pronto como esté lista.
+    - Indicador de estado y badge `👑 Tú (Admin)` y `👑 Administrador (Control Total)`.
+    - Botón "Terminar clase" habilitado para administradores con navegación de retorno hacia `/admin`.
+  - **Autenticación LiveKit Twirp REST API:**
+    - Se actualizó `LiveKitRestAdapter.java` para autenticarse usando JWT Bearer (`roomCreate`, `roomAdmin`, `roomList`) conforme a la especificación oficial de LiveKit.
+- **Validación:**
+  - Backend: 102/102 pruebas unitarias exitosas con Maven (`BUILD SUCCESS`).
+  - Frontend: Compilación limpia (`npm run build`) y sincronización con el contenedor Nginx.
+  - LiveKit Server: Reiniciado e inicializado correctamente con `nodeIP: "127.0.0.1"`, puerto HTTP 7880 y UDP 7882.
+
 ## [2026-10-05] Inicialización de Memoria y Contexto
 - **Agente:** Antigravity (Gemini 3.1 Pro)
 - **Contexto:** Inicialización de archivos de control de IA.
@@ -640,4 +691,111 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Validación:**
   - Ejecución de `mvn -Dtest=MeetingServiceTest,LiveKitWebhookControllerTest test`: 22 de 22 pruebas aprobadas (100% de éxito).
   - Ejecución de la suite completa de backend `mvn test`: 99 de 99 pruebas aprobadas sin regresiones.
+
+## [2026-10-21] HU-29.11 -- Interfaz de Usuario y Sala de Videoconferencias en Vivo con LiveKit (Frontend / Angular)
+- **Rol:** Frontend / WebRTC
+- **Contexto:** Desarrollo de la interfaz de usuario en Angular 20 para permitir a mentores y estudiantes conectarse a sesiones de videollamada interactivas de ultra baja latencia utilizando LiveKit Client.
+- **Acciones Realizadas:**
+  - **Dependencia WebRTC (`frontend/package.json`):**
+    - Instalada la librería oficial `livekit-client` (^2.23.0).
+    - Ajustado `tsconfig.json` con `"skipLibCheck": true` para optimizar la compilación de tipos de dependencias WebRTC.
+  - **Capa de Servicios (`MeetingService.ts`):**
+    - Creado `MeetingService` en `frontend/src/app/core/meeting.service.ts` con integración a los endpoints protegidos del backend: `startMeeting`, `joinMeeting`, `finishMeeting`, `getMeeting` y `getByService`.
+    - Ampliado `ToastService` (`toast.service.ts`) con utilidades de notificación (`info`, `error`, `success`).
+  - **Componente de Sala Virtual (`MeetingRoomComponent`):**
+    - Creado `frontend/src/app/features/meeting-room/` (`meeting-room.component.ts`, `.html`, `.css`).
+    - Gestión del ciclo de vida de la sala (`Room`): conexión WebRTC mediante JWT dinámico, adaptación automática de URL en entornos locales/docker (`resolveLiveKitUrl`), y liberación ordenada de recursos en `ngOnDestroy`.
+    - Rol `PROVIDER`: publicación y captura de cámara y micrófono local, visualización en miniatura flotante con soporte de espejo.
+    - Rol `PARTICIPANT`: suscripción dinámica a tracks remotos y estado de espera mientras el mentor inicia transmisión.
+    - Barra de controles multimedia: mutear/desmutear micrófono, prender/apagar cámara, compartir pantalla y colgar/finalizar clase.
+  - **Enrutamiento y Navegación:**
+    - Registrada la ruta protegida `/meeting/:id` en `app.routes.ts` con `canActivate: [authGuard]`.
+    - Añadido botón "🎥 Iniciar clase" en el panel de proveedor (`my-offerings.component.ts`).
+    - Añadido botón "🎥 Entrar a la clase en vivo" en la tabla de reservas de estudiantes (`display-bookings.ts` y `.html`).
+- **Validación:**
+  - Compilación exitosa del bundle de producción de Angular (`npm run build`) generando `chunk-GOVFZMYG.js` con lazy-loading sin errores ni advertencias de tipo.
+
+## [2026-10-21] Habilitación de Sala de Pruebas de LiveKit para Administradores
+- **Rol:** Fullstack / Testing & Observabilidad
+- **Contexto:** Se implementó una funcionalidad que permite a los usuarios con rol `ADMIN` iniciar inmediatamente una sala de reunión virtual de prueba sobre cualquier servicio, omitiendo las restricciones de calendario y ventana horaria de 48 horas de anticipación.
+- **Acciones Realizadas:**
+  - **Base de Datos & Flyway:**
+    - Creada migración `V16__admin_test_meeting.sql` que amplía el check de `meeting_participants` para admitir `role IN ('PROVIDER', 'PARTICIPANT', 'ADMIN')` y elimina la restricción única `uq_meeting_per_session` para permitir múltiples sesiones de prueba en el mismo día.
+  - **Backend (Spring Boot):**
+    - En `MeetingRole.java`, se incorporó el valor `ADMIN`.
+    - En `LiveKitRestAdapter.java`, se corrigió la autenticación hacia la API Twirp de LiveKit (`RoomService/CreateRoom` y `DeleteRoom`) sustituyendo la autenticación Basic por tokens JWT firmados con el `apiSecret` y cabecera `Authorization: Bearer <token>` con permisos administrativos (`roomCreate`, `roomAdmin`, `roomList`). Asimismo, se otorgaron permisos completos de publicación (`canPublish: true`), suscripción y actualización de metadatos para el rol `ADMIN`.
+    - En `MeetingService.java`, se implementó `createTestMeeting(adminUserId, serviceId)` para iniciar la reunión en estado `EN_CURSO` por 2 horas, crear la sala en LiveKit y registrar al administrador. Además, en `join()` y `finishMeeting()`, se autoriza al `ADMIN` con control total y a los usuarios con inscripción activa (`ServiceEnrollment`) para unirse como participantes.
+    - En `MeetingController.java`, se expuso el endpoint seguro `POST /api/meetings/admin/test-room` restringido a administradores.
+    - En `SecurityConfiguration.java`, se habilitó el acceso del rol `ADMIN` sobre `/api/meetings/**`.
+  - **Frontend (Angular 20):**
+    - En `MeetingService` (`meeting.service.ts`), se añadió el método `createTestRoom(serviceId)` y se tipó el rol `ADMIN`.
+    - En `AdminDashboardComponent` (`admin-dashboard.component.ts` y `.html`), se añadió el botón de acción con ícono de cámara `🎥` en la tabla de servicios y el botón "🎥 Iniciar Sala de Testeo LiveKit" en el modal de detalles del servicio.
+    - En `MeetingRoomComponent` (`meeting-room.component.ts` y `.html`), se integró el rol `ADMIN` con permisos de publicación de cámara y micrófono, etiqueta `👑 Tú (Admin)` y botón para finalizar la sala para todos.
+- **Validación:**
+  - Migración Flyway `v16` aplicada con éxito en PostgreSQL.
+  - Pruebas unitarias de backend pasando al 100% (25 de 25 tests en `MeetingServiceTest` y `LiveKitWebhookControllerTest`, sumando pruebas específicas de creación, reutilización y control de acceso de salas de prueba).
+  - Compilación de Angular (`npm run build`) exitosa sin errores de tipado estricto.
+  - Contenedores Docker de `backend` y `frontend` reconstruidos y corriendo en estado Healthy.
+  - Verificación End-to-End validada en caliente:
+    1. Creación de sala de prueba por Admin (`POST /api/meetings/admin/test-room`) -> 200 OK con token LiveKit de rol `ADMIN`.
+    2. Ingreso de estudiante inscrito (`POST /api/meetings/{id}/join`) -> 200 OK con token LiveKit de rol `PARTICIPANT`.
+    3. Finalización de la sala por Admin (`POST /api/meetings/{id}/finish`) -> 200 OK con transición a estado `FINALIZADA`.
+
+## [2026-10-21] Estabilización de WebRTC en LiveKit: ICE Lite, Retransmisión de Pantalla y CSRF de Webhooks
+- **Rol:** Fullstack & WebRTC Bugfix
+- **Contexto:** Se diagnosticaron y solucionaron los errores de conexión de PeerConnection WebRTC (`ConnectionError: could not establish pc connection`), bucles de renegociación al compartir pantalla, congelamiento periódico de video y rechazos 403 en webhooks de LiveKit.
+- **Causas Raíz Detectadas:**
+  1. **Fallo de Chequeo de ICE en LiveKit Server (Full ICE vs NAT Loopback):** LiveKit operaba en modo Full-ICE intentando enviar paquetes STUN de conectividad hacia las direcciones públicas reflejadas (`srflx`) del cliente. Dado que los routers residenciales descartan paquetes loopback UDP hacia su propia IP WAN, los 8 intentos de LiveKit no recibían respuesta (`requestsSent: 8, responsesReceived: 0`), provocando el timeout de 15 segundos y el fallo de PeerConnection.
+  2. **Bucle de Renegociación en Screen Sharing:** La habilitación de screen share por defecto solicitaba simulcast multinivel. LiveKit y el navegador generaban renegociaciones simultáneas concurrentes sin mutex, provocando `negotiation timed out` y desconexión/reconexión continua.
+  3. **Pérdida de Video cada 3-10 segundos en el Cliente:** `adaptiveStream: true` y `dynacast: true` pausaban capas de video ante variaciones mínimas de visibilidad en el DOM, sin re-adjuntar los tracks automáticamente al reanudarse.
+  4. **Bloqueo de Audio por Autoplay Policy:** El navegador bloqueaba el AudioContext generado en background arrojando advertencias de permisos de reproducción de audio.
+  5. **Rechazo 403 en Webhooks de LiveKit:** Spring Security interceptaba las peticiones POST de `LiveKitWebhookController` (`/api/webhooks/livekit`) por validación de tokens CSRF requeridos a SPAs de navegador.
+- **Acciones Realizadas:**
+  - **LiveKit Server (Docker & YAML):**
+    - Actualización de imagen a `livekit/livekit-server:latest` (v1.13.10) para alineación completa con el protocolo 17 de `livekit-client` v2.23.0.
+    - Configuración de `rtc.use_ice_lite: true` y `rtc.allow_tcp_fallback: true` en `ops/livekit/livekit.yaml` y `docker-compose.yml`. Como agente ICE-Lite, el servidor responde directamente a los sondeos entrantes de los clientes en los puertos 7882 (UDP) y 7881 (TCP) sin depender de NAT hairpinning.
+  - **Backend (Spring Boot):**
+    - En `SecurityConfiguration.java`, se añadió `.ignoringRequestMatchers("/api/webhooks/livekit")` al filtro de CSRF, permitiendo la comunicación criptográfica directa servidor-a-servidor mediante firmas HMAC-SHA256 en la cabecera `Authorization`.
+    - 102/102 pruebas unitarias pasando con éxito.
+  - **Frontend (Angular 20):**
+    - En `meeting-room.component.ts`:
+      - Screen Share optimizado con `{ simulcast: false }`, bloqueo por mutex `isScreenShareToggling` y escucha del evento nativo `MediaStreamTrack.ended`.
+      - Desactivación de `adaptiveStream` y `dynacast` en `RoomOptions` para flujo de video continuo y estable.
+      - Adición de `webAudioMix: false`, llamada a `room.startAudio()` tras conectar y `@HostListener('click')` / `@HostListener('keydown')` para desbloqueo transparente de audio con el primer clic del usuario.
+      - Desconexión explícita de cualquier sesión o sala previa (`await this.room.disconnect()`) al inicio de `initMeetingSession()`, previniendo bucles de reconexión fantasma (`reconnect attempt cancelled`, `CONNECTION_TIMEOUT`, `leave-reconnect disconnected`).
+      - Manejo robusto de `RoomEvent.TrackMuted` / `TrackUnmuted` y reutilización de elementos `<video>` existentes sin recrear el nodo DOM.
+    - En `meeting-room.component.html`: Botón "Reintentar" integrado ante eventuales cortes de red.
+  - **Resolución Multi-Navegador (Firefox / Chrome):**
+    - Configurado `rtc.advertise_internal_ip: true` en `livekit.yaml` y `docker-compose.yml`, permitiendo a LiveKit publicar la dirección de red privada del contenedor (`172.18.0.x`) junto con la IP local. Esto soluciona la restricción de Firefox donde los candidatos loopback (`127.0.0.1`) son descartados por defecto por su política de seguridad WebRTC (`media.peerconnection.ice.loopback = false`).
+    - Purga de estados residuales de sesiones previas en `redis-livekit`.
+- **Validación:**
+  - Suite de 102 pruebas de backend ejecutadas (`mvn test`) con 0 fallos.
+  - Compilación de Angular (`npm run build`) limpia y sincronizada con el contenedor Nginx.
+  - Contenedores Docker (`livekit`, `backend`, `frontend`, `postgres`, `redis`, `redis-livekit`) reiniciados y activos.
+
+- **Contexto:** Se resolvió el error de cierre de sesión forzoso (`401 Unauthorized` / sesión expirada) al intentar ingresar o recrear una sala, y se corrigió la renderización de la información del participante/sala en la interfaz de Angular.
+- **Causas Raíz Detectadas:**
+  1. **Registros Duplicados en `meeting_participants`:** `registerParticipant()` generaba siempre una nueva fila con `UUID.randomUUID()`. Ante múltiples accesos o creaciones sobre la misma reunión, se acumulaban filas para `(meeting_id, user_id)`. Como `JpaMeetingParticipantRepository.findByMeetingIdAndUserId` retornaba `Optional<...>`, Hibernate lanzaba `NonUniqueResultException` (500/401), provocando que `auth.interceptor.ts` forzara un logout inmediato (`triggerSessionExpired`).
+  2. **Resolución de Nombre en Tokens LiveKit:** El nombre del participante se emitía con el UUID crudo del usuario (`00000000-...`) en lugar del nombre real de la cuenta.
+  3. **Reutilización de Tokens en Frontend:** Al crear la sala de prueba desde el dashboard de administración, el token recibido se descartaba y el componente `MeetingRoomComponent` ejecutaba una segunda petición HTTP innecesaria a `/join`.
+  4. **Condicionales de Visualización en UI:** `meeting-room.component.html` solo renderizaba el video local propio y el botón de finalizar clase cuando `role === 'PROVIDER'`, omitiendo al `ADMIN`.
+  5. **Comportamiento del Fallback `/rtc/v1/validate` en LiveKit Client:** `livekit-client` v2 intenta conectarse por defecto a la ruta `/rtc/v1`. LiveKit Server v1.8 responde con 404, disparando un sondeo de clasificación a `/rtc/v1/validate` (404), tras lo cual conmuta de forma segura al protocolo estándar `/rtc` (`useV0Path = true`). La información de la sala (`roomID`, `participantID`) queda vacía únicamente durante el estado transitorio `connecting` y se pobla inmediatamente tras la negociación WebRTC.
+- **Acciones Realizadas:**
+  - **Migración Flyway `V17__meeting_participants_unique.sql`:**
+    - Limpieza de duplicados residuales conservando el registro más reciente.
+    - Creación de la restricción `uq_participant_per_meeting UNIQUE (meeting_id, user_id)`.
+  - **Backend (Spring Boot):**
+    - En `MeetingService.java`, se volvió idempotente `registerParticipant()` buscando primero el participante existente antes de crear uno nuevo.
+    - En `MeetingService.java`, `participantName()` ahora consulta `UserAccountPort` para resolver el nombre legible del usuario.
+    - En `JpaMeetingParticipantRepository.java` y `MeetingParticipantPersistenceAdapter.java`, se utilizó `findFirstByMeetingIdAndUserIdOrderByCreatedAtDesc` para proteger contra posibles inconsistencias de registros múltiples.
+  - **Frontend (Angular 20):**
+    - En `MeetingService` (`meeting.service.ts`), se implementó una caché en memoria (`setCachedToken` / `consumeCachedToken`) para evitar llamadas duplicadas a `/join` tras la creación desde el dashboard de admin.
+    - En `meeting-room.component.ts` y `.html`, se habilitó la activación de cámara/micrófono para `ADMIN`, la etiqueta `👑 Tú (Admin)`, la redirección a `/admin` al colgar o terminar la sala, y los controles completos.
+- **Validación:**
+  - Migración Flyway `v17` ejecutada y verificada en base de datos.
+  - 25 pruebas unitarias de backend pasando al 100%.
+  - Frontend Angular compilado exitosamente (`npm run build`).
+  - Creación repetida de salas de prueba verificada con 1 único registro por participante y respuestas 200 OK constantes.
+
+
 

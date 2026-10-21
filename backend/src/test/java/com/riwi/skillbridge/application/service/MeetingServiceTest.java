@@ -7,17 +7,23 @@ import com.riwi.skillbridge.application.port.out.MeetingPort;
 import com.riwi.skillbridge.application.port.out.OfferingPort;
 import com.riwi.skillbridge.application.port.out.ServiceEnrollmentPort;
 import com.riwi.skillbridge.application.port.out.ServiceSchedulePort;
+import com.riwi.skillbridge.application.port.out.UserAccountPort;
 import com.riwi.skillbridge.domain.enums.EnrollmentStatus;
 import com.riwi.skillbridge.domain.enums.Frequency;
+import com.riwi.skillbridge.domain.enums.Gender;
 import com.riwi.skillbridge.domain.enums.MeetingRole;
 import com.riwi.skillbridge.domain.enums.MeetingStatus;
+import com.riwi.skillbridge.domain.enums.Role;
 import com.riwi.skillbridge.domain.enums.ServiceStatus;
+import com.riwi.skillbridge.domain.enums.Status;
 import com.riwi.skillbridge.domain.exception.BusinessRuleException;
 import com.riwi.skillbridge.domain.model.Meeting;
+import com.riwi.skillbridge.application.model.MeetingAccess;
 import com.riwi.skillbridge.domain.model.MeetingParticipant;
 import com.riwi.skillbridge.domain.model.Offering;
 import com.riwi.skillbridge.domain.model.ServiceEnrollment;
 import com.riwi.skillbridge.domain.model.ServiceSchedule;
+import com.riwi.skillbridge.domain.model.UserAccount;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -47,6 +53,7 @@ class MeetingServiceTest {
     private final OfferingPort offeringPort = mock(OfferingPort.class);
     private final ServiceSchedulePort schedulePort = mock(ServiceSchedulePort.class);
     private final ServiceEnrollmentPort enrollmentPort = mock(ServiceEnrollmentPort.class);
+    private final UserAccountPort userAccountPort = mock(UserAccountPort.class);
 
     // 2026-10-20 es martes; sesión programada a las 15:00 UTC
     private final Instant nowInstant = Instant.parse("2026-10-20T15:05:00Z");
@@ -54,14 +61,23 @@ class MeetingServiceTest {
     private final UUID providerId = UUID.randomUUID();
     private final UUID serviceId = UUID.randomUUID();
     private final UUID customerId = UUID.randomUUID();
+    private final UUID adminId = UUID.randomUUID();
 
     private MeetingService service() {
-        return service(clock);
+        return service(clock, null);
     }
 
     private MeetingService service(Clock testClock) {
+        return service(testClock, null);
+    }
+
+    private MeetingService serviceWithUsers() {
+        return service(clock, userAccountPort);
+    }
+
+    private MeetingService service(Clock testClock, UserAccountPort uap) {
         MeetingService s = new MeetingService(meetingPort, participantPort, historyPort, liveKitPort,
-            offeringPort, schedulePort, enrollmentPort, testClock);
+            offeringPort, schedulePort, enrollmentPort, uap, testClock);
         when(liveKitPort.serverUrl()).thenReturn("wss://livekit.example.com");
         when(liveKitPort.createAccessToken(anyString(), anyString(), anyString(), any(), any()))
             .thenReturn("lk-token");
@@ -288,6 +304,63 @@ class MeetingServiceTest {
         assertEquals(joinedTime, captor.getValue().joinedAt());
         assertEquals(leftTime, captor.getValue().leftAt());
         verify(historyPort).save(any());
+    }
+
+    @Test
+    void createTestMeeting_asAdmin_createsAndReturnsAccess() {
+        when(offeringPort.findById(serviceId)).thenReturn(Optional.of(offering()));
+        when(userAccountPort.findById(adminId)).thenReturn(Optional.of(adminUser()));
+        when(schedulePort.findByServiceId(serviceId)).thenReturn(List.of(schedule()));
+        when(meetingPort.findByServiceId(serviceId)).thenReturn(List.of());
+
+        MeetingService s = serviceWithUsers();
+        MeetingAccess access = s.createTestMeeting(adminId, serviceId);
+
+        assertNotNull(access);
+        assertEquals(MeetingRole.ADMIN, access.role());
+        assertEquals("lk-token", access.token());
+        verify(liveKitPort).createRoom(anyString());
+        verify(meetingPort).save(any(Meeting.class));
+    }
+
+    @Test
+    void createTestMeeting_asNonAdmin_throwsBusinessRuleException() {
+        when(offeringPort.findById(serviceId)).thenReturn(Optional.of(offering()));
+        when(userAccountPort.findById(customerId)).thenReturn(Optional.of(customerUser()));
+
+        MeetingService s = serviceWithUsers();
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class, () ->
+            s.createTestMeeting(customerId, serviceId));
+        assertEquals("Solo un administrador puede crear salas de prueba", ex.getMessage());
+    }
+
+    @Test
+    void createTestMeeting_whenActiveMeetingAlreadyExists_reusesIt() {
+        when(offeringPort.findById(serviceId)).thenReturn(Optional.of(offering()));
+        when(userAccountPort.findById(adminId)).thenReturn(Optional.of(adminUser()));
+        when(schedulePort.findByServiceId(serviceId)).thenReturn(List.of(schedule()));
+        Meeting existing = inProgressMeeting();
+        when(meetingPort.findByServiceId(serviceId)).thenReturn(List.of(existing));
+
+        MeetingService s = serviceWithUsers();
+        MeetingAccess access = s.createTestMeeting(adminId, serviceId);
+
+        assertNotNull(access);
+        assertEquals(existing.id(), access.meeting().id());
+        assertEquals(MeetingRole.ADMIN, access.role());
+        verify(liveKitPort, never()).createRoom(anyString());
+    }
+
+    private UserAccount adminUser() {
+        return new UserAccount(adminId, "Admin User", "admin@skillbridge.com", Role.ADMIN,
+            null, "hash", Gender.OTHER, LocalDate.of(1990, 1, 1), Status.ACTIVE,
+            OffsetDateTime.now(), OffsetDateTime.now());
+    }
+
+    private UserAccount customerUser() {
+        return new UserAccount(customerId, "Student User", "student@skillbridge.com", Role.CUSTOMER,
+            null, "hash", Gender.OTHER, LocalDate.of(1995, 1, 1), Status.ACTIVE,
+            OffsetDateTime.now(), OffsetDateTime.now());
     }
 
     // ---------------------------------------------------------- utilidades

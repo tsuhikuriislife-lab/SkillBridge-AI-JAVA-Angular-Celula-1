@@ -1,9 +1,11 @@
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { OfferingService, Offering } from '../../core/offering.service';
 import { UserService, UserDto } from '../../core/userDto.service';
 import { ToastService } from '../../core/toast.service';
+import { MeetingService, MeetingTokenOut } from '../../core/meeting.service';
 import { compactDisplayId } from '../../core/display-id';
 
 export type ViewType = 'usuarios' | 'servicios';
@@ -36,6 +38,28 @@ export class AdminDashboardComponent implements OnInit {
   private offeringService = inject(OfferingService);
   private userService = inject(UserService);
   private toastService = inject(ToastService);
+  private meetingService = inject(MeetingService);
+  private router = inject(Router);
+
+  createTestRoom(item: any): void {
+    const serviceId = item.id;
+    this.toastService.show(`Iniciando sala de prueba en vivo para "${item.titulo || 'servicio'}"...`, [
+      { label: 'Cerrar', action: () => this.toastService.clear() }
+    ]);
+    this.meetingService.createTestRoom(serviceId).subscribe({
+      next: (res: MeetingTokenOut) => {
+        this.toastService.clear();
+        this.meetingService.setCachedToken(res);
+        this.router.navigate(['/meeting', res.meetingId]);
+      },
+      error: (err: any) => {
+        const errorMsg = err?.error?.detail || err?.error?.message || 'No fue posible crear la sala de prueba.';
+        this.toastService.show(`Error: ${errorMsg}`, [
+          { label: 'Entendido', primary: true, action: () => this.toastService.clear() }
+        ]);
+      }
+    });
+  }
 
   formatId(id: string | null | undefined): string {
     return compactDisplayId(id);

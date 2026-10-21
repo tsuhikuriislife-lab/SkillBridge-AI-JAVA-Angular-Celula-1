@@ -1,4 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { Offering, OfferingService, PageResult } from '../../core/offering.service';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
@@ -28,6 +29,9 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
                 <strong>\${{ o.price }}</strong>
               </div>
               <div class="actions">
+                @if (o.active) {
+                  <button class="btn small primary" (click)="startMeeting(o)" style="background:#1a73e8;color:#fff;">🎥 Iniciar clase</button>
+                }
                 <button class="btn small" (click)="openEdit(o)">Editar</button>
                 <button class="btn small" [class.danger]="o.active" (click)="confirmToggle(o)">
                   {{ o.active ? 'Desactivar servicio' : 'Activar servicio' }}
@@ -135,6 +139,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 })
 export class MyOfferingsComponent implements OnInit {
   offeringService = inject(OfferingService);
+  router = inject(Router);
   fb = inject(FormBuilder);
 
   pageData?: PageResult<Offering>;
@@ -163,6 +168,12 @@ export class MyOfferingsComponent implements OnInit {
     this.load(0); 
     this.offeringService.getCategories().subscribe(res => {
       this.categories = res;
+    });
+  }
+
+  startMeeting(offering: Offering) {
+    this.router.navigate(['/meeting', 'new'], {
+      queryParams: { start: 'true', serviceId: offering.id }
     });
   }
 
