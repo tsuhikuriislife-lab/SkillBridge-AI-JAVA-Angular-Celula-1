@@ -431,7 +431,7 @@ public class MeetingService implements ManageMeetingUseCase, JoinMeetingUseCase,
                     userId, MeetingRole.PARTICIPANT, MeetingParticipantStatus.ACCESO_DENEGADO,
                     null, null, reason, now, now)));
         recordEvent(meeting, userId, MeetingEventType.ACCESO_RECHAZADO, "PERMISO_INSUFICIENTE", reason, null);
-        throw new BusinessRuleException(reason);
+        throw new com.riwi.skillbridge.domain.exception.UnauthorizedMeetingAccessException(reason);
     }
 
     private void closeParticipants(UUID meetingId) {

@@ -4,15 +4,15 @@ import com.riwi.skillbridge.application.port.out.LiveKitPort;
 import com.riwi.skillbridge.domain.enums.MeetingRole;
 import com.riwi.skillbridge.domain.exception.LiveKitIntegrationException;
 import com.riwi.skillbridge.infrastructure.config.LiveKitProperties;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
+import io.livekit.server.AccessToken;
+import io.livekit.server.RoomJoin;
+import io.livekit.server.RoomName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -20,7 +20,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -29,8 +28,7 @@ import java.util.Map;
 /**
  * Adaptador de salida de LiveKit basado en:
  *  - API REST Twirp de administración (RoomService) con autenticación Basic apiKey:apiSecret.
- *  - Tokens de acceso JWT firmados con el secreto de LiveKit (misma biblioteca jjwt
- *    que ya usa el proyecto para su autenticación, pero credenciales independientes).
+ *  - Tokens de acceso JWT firmados mediante el SDK oficial de LiveKit (AccessToken).
  *
  * Regla 6 (modalidad unilateral): los permisos de publicación se fijan en el token
  * y no dependen de ocultar botones en el frontend.
@@ -43,12 +41,10 @@ public class LiveKitRestAdapter implements LiveKitPort {
 
     private final LiveKitProperties properties;
     private final HttpClient httpClient;
-    private final SecretKey signingKey;
 
     public LiveKitRestAdapter(LiveKitProperties properties) {
         this.properties = properties;
         this.httpClient = HttpClient.newBuilder().connectTimeout(HTTP_TIMEOUT).build();
-        this.signingKey = Keys.hmacShaKeyFor(secretBytes(properties.getApiSecret()));
     }
 
     @Override
@@ -88,27 +84,30 @@ public class LiveKitRestAdapter implements LiveKitPort {
         if (!properties.isConfigured())
             throw new LiveKitIntegrationException("LiveKit no está configurado");
 
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        Map<String, Object> video = new LinkedHashMap<>();
-        video.put("roomJoin", true);
-        video.put("room", roomName);
-        // Regla 6: el proveedor publica; los participantes solo reciben y envían datos (foro/chat)
-        video.put("canPublish", role == MeetingRole.PROVIDER);
-        video.put("canSubscribe", true);
-        video.put("canPublishData", true);
-        video.put("canUpdateOwnMetadata", false);
+        AccessToken token = new AccessToken(properties.getApiKey(), properties.getApiSecret());
+        token.setIdentity(participantIdentity);
+        token.setName(participantName);
+        token.setMetadata("{\"role\":\"" + role + "\"}");
 
-        return Jwts.builder()
-            .issuer(properties.getApiKey())
-            .subject(participantIdentity)
-            .issuedAt(Date.from(now.toInstant()))
-            .notBefore(Date.from(now.minusSeconds(10).toInstant()))
-            .expiration(Date.from(expiresAt.toInstant()))
-            .claim("name", participantName)
-            .claim("metadata", "{\"role\":\"" + role + "\"}")
-            .claim("video", video)
-            .signWith(signingKey)
-            .compact();
+        // Expiración calculada según el fin de la sesión o TTL configurado
+        Date expirationDate = expiresAt != null 
+            ? Date.from(expiresAt.toInstant())
+            : new Date(System.currentTimeMillis() + properties.getTokenTtlMinutes() * 60 * 1000L);
+        token.setExpiration(expirationDate);
+
+        boolean isProvider = (role == MeetingRole.PROVIDER);
+
+        // Grants definidos según el rol del usuario (Tutor / Proveedor vs Alumno / Participante)
+        token.addGrants(
+            new RoomJoin(true),
+            new RoomName(roomName),
+            new io.livekit.server.CanPublish(isProvider),
+            new io.livekit.server.CanSubscribe(true),
+            new io.livekit.server.CanPublishData(true),
+            new io.livekit.server.RoomAdmin(isProvider)
+        );
+
+        return token.toJwt();
     }
 
     // ------------------------------------------------------------------ REST
@@ -148,15 +147,5 @@ public class LiveKitRestAdapter implements LiveKitPort {
             .append(v instanceof String s ? "\"" + s + "\"" : v.toString()).append(','));
         if (sb.length() > 1) sb.setLength(sb.length() - 1);
         return sb.append('}').toString();
-    }
-
-    /** El secreto de LiveKit se usa como clave HS256; admite formato base64 o texto plano. */
-    private static byte[] secretBytes(String secret) {
-        if (secret == null) return new byte[0];
-        try {
-            return Base64.getDecoder().decode(secret);
-        } catch (IllegalArgumentException e) {
-            return secret.getBytes(StandardCharsets.UTF_8);
-        }
     }
 }
