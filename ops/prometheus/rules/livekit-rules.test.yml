@@ -1,0 +1,84 @@
+# SkillBridge AI - PromQL Unit Tests for LiveKit SRE Rules (promtool syntax)
+rule_files:
+  - livekit-rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # Test 0: Build info comes from the configured LiveKit image tag when the target is up
+  - interval: 1m
+    input_series:
+      - series: 'up{job="livekit", instance="livekit:6789"}'
+        values: '1 1'
+    promql_expr_test:
+      - expr: livekit_server_build_info
+        eval_time: 1m
+        exp_samples:
+          - labels: 'livekit_server_build_info{instance="livekit:6789", job="livekit", version="v1.8"}'
+            value: 1
+
+  # Test 1: CA 9.1 - Ciclo de vida de participantes (1 Tutor + N Alumnos -> 0)
+  - interval: 1m
+    input_series:
+      - series: 'livekit_room_total{job="livekit", instance="livekit:6789"}'
+        values: '0 1 1 1 0'
+      - series: 'livekit_participant_total{job="livekit", instance="livekit:6789"}'
+        values: '0 1 4 4 0'
+    promql_expr_test:
+      # Minuto 1: Sala iniciada con 1 Tutor
+      - expr: job:livekit_participant_total:sum
+        eval_time: 1m
+        exp_samples:
+          - labels: 'job:livekit_participant_total:sum{job="livekit"}'
+            value: 1
+
+      # Minuto 2: 1 Tutor + 3 Alumnos = 4 participantes (N + 1)
+      - expr: job:livekit_participant_total:sum
+        eval_time: 2m
+        exp_samples:
+          - labels: 'job:livekit_participant_total:sum{job="livekit"}'
+            value: 4
+
+      # Minuto 4: Sala cerrada -> Vuelve a 0
+      - expr: job:livekit_participant_total:sum
+        eval_time: 4m
+        exp_samples:
+          - labels: 'job:livekit_participant_total:sum{job="livekit"}'
+            value: 0
+
+  # Test 2: CA 9.2 - Tasa de paquetes procesados proporcional a pistas activas
+  - interval: 1m
+    input_series:
+      - series: 'livekit_packet_total{job="livekit", instance="livekit:6789", track="audio_tutor"}'
+        values: '0 60 120 180'
+      - series: 'livekit_packet_total{job="livekit", instance="livekit:6789", track="video_tutor"}'
+        values: '0 180 360 540'
+      - series: 'livekit_packet_total{job="livekit", instance="livekit:6789", track="audio_student_1"}'
+        values: '0 0 60 120'
+    promql_expr_test:
+      # Minuto 2: Con 3 pistas activas, se incrementa la tasa de procesamiento
+      - expr: job:livekit_packet_rate:sum
+        eval_time: 2m
+        exp_samples:
+          - labels: 'job:livekit_packet_rate:sum{job="livekit"}'
+            value: 5 # (1 + 3 + 1) = 5 paquetes/seg
+
+  # Test 3: CA 9.3 - Detección y alerta de picos de pérdida de paquetes > 5%
+  - interval: 1m
+    input_series:
+      - series: 'livekit_packet_total{job="livekit", instance="livekit:6789"}'
+        values: '0 1000 2000 3000'
+      - series: 'livekit_packet_drop_total{job="livekit", instance="livekit:6789"}'
+        # En el minuto 2 y 3 se pierden 120 paquetes de 1000 (12% de pérdida > 5%)
+        values: '0 0 120 240'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: LiveKitHighPacketLoss
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: livekit
+              instance: "livekit:6789"
+            exp_annotations:
+              summary: "Pérdida de paquetes crítica en LiveKit (> 5%)"
+              description: "La tasa de pérdida de paquetes en livekit:6789 es del 12.00%, superando el umbral de degradación del 5%."
