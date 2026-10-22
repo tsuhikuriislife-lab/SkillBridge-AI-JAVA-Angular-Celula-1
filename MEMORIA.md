@@ -2,6 +2,14 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-10-21] HU-29.7: test de simulación de clase en vivo con tráfico WebRTC sintético
+- **Agente:** GitHub Copilot
+- **Objetivo:** Verificar la simulación de una clase en vivo con Tutor y Alumno, tráfico WebRTC sintético y criterios CA 7.1, CA 7.2 y CA 7.3.
+- **Archivos creados:** `scripts/livekit-stream-test/package.json`, `scripts/livekit-stream-test/package-lock.json`, `scripts/livekit-stream-test/.gitignore` y `scripts/livekit-stream-test/stream-test.js`. Se añadió el target `test-livekit-stream` al `Makefile`.
+- **Ejecución:** `make test-livekit-stream`. Requiere `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` exportadas antes de levantar LiveKit con `docker compose up`.
+- **Validación:** Tres corridas con 16/16 pruebas aprobadas en cada corrida. CA 7.1: video alrededor de 250 ms y audio alrededor de 50–60 ms (límite 2000 ms). CA 7.2: alrededor de 118–125 KB recibidos en 5 s, tasa media de 190–200 kbps y bytes de video y audio mayores que cero. CA 7.3: `TrackUnsubscribed` entre 5.8 y 16.4 ms y `ParticipantDisconnected` hasta aproximadamente 17 ms (límite 1000 ms); el Alumno permaneció conectado y estable, sin errores fatales.
+- **Notas:** (a) La medición del CA 7.3 usa la desconexión limpia del Tutor mediante `disconnect()`; una caída abrupta tarda más por el timeout de señalización de LiveKit. (b) Se deben exportar `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` antes de levantar LiveKit; si arranca sin claves, el cliente recibe `Connection reset by peer`.
+
 ## [2026-10-05] Inicialización de Memoria y Contexto
 - **Agente:** Antigravity (Gemini 3.1 Pro)
 - **Contexto:** Inicialización de archivos de control de IA.
@@ -1201,6 +1209,26 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Validación:**
   - Ejecución de `node scripts/validate-livekit-metrics.js`: 26 de 26 pruebas aprobadas (100% de éxito en CA 9.1, CA 9.2 y CA 9.3).
 
+## [2026-10-20] Corrección de inicio de Prometheus para HU de métricas LiveKit
+- **Contexto:** Prometheus no iniciaba al cargar el archivo de pruebas de `promtool` como si fuera un archivo de reglas de producción.
+- **Cambios realizados:**
+  - En `ops/prometheus/prometheus.yml`, se reemplazó el patrón `/etc/prometheus/rules/*.yml` por la ruta explícita `/etc/prometheus/rules/livekit-rules.yml`, evitando incluir `livekit-rules.test.yml` en la configuración de producción.
+- **Validación:**
+  - `promtool check config /etc/prometheus/prometheus.yml` pasó: configuración válida y 12 reglas cargadas.
+  - Prometheus inició y `http://localhost:9090/-/ready` respondió `200 OK`.
+  - El target `livekit:6789` apareció con estado `up`, sin errores de scrape; `up{job="livekit"}` devolvió `1`.
+  - Consultas PromQL confirmaron ingesta de `livekit_room_total`, `livekit_participant_total` y `livekit_packet_total`.
+
+## [2026-10-20] Métrica consultable de build LiveKit
+- **Contexto:** El endpoint de LiveKit no exponía `livekit_server_build_info`; se solicitó habilitar únicamente esa métrica adicional para consulta.
+- **Cambios realizados:**
+  - Se añadió en `ops/prometheus/rules/livekit-rules.yml` una recording rule llamada `livekit_server_build_info`, basada en `up{job="livekit"} == 1` y con `version="v1.8"`, el tag de imagen configurado en `docker-compose.yml`.
+  - Se añadió una prueba PromQL y se documentó la métrica y su consulta en `docs/LIVEKIT-MONITORING.md`.
+  - La serie representa el tag de imagen configurado cuando el target está UP; no es una métrica nativa ni una lectura dinámica de la versión interna de LiveKit.
+- **Validación:**
+  - `promtool check rules` pasó con 13 reglas; la prueba enfocada del primer grupo en `livekit-rules.test.yml` pasó.
+  - La suite completa de pruebas aún reporta un fallo en la prueba preexistente `job:livekit_packet_rate:sum` (esperaba 5, no obtuvo muestra); no corresponde a la prueba de build info.
+  - Tras reiniciar Prometheus, la consulta `livekit_server_build_info{job="livekit"}` devolvió una serie con `instance="livekit:6789"`, `version="v1.8"` y valor `1`; `up{job="livekit"}` también devolvió `1`.
 ## [2026-10-20] Unificación y Mejora del Servicio de Generación de Tokens de Acceso (JWT) por Rol (HU-29.2)
 - **Rol:** Backend Developer
 - **Contexto:** Consolidación de la generación de tokens LiveKit con el SDK oficial (`io.livekit.server.AccessToken`), eliminación de adaptadores duplicados y cumplimiento estricto de los Criterios de Aceptación (CA 2.1, CA 2.2, CA 2.3, CA 2.4).
@@ -1215,3 +1243,22 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Validación:**
   - `mvn test-compile` exitoso sin errores en las 203 clases.
   - `mvn test -Dtest=MeetingServiceTest` completado exitosamente (7 de 7 pruebas aprobadas).
+
+## [2026-10-21] Implementación de Pruebas Automatizadas de Integración y Ciclo de Vida LiveKit (CA 6.1, CA 6.2, CA 6.3)
+- **Rol:** QA Engineer & Backend Developer
+- **Contexto:** Implementación de pruebas automatizadas en el backend utilizando JUnit 5, Testcontainers y el cliente oficial `RoomServiceClient` de LiveKit para validar de forma desatendida la seguridad de tokens JWT por rol, la creación sintética de salas y su eliminación limpia e inmediata.
+- **Cambios realizados:**
+  - **Validación Criptográfica y de Permisos JWT (`LiveKitTokenSecurityTest.java` - CA 6.1):**
+    - Se implementó prueba unitaria para validar la estructura del token JWT decodificando el payload JSON.
+    - Se asertó que el token para el Tutor (`MeetingRole.PROVIDER`) incluye los grants `canPublish: true` y `roomAdmin: true`.
+    - Se validó por contraste que el Alumno (`MeetingRole.PARTICIPANT`) tiene `canPublish: false` y `roomAdmin: false`, con permisos restringidos a suscripción y chat.
+    - Se comprobó que el timestamp de expiración (`exp`) cumple con el TTL configurado de 120 minutos (2 horas).
+  - **Integración y Ciclo de Vida de Salas (`LiveKitRoomIntegrationTest.java` - CA 6.2 y CA 6.3):**
+    - Se configuró el ciclo de vida de Testcontainers con la imagen oficial `livekit/livekit-server:v1.8` en modo `--dev` y puertos mapeados dinámicamente (`@Testcontainers(disabledWithoutDocker = true)`).
+    - Se inicializó `RoomServiceClient` y se probó la creación de salas sintéticas con configuración controlada y metadatos JSON.
+    - Se verificó la persistencia y presencia de la sala y sus metadatos mediante `listRooms()` (**CA 6.2**).
+    - Se ejecutó el cierre y borrado seguro con `deleteRoom()`, confirmando inmediatamente que la sala deja de figurar en el listado activo del servidor para evitar salas huérfanas en el pipeline de CI/CD (**CA 6.3**).
+- **Validación:**
+  - Ejecución de pruebas específicas: `mvn -f backend/pom.xml test -Dtest="LiveKitTokenSecurityTest,LiveKitRoomIntegrationTest"` aprobada al 100%.
+  - Suite completa del backend: `mvn -f backend/pom.xml test` finalizada con `BUILD SUCCESS` (88 pruebas exitosas sin regresiones).
+
