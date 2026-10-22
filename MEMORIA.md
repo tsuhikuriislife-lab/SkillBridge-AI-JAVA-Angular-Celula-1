@@ -1244,3 +1244,21 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - `mvn test-compile` exitoso sin errores en las 203 clases.
   - `mvn test -Dtest=MeetingServiceTest` completado exitosamente (7 de 7 pruebas aprobadas).
 
+## [2026-10-21] Implementación de Pruebas Automatizadas de Integración y Ciclo de Vida LiveKit (CA 6.1, CA 6.2, CA 6.3)
+- **Rol:** QA Engineer & Backend Developer
+- **Contexto:** Implementación de pruebas automatizadas en el backend utilizando JUnit 5, Testcontainers y el cliente oficial `RoomServiceClient` de LiveKit para validar de forma desatendida la seguridad de tokens JWT por rol, la creación sintética de salas y su eliminación limpia e inmediata.
+- **Cambios realizados:**
+  - **Validación Criptográfica y de Permisos JWT (`LiveKitTokenSecurityTest.java` - CA 6.1):**
+    - Se implementó prueba unitaria para validar la estructura del token JWT decodificando el payload JSON.
+    - Se asertó que el token para el Tutor (`MeetingRole.PROVIDER`) incluye los grants `canPublish: true` y `roomAdmin: true`.
+    - Se validó por contraste que el Alumno (`MeetingRole.PARTICIPANT`) tiene `canPublish: false` y `roomAdmin: false`, con permisos restringidos a suscripción y chat.
+    - Se comprobó que el timestamp de expiración (`exp`) cumple con el TTL configurado de 120 minutos (2 horas).
+  - **Integración y Ciclo de Vida de Salas (`LiveKitRoomIntegrationTest.java` - CA 6.2 y CA 6.3):**
+    - Se configuró el ciclo de vida de Testcontainers con la imagen oficial `livekit/livekit-server:v1.8` en modo `--dev` y puertos mapeados dinámicamente (`@Testcontainers(disabledWithoutDocker = true)`).
+    - Se inicializó `RoomServiceClient` y se probó la creación de salas sintéticas con configuración controlada y metadatos JSON.
+    - Se verificó la persistencia y presencia de la sala y sus metadatos mediante `listRooms()` (**CA 6.2**).
+    - Se ejecutó el cierre y borrado seguro con `deleteRoom()`, confirmando inmediatamente que la sala deja de figurar en el listado activo del servidor para evitar salas huérfanas en el pipeline de CI/CD (**CA 6.3**).
+- **Validación:**
+  - Ejecución de pruebas específicas: `mvn -f backend/pom.xml test -Dtest="LiveKitTokenSecurityTest,LiveKitRoomIntegrationTest"` aprobada al 100%.
+  - Suite completa del backend: `mvn -f backend/pom.xml test` finalizada con `BUILD SUCCESS` (88 pruebas exitosas sin regresiones).
+
