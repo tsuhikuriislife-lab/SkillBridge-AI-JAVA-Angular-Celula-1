@@ -83,4 +83,18 @@ public class GlobalExceptionHandler {
         p.setTitle("AI Network Error");
         return p;
     }
+
+    @ExceptionHandler(com.riwi.skillbridge.domain.exception.LiveKitIntegrationException.class)
+    ProblemDetail liveKit(com.riwi.skillbridge.domain.exception.LiveKitIntegrationException ex) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, ex.getMessage());
+        p.setTitle("LiveKit integration error");
+        return p;
+    }
+
+    @ExceptionHandler(com.riwi.skillbridge.domain.exception.UnauthorizedMeetingAccessException.class)
+    ProblemDetail meetingAccessForbidden(com.riwi.skillbridge.domain.exception.UnauthorizedMeetingAccessException ex) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        p.setTitle("Forbidden");
+        return p;
+    }
 }

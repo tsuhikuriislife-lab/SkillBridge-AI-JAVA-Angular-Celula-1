@@ -2,6 +2,14 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-10-21] HU-29.7: test de simulación de clase en vivo con tráfico WebRTC sintético
+- **Agente:** GitHub Copilot
+- **Objetivo:** Verificar la simulación de una clase en vivo con Tutor y Alumno, tráfico WebRTC sintético y criterios CA 7.1, CA 7.2 y CA 7.3.
+- **Archivos creados:** `scripts/livekit-stream-test/package.json`, `scripts/livekit-stream-test/package-lock.json`, `scripts/livekit-stream-test/.gitignore` y `scripts/livekit-stream-test/stream-test.js`. Se añadió el target `test-livekit-stream` al `Makefile`.
+- **Ejecución:** `make test-livekit-stream`. Requiere `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` exportadas antes de levantar LiveKit con `docker compose up`.
+- **Validación:** Tres corridas con 16/16 pruebas aprobadas en cada corrida. CA 7.1: video alrededor de 250 ms y audio alrededor de 50–60 ms (límite 2000 ms). CA 7.2: alrededor de 118–125 KB recibidos en 5 s, tasa media de 190–200 kbps y bytes de video y audio mayores que cero. CA 7.3: `TrackUnsubscribed` entre 5.8 y 16.4 ms y `ParticipantDisconnected` hasta aproximadamente 17 ms (límite 1000 ms); el Alumno permaneció conectado y estable, sin errores fatales.
+- **Notas:** (a) La medición del CA 7.3 usa la desconexión limpia del Tutor mediante `disconnect()`; una caída abrupta tarda más por el timeout de señalización de LiveKit. (b) Se deben exportar `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` antes de levantar LiveKit; si arranca sin claves, el cliente recibe `Connection reset by peer`.
+
 ## [2026-10-05] Inicialización de Memoria y Contexto
 - **Agente:** Antigravity (Gemini 3.1 Pro)
 - **Contexto:** Inicialización de archivos de control de IA.
@@ -540,23 +548,717 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Cambios realizados:** En el feed administrativo, `OFFERING_STATUS_CHANGED` ahora se muestra como “Oferta modificada” con la etiqueta “Cambio de estado”; `USUARIO CREADO` conserva su título “Usuario creado” y muestra “Nueva cuenta”. Los demás datos y comportamientos permanecen iguales.
 - **Validación:** `npm --prefix frontend run build` completó correctamente. El spec enfocado no pudo ejecutarse porque ya referencia `formatMessage`, método inexistente en el componente.
 
-## [2026-10-16] Verificación de Contenedores y Provisión de Dashboard en Grafana
+## [2026-10-16] Limpieza de código basura y archivos obsoletos
 - **Agente:** Antigravity (Gemini 3.8 Flash)
-- **Contexto:** Diagnóstico del ciclo de construcción y arranque de contenedores Docker, y configuración de visualización de métricas en Prometheus y Grafana.
-- **Cambios realizados:**
-  - Se diagnosticó y verificó el ciclo multi-stage de los Dockerfiles y el estado saludable (`healthy`) de los 5 contenedores principales (`postgres`, `redis`, `rabbitmq`, `backend`, `frontend`).
-  - Se verificó la recolección de métricas de Spring Boot Actuator (`/actuator/prometheus`) por parte de Prometheus en el puerto 9090.
-  - Se creó el dashboard provisionado `system-metrics.json` en `ops/grafana/provisioning/dashboards/` para Grafana ("SkillBridge - Sistema y API") con 6 paneles clave: peticiones HTTP por segundo por endpoint/estado, latencia promedio, uso de memoria heap de la JVM, porcentaje de CPU (backend vs sistema), hilos activos y pool de conexiones HikariCP.
+- **Contexto:** Se realizó una auditoría de código muerto, recursos redundantes y configuraciones huérfanas en el proyecto.
+- **Acciones Realizadas:**
+  - **Frontend:**
+    - Se eliminó el archivo obsoleto `frontend/src/app/features/login.component.ts` (reemplazado por `features/login/login.ts`).
+    - Se eliminó el modelo sin uso `frontend/src/app/core/models/booking.model.ts` (el sistema utiliza `BookingSummary`).
+    - Se eliminó el directorio duplicado `frontend/src/app/images/` y la imagen duplicada `frontend/public/images/Group 23 (1).jpg`.
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se eliminó la ruta inexistente `/api/bookings/**` de `requestMatchers()`, conservando únicamente las rutas activas como `/api/enrollments/**`.
+  - **Raíz y Scripts:**
+    - Se eliminó el directorio `deprecated/` (`Inicio (1).html`, `ai.component.ts.old`, `ia.html.old`).
+    - Se eliminó el `package-lock.json` huérfano de la raíz.
+    - Se corrigió `scripts/smoke-test.sh` para apuntar a `/api/services` en lugar del endpoint obsoleto `/api/offerings`.
+    - Se actualizó el target `test-back-unit` en el `Makefile` para referenciar pruebas unitarias existentes (`OfferingCrudServiceTest,OfferingCatalogServiceTest,ServiceEnrollmentServiceTest`).
 - **Validación:**
-  - Prometheus scrapéa exitosamente cada 15s el endpoint `http://backend:8080/actuator/prometheus` (estado `up`).
-  - Grafana aprovisionó automáticamente el nuevo dashboard bajo la carpeta `SkillBridge` (`uid: skillbridge-system-api`).
-## [2026-10-16] Unificación First-Party y Proxy de Reescritura en Vercel (HU-14 Prod Fix)
+  - Backend: Compilación exitosa de fuentes y pruebas (`mvn test-compile`).
+  - Frontend: Generación exitosa del bundle de producción (`npm run build`) sin advertencias ni errores.
+
+## [2026-10-17] Despliegue y configuración del SFU LiveKit con Docker Compose
+- **Contexto:** Despliegue del servidor LiveKit (SFU) para soportar videoconferencias interactivas de ultra baja latencia (audio, video, pantalla compartida) sin incurrir en costos de procesamiento ni almacenamiento en la nube.
+- **Acciones Realizadas:**
+  - **Variables de Entorno (`.env` / `.env.example`):** Se definieron `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_RTC_USE_EXTERNAL_IP` y los puertos `LIVEKIT_HTTP_PORT` (7880), `LIVEKIT_TCP_PORT` (7881) y `LIVEKIT_UDP_PORT` (7882).
+  - **Configuración Declarativa (`ops/livekit/livekit.yaml`):** Se creó la configuración del motor WebRTC escuchando en TCP 7881 y UDP 7882 sin requerir servicios de Egress ni buckets S3/GCP.
+  - **Orquestación (`docker-compose.yml`):** Se integró el servicio oficial `livekit/livekit-server:v1.8` con mapeo de puertos 7880/tcp, 7881/tcp y 7882/udp, inyección de claves mediante `LIVEKIT_KEYS` y montaje del archivo declarativo en `/etc/livekit.yaml:ro`.
+- **Validación:**
+  - El contenedor `skillbridge-ai-livekit-1` arrancó limpiamente con estado `Up` y enrutamiento `single-node`.
+  - Puertos 7880/tcp, 7881/tcp y 7882/udp expuestos y accesibles correctamente en `0.0.0.0`.
+  - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2 y CA 1.3.
+
+## [2026-10-19] Integración del SDK de LiveKit y Configuración de Secretos (Arquitectura Hexagonal)
+- **Autor / Implementación:** Juan Vargas
+- **Contexto:** Habilitar el soporte en el backend para la generación de tokens de acceso y comunicación con el servidor de videollamadas LiveKit respetando las reglas de arquitectura hexagonal y seguridad de credenciales.
+- **Cambios realizados:**
+  - **Gestión de Secretos y Variables de Entorno (`.env.example`, `docker-compose.yml`):**
+    - Se definieron y documentaron las variables `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` y `LIVEKIT_URL`.
+    - Se configuró la inyección de estas variables de entorno en el contenedor del servicio `backend` en Docker Compose con fallback seguro para desarrollo local (`http://livekit:7880`).
+    - Se ajustaron las credenciales en el servicio `livekit` (`LIVEKIT_KEYS`) evitando exponer variables innecesarias al contenedor del servidor WebRTC.
+  - **Mapeo de Configuración Spring Boot (`application.yml` y `application.yml` de test):**
+    - Se incorporó el bloque `app.livekit` con propiedades para URL, API Key y Secret en el archivo principal y en el de pruebas.
+  - **Dependencias Maven (`backend/pom.xml`):**
+    - Inclusión del SDK oficial `io.livekit:livekit-server:0.13.0` para la generación criptográfica de tokens y gestión de salas.
+  - **Arquitectura Hexagonal (Backend Java):**
+    - **Configuración (`infrastructure/config/LiveKitConfiguration.java`):** Clase `@Configuration` para inyectar las propiedades desde Spring y exponer el bean `RoomServiceClient` para administración de salas.
+    - **Puerto de Salida (`application/port/out/LiveKitVideoPort.java`):** Definición de la interfaz del contrato para abstraer la generación de tokens JWT de sala (`generateAccessToken`), aislando la lógica de negocio del proveedor de WebRTC.
+    - **Adaptador de Salida (`infrastructure/adapter/out/livekit/LiveKitVideoAdapter.java`):** Implementación técnica del puerto usando el SDK de LiveKit (`AccessToken`, `RoomJoin`, `RoomName`), firmando los tokens con HMAC-SHA256 usando el secreto inyectado sin exponerlo al cliente.
+# Historial de Cambios (Memoria de Agentes)
+
+Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
+
+## [2026-10-05] Inicialización de Memoria y Contexto
+- **Agente:** Antigravity (Gemini 3.1 Pro)
+- **Contexto:** Inicialización de archivos de control de IA.
+- **Cambios realizados:**
+  - Análisis completo de la documentación del proyecto (`README.md`, `ARCHITECTURE.md`, `BACKLOG.md`, `API.md`, `DEPLOYMENT-CHECKLIST.md`, `INSTRUCTOR-GUIDE.md`).
+  - Creación del archivo `AGENTS.md` para estipular las reglas de arquitectura hexagonal y protección de secretos (API Keys) que debe seguir la IA.
+  - Creación de `MEMORIA.md` para asentar el inicio del track de cambios.
+- **Próximos pasos posibles:** Iniciar el desarrollo del Sprint enfocado en HU-08 ("Consultar mis reservas") y HU-09 ("Cancelar una reserva propia").
+
+## [2026-10-05] Implementación de Manejo de Errores IA (HU-12)
+- **Agente:** Antigravity (Gemini 3.1 Pro)
+- **Contexto:** Mejorar los mensajes de error al interactuar con Gemini.
+- **Cambios realizados:**
+  - Creación de excepciones de dominio: `AiConfigurationException`, `AiQuotaExceededException`, y `AiNetworkException`.
+  - Mapeo de excepciones en `GlobalExceptionHandler` con los correspondientes códigos de estado HTTP (503 Service Unavailable y 429 Too Many Requests).
+  - Actualización de `GeminiAiAdapter` para capturar `RuntimeException`, analizar el mensaje de error subyacente y lanzar las excepciones específicas (red, cuota, apiKey).
+  - Mejora en el frontend (`ai.component.ts`) para mostrar mensajes de sesión expirada (401/403) y consumir el detalle provisto por el backend.
+
+## [2026-10-05] Aviso al intentar abrir una vista protegida
+- **Cambios realizados:** El componente de ingreso ahora escucha cambios en los parámetros de consulta y muestra el aviso de inicio de sesión cuando el guard redirige con `authRequired=true`, incluso si la vista de ingreso ya estaba abierta.
+- **Validación:** `cd frontend && npm run build` completado correctamente.
+
+
+## [2026-10-06] Implementación de Detalle de Servicio y Toast de Autenticación
+- **Agente:** Antigravity
+- **Contexto:** HU/Tarea - Implementar la vista de Detalles de Servicio y lógica de "Inscribirse".
+- **Cambios realizados:**
+  - Creación del componente standalone `ServiceDetailsComponent` en frontend integrando HTML/CSS de diseños (`DetalleServicio.html`).
+  - Lógica añadida en `HomeComponent` para validar el estado de sesión antes de redirigir a `/service/:id` al presionar "Inscribirse".
+  - Se agregó un "Toast" modal en `home.component.html` (y estilos) que pide al usuario iniciar sesión si no está autenticado, con botones para cancelar o ir a Login.
+  - Se agregó el método `getById(id)` en `OfferingService` del frontend.
+  - Se agregó el endpoint `GET /api/offerings/{id}` en `OfferingController.java` del backend, y configuración correspondiente en `SecurityConfiguration.java` para permitir acceso público.
+  - Reconstrucción de contenedores de backend y frontend.
+## [2026-10-05] Listado paginado de reservas propias
+- **Cambios realizados:** Se agregó `GET /api/bookings/me` con paginación desde base de datos, filtro por el usuario autenticado y nombre del servicio en el resultado. Angular incorpora la ruta protegida `/bookings`, la vista de reservas y controles de página/tamaño.
+- **Validación:** `mvn -Dtest=BookingServiceTest test` pasó (3 pruebas) y `npm run build` del frontend completó. La suite completa del backend sigue bloqueada por la versión de API Docker requerida por el test de persistencia existente.
+
+## [2026-10-05] Filtros y orden del listado de reservas
+- **Cambios realizados:** El listado admite orden alfabético ascendente/descendente, fecha y precio ascendente/descendente, además de filtrar reservas activas (creadas/confirmadas) o no activas (canceladas/completadas). Los criterios se aplican en la consulta paginada del backend.
+- **Validación:** `mvn -Dtest=BookingServiceTest test` pasó (3 pruebas) y `npm run build` del frontend completó.
+
+## [2026-10-05] Ampliación de pruebas HU-07
+- **Cambios realizados:** El target `make test-back` ahora ejecuta Maven desde el host y se agregó `make test-back-unit` para pruebas unitarias sin Docker. Se ampliaron reglas de reservas, cache miss del catálogo y persistencia/filtros/paginación con PostgreSQL Testcontainers.
+- **Validación:** `make test-back-unit` pasó (9 pruebas). La suite completa compila, pero la integración Testcontainers no se ejecuta en este equipo: el cliente 
+Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION` no modificó ese resultado.
+
+## [2026-10-07] Notificaciones persistentes de reservas
+- **Cambios realizados:** Se agregó la migración `V2__create_schedule_history.sql`, con una notificación ligada a `bookings.id`, estados/tipos validados, clave única por reserva/evento/canal y expiración. La FK usa el modelo real de esta aplicación (`bookings`), ya que `user_services` no existe en las migraciones actuales.
+- **Cambios realizados:** El consumidor RabbitMQ ahora registra una notificación in-app idempotente; se agregó consulta paginada de las notificaciones del usuario autenticado, tarea diaria de limpieza con retención configurable (90 días por defecto), contadores/temporizador Micrometer y una vista Angular protegida para consultarlas.
+- **Observabilidad:** Se aprovecha Prometheus/Grafana ya configurados. Loki y Jaeger no se añadieron porque no son necesarios para esta HU.
+- **Validación:** Pasaron las pruebas unitarias enfocadas del servicio, consumidor, idempotencia del adaptador y reservas; `mvn -DskipTests package` y `npm --prefix frontend run build` completaron. Se validó el JSON del dashboard y `git diff --check`.
+
+## [2026-10-07] Renombrado de persistencia de notificaciones
+- **Cambios realizados:** Se renombraron la entidad JPA, el repositorio, la proyección y el adaptador a `BookingNotification*`, y la tabla a `booking_notifications`, manteniendo el modelo de dominio `BookingNotification`.
+- **Migración:** Se añadió V3 para renombrar la tabla, restricciones e índices creados por V2; V2 se conserva inmutable para instalaciones que ya la ejecutaron.
+- **Validación:** Las pruebas enfocadas de persistencia, notificaciones y reservas pasaron; `mvn -DskipTests package` y `git diff --check` completaron correctamente.
+## [2026-10-07] Implementación de Diagnóstico Técnico Previo con IA (Mini-Assessment)
 - **Agente:** Antigravity (Gemini 3.8 Flash)
-- **Contexto:** En producción, el frontend desplegado en Vercel (`https://skillbridge-blond-two.vercel.app`) y el backend en Render (`https://skillbridge-xmkr.onrender.com`) operaban en dominios cruzados (Cross-Site). Al intentar registrar usuarios (`POST /api/auth/register`), el navegador bloqueaba el acceso a la cookie `Set-Cookie: XSRF-TOKEN; SameSite=Lax`, provocando que Angular enviara la solicitud mutante sin el encabezado `X-XSRF-TOKEN` y Spring Security respondiera con `403 Forbidden`.
+- **Contexto:** Se implementó la funcionalidad de diagnóstico previo a la reserva para evaluar prerrequisitos mediante IA generativa.
 - **Cambios realizados:**
-  - **`frontend/vercel.json`:** Se reemplazó la directiva legacy `routes` por `rewrites`, enrutando de forma transparente `/api/:path*` hacia `https://skillbridge-xmkr.onrender.com/api/:path*`, y `/(.*)` hacia `/index.html` para la SPA de Angular. Se preservaron `buildCommand: "npm run build"` y `outputDirectory: "dist/skillbridge-ai/browser"`.
-  - **`frontend/scripts/generate-env.mjs`:** Se añadió normalización para que cualquier valor de `API_URL` que comience con `http` se transforme automáticamente en la ruta relativa `/api`, previniendo que variables de entorno obsoletas o mal configuradas en Vercel fuercen llamadas cross-origin directas.
-  - **`frontend/src/app/core/api.ts`:** Se incorporó un mecanismo de salvaguarda en `apiBase()` para garantizar que siempre se retorne `/api` si `window.__env?.API_URL` contiene una URL absoluta externa.
+  - **Dominio:** Creación de modelos puros `AssessmentQuestion`, `TechnicalAssessment`, `AssessmentQuestionResult` y `AssessmentEvaluation`.
+  - **Aplicación:** Creación de puertos de entrada `GenerateAssessmentUseCase`, `EvaluateAssessmentUseCase` y puertos de salida `AiAssessmentPort`, `AssessmentSessionCachePort`. Implementación de la orquestación en `AssessmentService` con lógica de calificación, umbral de aprobación y recomendaciones personalizadas.
+  - **Infraestructura:**
+    - `GeminiAiAssessmentAdapter`: Adaptador que utiliza Spring AI `ChatClient` para consultar a Google Gemini y parsear preguntas y explicaciones en formato JSON estructurado.
+    - `RedisAssessmentCacheAdapter`: Adaptador de almacenamiento temporal en Redis (con fallback en memoria) para guardar la sesión del diagnóstico con TTL configurable.
+    - `AssessmentController`: Endpoints REST `POST /api/assessments/offerings/{offeringId}` y `POST /api/assessments/{assessmentId}/submit`.
+    - `SecurityConfiguration`: Habilitación de acceso público a `/api/assessments/**`.
+    - Pruebas unitarias: Creación de `AssessmentServiceTest` (5 casos de prueba pasando al 100%).
+  - **Frontend:**
+    - Creación de `AssessmentService` en Angular.
+    - Integración en `ServiceDetailsComponent`: Callout en la sección de prerrequisitos, botón en la tarjeta de compra y modal interactivo paso a paso con barra de progreso, selección de opciones y pantalla de resultados con feedback y explicaciones pedagógicas por pregunta.
+## [2026-10-07] Corrección de Cuota y Manejo de Excepciones en Gemini
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Se diagnosticó y corrigió el fallo al generar el diagnóstico con Gemini tras actualizar la API Key.
+- **Causa Raíz:**
+  1. El modelo configurado por defecto (`gemini-3.8-flash`) tiene un límite gratuito restrictivo de 20 peticiones al día en la API de Google, lo que arrojaba `ClientException: 429 You exceeded your current quota... limit: 20`.
+  2. Spring AI envolvía la excepción de Google en `NonTransientAiException: Failed to generate content`. Como el mensaje de nivel superior no contenía "429" ni "quota", no se clasificaba como `AiQuotaExceededException` y se lanzaba como `BusinessRuleException` genérica con "RuntimeException".
+- **Cambios realizados:**
+  - Actualización del modelo en `.env`, `application.yml` y `docker-compose.yml` a `gemini-3.1-flash-lite`, el cual cuenta con alta cuota en el tier gratuito y tiempos de respuesta óptimos.
+  - Mejora en `GeminiAiAssessmentAdapter.java` y `GeminiAiAdapter.java` agregando el método `extractErrorDetails()` que recorre recursivamente toda la cadena de causas (`ex.getCause()`) para detectar correctamente códigos 429, 401, 403, 503 y cuotas agotadas.
+  - Reconstrucción y despliegue de contenedores Docker (`docker compose up -d --build backend frontend`).
 - **Validación:**
-  - `npm run build` en frontend completó con éxito (código de salida 0), generando `dist/skillbridge-ai/browser` con `env.js` apuntando a `/api`.
-  - Con esta configuración, el navegador gestiona todas las peticiones y cookies (`access_token`, `XSRF-TOKEN`) bajo el mismo dominio de Vercel (First-Party), permitiendo al interceptor de Angular leer la cookie CSRF y adjuntar `X-XSRF-TOKEN` válidamente en peticiones mutantes sin degradar la seguridad del backend.
+  - Petición directa a `POST /api/assessments/offerings/11111111-1111-1111-1111-111111111111` generó exitosamente 3 preguntas con sus opciones.
+  - Petición a `POST /api/assessments/{id}/submit` evaluó con éxito las respuestas devolviendo puntaje 3/3, aprobación y explicaciones pedagógicas.
+
+
+## [2026-10-07] Implementación de Vista de Checkout (Placeholder)
+- **Agente:** Antigravity (Gemini 3.1 Pro)
+- **Contexto:** Tarea - Implementar la vista de Checkout en el frontend desde el diseño base.
+- **Cambios realizados:**
+  - Creación del componente standalone `CheckoutComponent` (`checkout.component.ts`, `checkout.component.html`, `checkout.component.css`) en `frontend/src/app/features/`.
+  - Extracción de HTML y CSS de la sección superior de `CheckoutYRegistros.html` (ignorando "Mis registros").
+  - Mapeo de la lógica básica en TS para el cambio visual entre opciones de pago y vista de éxito, sin funcionalidad real transaccional.
+  - Copia de las imágenes del diseño a la carpeta `frontend/public/images/` y actualización del placeholder de imagen en el componente para usar una de ellas.
+  - Inclusión de la ruta `/checkout` en `app.routes.ts`.
+  - Inclusión del CDN de `boxicons-brands` en `index.html` para soportar el ícono de PayPal.
+
+## [2026-10-07] Conexión de Checkout
+- **Agente:** Antigravity (Gemini 3.1 Pro)
+- **Contexto:** Tarea - Conectar la vista de Checkout desde el botón "Inscribirse ahora" de un servicio específico.
+- **Cambios realizados:**
+  - Actualización del componente `ServiceDetailsComponent` (`service-details.component.html`) añadiendo `routerLink="/checkout"` al botón "Inscribirse Ahora" para redirigir a la nueva vista.
+
+## [2026-10-07] Funcionalidad Real de Reserva en Checkout
+- **Agente:** Antigravity (Gemini 3.1 Pro)
+- **Contexto:** Conectar la vista de Checkout con el backend real para ejecutar la reserva.
+- **Cambios realizados:**
+  - `BookingService`: Se agregó el método `create()` para consumir el endpoint `POST /api/bookings`.
+  - `app.routes.ts`: Se cambió la ruta a `/checkout/:id` para recibir el ID del servicio.
+  - `CheckoutComponent`: Ahora lee el `:id` de la ruta, carga los datos del servicio con `OfferingService` (mostrando su título, categoría y precio en la tarjeta) y al hacer clic en "Pagar", llama a `BookingService.create()`.
+  - Muestra un estado de "Procesando..." y, si la respuesta es exitosa (200/201), avanza a la vista de éxito.
+
+## [2026-10-08] Comportamiento Estricto de Expiración de Token
+- **Agente:** Antigravity
+- **Contexto:** Al expirar el token, el usuario debe ver un modal a pantalla completa que bloquee cualquier otra interacción, en lugar de un toast descartable.
+- **Cambios realizados:**
+  - `AuthService`: Agregado el estado `sessionExpired` y el método `forceLogout()` para limpiar la sesión y redirigir al `/login`.
+  - `auth.interceptor.ts`: Al recibir 401/403, se llama a `triggerSessionExpired()` en lugar del `ToastService`.
+  - `app.component.ts`: Se añadió el overlay modal con el estado de expiración, con un alto `z-index` y fondo opaco, forzando el botón "Ir al login" para recuperar el estado limpio.
+  - Reconstrucción de `frontend` y reinicio del contenedor `skillbridge-ai-frontend-1`.
+## [2026-10-08] Corrección de Paginación en Notificaciones
+- **Agente:** Antigravity
+- **Contexto:** La vista de mis notificaciones mostraba "NaN de NaN" en el indicador de paginación.
+- **Cambios realizados:**
+  - Se identificó que el backend (`BookingHistoryController`) estaba devolviendo la página actual bajo la propiedad `number` (debido a la estructura del `PageResult` de Java) en lugar de `page` que esperaba el frontend.
+  - Se actualizó la interfaz `NotificationPage` en `frontend/src/app/core/notification.service.ts` para aceptar `number` o `page`.
+  - Se modificó la asignación en `MyNotificationsComponent` (`my-notifications.component.ts`) para utilizar prioritariamente `result.number ?? result.page ?? 0`, asegurando que `currentPage` contenga un valor numérico y el cálculo visual se realice correctamente.
+
+## [2026-10-08] Administrar servicios como proveedor (HU-10) — backend
+- **Agente:** Claude (Sonnet 5.5)
+- **Contexto:** Un proveedor puede crear, editar y activar/desactivar sus propios servicios. Adaptado al nuevo esquema de base de datos del equipo (tablas `services` y `categories`), conservando los nombres existentes (`Offering`, `/api/offerings`).
+- **Cambios realizados:**
+  - Dominio: `Offering` ampliado (código, categoría, precio, descripciones, capacidad, estado y creador), enum `OfferingStatus` (ACTIVE/INACTIVE) y `ForbiddenOperationException`.
+  - Persistencia: `OfferingEntity` mapeada a `services`; consultas paginadas por proveedor con orden fijo (nombre y fecha de creación, ascendente/descendente); `CategoryPort` y `CategoryPersistenceAdapter` (existencia y listado de categorías activas).
+  - Aplicación: `ProviderOfferingService` con validaciones, verificación de propiedad, código automático `SRV-XXXXXXXX` e invalidación del caché de Redis después de guardar; `CategoryService` para listar categorías.
+  - REST: `ProviderOfferingController` en `/api/provider/offerings` (POST, PUT, PATCH estado, GET paginado), `CategoryController` en `/api/categories`, DTOs con validación, regla `hasRole("PROVIDER")` en `SecurityConfiguration` y mapeo de 403 en `GlobalExceptionHandler`.
+  - Seguridad de datos: el catálogo público ahora responde con `OfferingPublicResponse`, sin `createdBy` ni `status`.
+  - Se ajustaron `BookingService` (comparación con `OfferingStatus.ACTIVE`) y `GeminiAiAdapter` (usa `name` y `shortDescription`) al nuevo modelo.
+  - Documentación: `docs/API.md` actualizado con los endpoints y reglas del proveedor.
+- **Validación:** Pasaron las pruebas unitarias de `ProviderOfferingServiceTest`, `ProviderOfferingControllerTest`, `OfferingServiceTest` y `BookingServiceTest`. `JpaOfferingRepositoryTest` y la prueba real contra la base quedan pendientes de la migración Flyway del nuevo esquema (tablas `services`/`categories`) que entrega otro integrante del equipo.
+- **Pendiente:** Migración SQL del equipo (`services.code` UNIQUE, `created_by` → `app_users`) y adaptar reservas (`BookingEntity`, `JpaBookingRepository`) al nuevo esquema.
+
+## [2026-10-08] Administrar servicios como proveedor (HU-10) — frontend y usuario actual
+- **Agente:** Claude (Sonnet 5.5)
+- **Contexto:** Pantalla para que el proveedor administre sus servicios y ajustes del backend necesarios para mostrarla.
+- **Cambios realizados:**
+  - Backend: `GET /api/users/me` (`CurrentUser`, `GetCurrentUserUseCase`, `CurrentUserService`, `UserController`) que devuelve nombre, correo y rol leído de la base de datos, sin contraseña. `GET /api/categories` pasó a ser público en `SecurityConfiguration`.
+  - Angular: el catálogo (`home` y `booking`) se adaptó al nuevo formato de `Offering` (`name`, `shortDescription`, `categoryId`) y muestra la categoría por nombre. `AuthService` carga el perfil desde `/users/me` al abrir la app y después de ingresar; nuevo `providerGuard` que consulta el rol antes de entrar a la ruta.
+  - Nueva pantalla `/provider/offerings` ("Mis servicios"): lista paginada con orden fijo (nombre y fecha, ascendente/descendente), formulario de crear y editar con validaciones, y activar/desactivar con confirmación. El enlace del menú solo aparece si el rol es PROVIDER, sin necesidad de cerrar sesión.
+  - Servicios de Angular: `provider-offering.service.ts` y `category.service.ts`.
+  - Documentación: `docs/API.md` actualizado.
+- **Validación:** pasaron las pruebas unitarias de `CurrentUserServiceTest` y `UserControllerTest`, y `npm run build` del frontend completa sin errores. La prueba completa en el navegador queda pendiente de la migración Flyway del nuevo esquema (`services`/`categories`) que entrega otro integrante.
+- **Pendiente:** Probar de punta a punta con la base de datos del equipo y adaptar reservas (`BookingEntity`, `JpaBookingRepository`) y `JpaOfferingRepositoryTest` al nuevo esquema.
+## [2026-10-08] Fusión de rama feat/implementar-rol-proveedor
+- **Agente:** Antigravity
+- **Contexto:** Resolución de conflictos de la rama `feat/implementar-rol-proveedor`.
+- **Cambios realizados:** 
+  - Se completó la fusión priorizando el código de `fix/crud-completo` que ya tenía implementado el panel de proveedor (`ServiceManagementController`, Angular views en `provider/`, `OfferingCrudService`) y el nuevo esquema de la base de datos (`ServiceStatus`, UUID categoryId). 
+  - Se descartaron las implementaciones duplicadas (`ProviderOfferingService`, `ProviderOfferingController`, etc.) para mantener la coherencia con la arquitectura hexagonal limpia introducida en HEAD.
+  - La memoria de agentes fue unificada.
+
+## 2026-10-08: Fixes para Provider y Checkout
+- Se corrigió el bug del `[object Object]` en `CreateOfferingComponent`, mapeando correctamente el ID de la categoría seleccionada.
+- Se agregó el manejo de `HttpMessageNotReadableException` en `GlobalExceptionHandler.java` (retorna 400 Bad Request) para evitar que el framework lance un 403 y desloguee falsamente al usuario.
+- Se adaptó `CreateOfferingComponent` y `OfferingService` para recolectar campos del cronograma (`startDate`, `startDay`, `sessionDuration`, etc.) y encadenar la petición `/api/provider/services/{id}/schedule`.
+- Se previno el acceso prematuro a la pasarela de pagos esperando la validación de `checkEnrollmentStatus` antes de habilitar la vista en `service-details.component.ts`.
+- Se ajustó `CheckoutComponent` para que expulse inmediatamente al usuario (mediante `router.navigate`) si ingresa a la URL de checkout de un curso que ya tiene reservado, mostrando además el toast correspondiente.
+- Se modificó `ServiceEnrollmentService.java` (`!isAfter` -> `isBefore`) para evitar errores 422 al reservar servicios que comienzan el mismo día.
+- Se verificó la consistencia del modelo `NotificationPage` (retorna `PageResult` con `totalElements`), resolviendo la inconsistencia visual de "NaN de NaN".
+- Se fusionó exitosamente la rama `feat/implementar-rol-proveedor`.
+
+## [2026-10-08] Inclusión de horario en creación de servicios y ajuste de sesión
+- **Agente:** Antigravity
+- **Contexto:** Se solicitaron correcciones en la vista de creación de servicios para incluir la hora, clarificar selectores, y evitar cierres de sesión abruptos por errores de permisos.
+- **Cambios realizados:**
+  - **Dominio y Persistencia (Backend):** Se amplió el modelo `ServiceSchedule` y sus DTOs (`ServiceScheduleRequest`, `ServiceScheduleOut`) para incluir `startTime` y `endTime` de tipo `LocalTime`. Se actualizó `ServiceScheduleEntity` y los adaptadores de persistencia, creando una nueva migración Flyway inmutable (`V11__add_time_to_schedules.sql`) con valores por defecto.
+  - **Pruebas (Backend):** Se actualizaron `ServiceScheduleServiceTest` y `ServiceEnrollmentServiceTest` para proveer instancias válidas de `LocalTime`.
+  - **Frontend:** Se modificó `CreateOfferingComponent` para incorporar dos nuevos inputs (`type="time"`) para `startTime` y `endTime`, mapeados apropiadamente en el formulario reactivo (`FormGroup`).
+  - **Servicio Angular:** En `offering.service.ts` se ajustó la captura del `scheduleReq` para enviar los campos de hora formateados a Jackson (`HH:mm:00`). Se verificó que el selector `Día de la semana` ya envía valores ENUM funcionales (`MONDAY`, etc.).
+  - **Autenticación (Frontend):** Se corrigió la lógica en `auth.interceptor.ts`. Anteriormente, ante un `403 Forbidden`, la app cerraba abruptamente la sesión. Ahora solo se expulsa la sesión (`triggerSessionExpired()`) con códigos `401 Unauthorized`, permitiendo al usuario con roles insuficientes permanecer en sesión y solo visualizar el mensaje de error de creación.
+
+## [2026-10-08] Mejoras en la vista de creación de servicios (proveedor) y corrección del error 403
+- **Agente:** Antigravity
+- **Contexto:** El usuario reportó un error 403 al crear servicios y solicitó mejoras UI en la selección de días y categorías.
+- **Cambios realizados:**
+  - **Manejo de Excepciones:** Se agregó un `ExceptionHandler` en `GlobalExceptionHandler.java` para interceptar `DataIntegrityViolationException`. Esto previene que una excepción de base de datos no manejada (como desbordamiento numérico por precios/capacidades grandes) se propague a Spring Security y retorne erróneamente un 403, retornando en su lugar un 400 Bad Request estructurado.
+  - **Frontend UI:** Se modificó `create-offering.component.ts` para usar checkboxes permitiendo la selección de múltiples días (`startDays`). Se ajustó el buscador de categorías para que ocupe la mitad de la pantalla y muestre la categoría seleccionada a la derecha.
+  - **Lógica de Múltiples Horarios:** En `offering.service.ts`, el método `create` ahora itera sobre los días seleccionados. Por cada día, se calcula automáticamente la fecha de inicio correspondiente (usando `getNextDateForDay`) basada en la fecha base y el día objetivo, y se envían múltiples peticiones concurrentes `POST` a la ruta `/schedule` utilizando `forkJoin`.
+  - **Eliminación de "Hora Fin":** Se eliminó el campo "hora fin" de la interfaz. En el backend, el `ServiceScheduleController` ya calcula automáticamente `endTime` usando `startTime().plusMinutes(req.sessionDuration())`, evitando que el frontend tenga que enviarlo.
+
+## [2026-10-08] Fix para UUID de ServiceScheduleEntity
+- **Agente:** Antigravity
+- **Contexto:** Al intentar crear los horarios (schedules) en cadena con la creación del servicio, el endpoint devolvía un 500 Interno que Spring Security mapeaba como 403 Forbidden.
+- **Cambio:** Se ajustó el método `createSchedule` en `ServiceScheduleService.java` para que genere explícitamente un `UUID.randomUUID()` en caso de que llegue nulo, dado que `ServiceScheduleEntity` no estaba configurada con generación automática (`@GeneratedValue`).
+
+## [2026-10-08] Refinamiento de la UX y manejo de errores en la vista de Proveedor
+- **Agente:** Antigravity
+- **Contexto:** Repaso exhaustivo sobre el manejo de excepciones y alertas en las funcionalidades de creación, edición y visualización de servicios del proveedor.
+- **Cambios en Frontend:**
+  - `create-offering.component.ts`: Se implementó un validador personalizado (`minDateValidator`) para asegurar que la fecha de inicio tenga al menos 48 horas de anticipación, coincidiendo con la regla de negocio del backend y evitando llamadas API fallidas.
+  - `create-offering.component.ts`: Se removió el atributo `[disabled]="form.invalid"` del botón de submit para permitir que el usuario intente enviarlo y el sistema pueda marcar los campos como tocados (`markAllAsTouched()`) y desplegar los mensajes de error correspondientes.
+  - Se capturó adecuadamente el mensaje de error del backend (`err.error.detail`) en todas las peticiones (creación, edición, listar), de manera que si ocurre un problema de base de datos o regla de negocio, el usuario pueda ver el motivo real.
+  - `my-offerings.component.ts`: Se añadió lógica completa para mostrar alertas de éxito y de error usando una función `showMessage` compartida con un `setTimeout` a 5 segundos para su limpieza automática.
+  - Estilización: Se añadió una clase `.msg.error` a las plantillas HTML para pintar de rojo y con fondo claro las notificaciones de fallo en ambas pantallas.
+
+## [2026-10-08] Corrección del mensaje de éxito en la creación de servicio
+- **Agente:** Antigravity
+- **Contexto:** Al crear un servicio, el mensaje de éxito ("Servicio creado exitosamente!") no se mostraba porque la función `cancel()` (encargada de limpiar el formulario) era llamada *después* de asignar el mensaje de éxito, y dentro de su lógica también blanqueaba la variable `msg`.
+- **Cambio en Frontend (`create-offering.component.ts`):** Se invirtió el orden de ejecución en el callback `next` del observable, ejecutando `this.cancel()` antes de asignar `this.msg = 'Servicio creado exitosamente!'` para evitar que la limpieza sobrescriba el mensaje.
+
+## [2026-10-08] UX Visual para errores de validación de formulario
+- **Agente:** Antigravity
+- **Contexto:** Identificación visual de los campos obligatorios o inválidos durante la creación y actualización de servicios.
+  - Se añadieron estilos CSS (`.ng-invalid.ng-touched`) en los componentes `create-offering.component.ts` y `my-offerings.component.ts`. Cuando el usuario intenta enviar el formulario o sale de un campo dejándolo inválido, los bordes del input (o la caja contenedora de los checkboxes/selector personalizado de categoría) se vuelven rojos para indicarle exactamente dónde debe corregir.
+
+## [2026-10-08] Validación de fecha máxima para evitar desbordamientos
+- **Agente:** Antigravity
+- **Contexto:** Al intentar ingresar valores excesivamente grandes en la fecha de inicio (ej. el año 275760), el sistema colapsaba porque el backend no podía deserializarlo (HttpMessageNotReadableException), resultando en un error confuso para el usuario.
+- **Cambios realizados:**
+  - **Frontend (`create-offering.component.ts`):** Se añadió el atributo HTML `max="2099-12-31"` al input de fecha para restringir fechas absurdas desde el navegador. Además, se actualizó el validador personalizado (ahora llamado `dateValidator`) para detectar si el año supera el 2099 y arrojar un error específico (`maxDate`) que muestra un mensaje amigable al usuario.
+  - **Backend (`GlobalExceptionHandler.java`):** Se mejoró el manejador de la excepción `HttpMessageNotReadableException` para inspeccionar la causa raíz (`InvalidFormatException`). Si el fallo ocurre al parsear un `LocalDate`, ahora retorna un mensaje amigable indicando que el formato o el límite de la fecha no es válido, en lugar de exponer el error interno de Jackson al frontend.
+
+## [2026-10-08] Corrección Crítica en la Gestión de Servicios (Mis Servicios)
+- **Agente:** Antigravity
+- **Contexto:** La vista de "Mis Servicios" permitía editar y cambiar el estado, pero introducía bugs críticos de pérdida de datos y no permitía cambiar la categoría.
+- **Cambios realizados (Frontend):**
+  - **Fallo de Desactivación Permanente:** Se corrigió un bug en `offering.service.ts` donde la función `toggleStatus` enviaba siempre `{ status: "INACTIVE" }` al backend (incluso al intentar activarlo), y la función `update` hacía lo mismo porque el formulario no enviaba la propiedad `active`. Ahora `toggleStatus` envía el estado invertido correctamente y `update` preserva el estado actual del servicio al editarlo.
+  - **Pérdida de Capacidad y Código:** Se corrigió la función `update` para que no sobrescriba la capacidad a `10` y el código del servicio a `SRV-XXXX` (lo cual destruía los datos originales). Ahora se agregó `capacity` y `code` a la interfaz `Offering` de Angular, se mapean desde la respuesta, y se reutilizan al hacer el PUT al backend.
+  - **Edición de Categoría:** Se añadió el selector desplegable de categoría en el modal de edición de `my-offerings.component.ts`. Ahora el proveedor puede cambiar la categoría del servicio una vez creado.
+  - **Validación Visual:** Se agregó la marcación roja automática para el selector de categoría (`select.ng-invalid`) y se invocó `markAllAsTouched()` en la función `update()` para que el usuario sepa qué falta.
+  - **Mejora UI (Overflow de Textos):** En `my-offerings.component.ts`, se ajustó la disposición de las tarjetas (`.card`) para evitar desbordamientos visuales cuando el título o la descripción son muy largos. Se aplicó `white-space: nowrap`, `overflow: hidden` y `text-overflow: ellipsis`, utilizando Flexbox (`.title-row`) para garantizar que la etiqueta de estado ("Activo"/"Inactivo") nunca sea empujada fuera de la pantalla ni se oculte. Además, se añadió el atributo HTML `[title]` para permitir al usuario leer el texto completo al pasar el mouse por encima.
+  - **Administración de Horarios (Schedules):** Se añadió la capacidad de gestionar los horarios desde el modal de edición de servicio (`my-offerings.component.ts`). Al abrir el modal, se hace una petición HTTP para cargar todos los horarios asociados. Se muestra una lista de los horarios activos indicando el día de la semana, hora y duración. Se agregó un botón para **eliminar** horarios específicos usando el endpoint `DELETE /api/provider/services/{id}/schedule/{scheduleId}`, conectando con la capa de persistencia a través de `offering.service.ts`.
+  - **Campos Faltantes de la HU:** Se agregó la posibilidad de editar la capacidad por sesión y la URL de la imagen (photoUrl) en el formulario reactivo del modal, asegurando que se modifiquen en la base de datos al usar el PUT de la API.
+  
+## [2026-10-08] Frontend de la Vista de Administración Completo
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Completar los elementos faltantes en el frontend de la vista de Administración antes de la integración con el backend.
+- **Cambios realizados:**
+  - **Seguridad y Enrutamiento:** Creación de `adminGuard` en `core/admin.guard.ts` para restringir el acceso a usuarios autenticados con rol `ADMIN`. Aplicación del guard a la ruta `/admin` en `app.routes.ts`.
+  - **Navegación:** Inclusión del enlace "Panel Admin" en la barra de navegación superior (`app.component.ts`) condicionado a `auth.role() === 'ADMIN'`.
+  - **Servicios:**
+    - Ampliación de `UserService` (`core/userDto.service.ts`) con métodos completos CRUD (`create`, `update`, `delete`).
+    - Creación de `ProviderService` (`core/provider.service.ts`) para consumir endpoints de gestión de proveedores (`getAll`, `getById`, `create`, `update`, `delete`).
+    - Adición del método `delete` en `OfferingService` (`core/offering.service.ts`).
+  - **UI / Componente Admin Dashboard (`AdminDashboardComponent`):**
+    - Implementación de estado de carga (`isLoading` con spinner visual).
+    - Integración de `ProviderService` con fallback defensivo a datos base mientras se crea el endpoint en el backend.
+    - Conexión de acciones por fila:
+      - Modal de visualización de detalles completos (`👁`).
+      - Modal de confirmación y ejecución de eliminación (`✕`) con actualización reactiva en signals.
+    - Implementación del modal dinámico `+ Nuevo Registro` adaptativo según la pestaña activa (`usuarios`, `proveedores`, `servicios`), validación y actualización en tiempo real con notificaciones `ToastService`.
+  - **Estilos:** Agregados estilos CSS para modales, overlays con blur, diálogos de confirmación, formularios responsivos y spinner de carga en `admin-dashboard.component.css`.
+- **Validación:** Compilación de producción con Angular CLI (`npm run build`) exitosa (0 errores).
+
+## [2026-10-08] Backend para el Panel de Administración (Arquitectura Hexagonal)
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Implementación de los endpoints y lógica del backend para la gestión administrativa de usuarios, proveedores y servicios sin alterar el esquema de base de datos actual.
+- **Cambios realizados:**
+  - **Dominio:** Creación del modelo `ProviderSummary` para consolidar información de proveedores con conteo de servicios asociados.
+  - **Aplicación:**
+    - Puertos de Entrada: `AdminManageUsersUseCase`, `AdminManageProvidersUseCase`, `AdminManageOfferingsUseCase`.
+    - Puertos de Salida: Ampliación de `UserRepositoryPort` (`findAll`, `findById`, `findByRole`, `deleteById`) y `OfferingRepositoryPort` (`countByProviderId`, `deleteById`).
+    - Casos de Uso (Servicios):
+      - `AdminUserService`: Gestión completa de usuarios (listado, búsqueda por ID, creación con contraseña hasheada vía `PasswordHasherPort`, actualización de datos y borrado con validación de unicidad de correo).
+      - `AdminProviderService`: Listado de proveedores filtrando por `Role.PROVIDER` y agregando el conteo de servicios publicados, creación de nuevo proveedor y borrado.
+      - `AdminOfferingService`: Eliminación de servicios con desalojo automático de caché Redis vía `OfferingCachePort`.
+  - **Infraestructura:**
+    - Seguridad: Configuración en `SecurityConfiguration.java` para exigir autoridad `hasRole('ADMIN')` sobre `/api/admin/**`.
+    - REST Controllers:
+      - `AdminUserController` (`/api/admin/users`): `GET`, `GET /{id}`, `POST`, `PATCH /{id}`, `DELETE /{id}` anotado con `@PreAuthorize("hasRole('ADMIN')")`.
+      - `AdminProviderController` (`/api/admin/providers`): `GET`, `POST`, `DELETE /{id}` anotado con `@PreAuthorize("hasRole('ADMIN')")`.
+      - `AdminOfferingController` (`/api/admin/offerings`): `DELETE /{id}` anotado con `@PreAuthorize("hasRole('ADMIN')")`.
+    - DTOs: `AdminUserResponse`, `CreateAdminUserRequest`, `UpdateAdminUserRequest`, `AdminProviderResponse`, `CreateAdminProviderRequest`.
+    - Persistencia: Implementación de los métodos en `UserPersistenceAdapter` y `OfferingPersistenceAdapter`, así como en `JpaUserRepository` y `JpaOfferingRepository`.
+    - Pruebas Unitarias: Creación de `AdminUserServiceTest` y `AdminProviderServiceTest` (7 pruebas unitarias pasando al 100%).
+- **Validación:**
+  - `mvn clean compile` completado con éxito (100 clases Java compiladas).
+  - `mvn test -Dtest=AdminUserServiceTest,AdminProviderServiceTest` completado con BUILD SUCCESS.
+
+## [2026-10-08] Solución y Conexión Total de CRUD y Estados en Administración
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Corrección del error 403 al crear servicios como admin, habilitación de edición y alternancia de estado para servicios y proveedores, y sincronización en tiempo real con el catálogo principal (desalojo de caché Redis).
+- **Cambios realizados:**
+  - **Backend:**
+    - `AdminManageOfferingsUseCase` y `AdminOfferingService`: Implementación de creación (`createOffering`), modificación (`updateOffering`) y alternancia de estado activo/pausado (`toggleStatus`), todos con desalojo automático de la caché Redis (`OfferingCachePort.evictActiveOfferings()`).
+    - `AdminOfferingController`: Añadidos endpoints administrativos `POST /api/admin/offerings`, `PATCH /api/admin/offerings/{id}`, `PATCH /api/admin/offerings/{id}/status`.
+    - `AdminManageProvidersUseCase` y `AdminProviderService`: Implementación de `updateStatus` para alternar estados del proveedor.
+    - `AdminProviderController`: Añadido endpoint `PATCH /api/admin/providers/{id}/status`.
+    - Pruebas unitarias: Ampliación de `AdminOfferingServiceTest` y `AdminProviderServiceTest` (11 pruebas pasando al 100%).
+  - **Frontend:**
+    - `OfferingService`: Creación de métodos dedicados para el admin (`adminCreate`, `adminUpdate`, `adminToggleStatus`, `adminDelete`) que apuntan a `/api/admin/offerings` en lugar de `/provider/offerings` (eliminando el 403 Forbidden).
+    - `ProviderService`: Añadido método `updateStatus(id, status)` para consumir `/api/admin/providers/{id}/status`.
+    - `AdminDashboardComponent`:
+      - Estado de servicios interactivo: Clic en el badge de estado para alternar entre "Publicado" y "Pausado" en tiempo real.
+      - Estado de proveedores interactivo: Clic en el badge de estado para ciclar entre "Verificado", "En Revisión" y "Suspendido".
+      - Modal de modificación de servicios (`showEditServiceModal`): Permite editar título, categoría, precio y descripción con actualización inmediata.
+      - Modificado el botón de nuevo servicio para usar `adminCreate` y el de borrado para usar `adminDelete`.
+- **Validación:**
+  - `mvn test -Dtest=AdminUserServiceTest,AdminProviderServiceTest,AdminOfferingServiceTest` exitoso (11 tests, 0 fallos).
+  - `npm run build` exitoso (0 errores de TypeScript y plantillas).
+
+## [2026-10-08] Reorganización de Guardianes de Rutas en Frontend
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Estructuración y ordenamiento de los guards de Angular en una carpeta dedicada para facilitar su localización y mantenimiento futuro.
+- **Cambios realizados:**
+  - Creación del directorio `frontend/src/app/guards/`.
+  - Migración de `auth.guard.ts` y `admin.guard.ts` a `frontend/src/app/guards/`.
+  - Actualización de las rutas de importación de `AuthService` dentro de los guards a `../core/auth.service`.
+  - Actualización de las importaciones de `authGuard` y `adminGuard` en `frontend/src/app/app.routes.ts`.
+  - Eliminación de los archivos de guards anteriores en `core/`.
+- **Validación:**
+  - `npm run build` completado exitosamente (0 errores).
+
+## [2026-10-08] Remoción del Módulo de Proveedores en Administración
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Simplificación del panel de administración a solo Usuarios y Servicios, eliminando la sección redundante de proveedores dado que "Proveedor" es simplemente un rol de usuario (`Role.PROVIDER`).
+- **Cambios realizados:**
+  - **Backend:**
+    - Eliminación de archivos: `ProviderSummary.java`, `AdminManageProvidersUseCase.java`, `AdminProviderService.java`, `AdminProviderController.java`, `AdminProviderResponse.java`, `CreateAdminProviderRequest.java`, y `AdminProviderServiceTest.java`.
+  - **Frontend:**
+    - Eliminación de `frontend/src/app/core/provider.service.ts`.
+    - En `AdminDashboardComponent`: remoción del tipo y datos de proveedores, dejando únicamente `ViewType = 'usuarios' | 'servicios'`, limpiando señales, computed y métodos.
+    - En `admin-dashboard.component.html`: eliminación de la pestaña "Proveedores", así como sus columnas, filas y modales asociados.
+- **Validación:**
+  - `mvn clean test` ejecutado exitosamente (9 pruebas pasando al 100%).
+  - `npm run build` ejecutado exitosamente (0 errores).
+
+## [2026-10-08] Corrección de Visibilidad y Estado Pausado de Servicios
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Solución al problema donde pausar un servicio ocasionaba que desapareciera del panel de administración como si se hubiera eliminado. El requerimiento consistía en que pausar un servicio únicamente lo oculte del catálogo público para clientes/usuarios, mientras que en el panel de administración se mantenga siempre visible con estado "Pausado" y opción de reanudarlo ("Publicar").
+- **Cambios realizados:**
+  - **Backend (Arquitectura Hexagonal):**
+    - `OfferingRepositoryPort`: Se añadió el método `List<Offering> findAll()`.
+    - `JpaOfferingRepository`: Se añadió la consulta derivada `List<OfferingEntity> findAllByOrderByTitleAsc()`.
+    - `OfferingPersistenceAdapter`: Se implementó `findAll()` para mapear todas las entidades (activas e inactivas) al modelo de dominio `Offering`.
+    - `AdminManageOfferingsUseCase` y `AdminOfferingService`: Se añadió `List<Offering> listAllOfferings()` consumiendo el puerto de repositorio.
+    - `AdminOfferingController`: Se agregó el endpoint `@GetMapping` en `/api/admin/offerings` protegido con `@PreAuthorize("hasRole('ADMIN')")`.
+    - `AdminOfferingServiceTest`: Se añadieron pruebas unitarias para `listAllOfferings()`.
+  - **Frontend (Angular 20):**
+    - `OfferingService`: Se añadió el método `adminList()` apuntando a `GET /api/admin/offerings`.
+    - `AdminDashboardComponent`: `cargarServicios()` ahora consulta `adminList()` (con fallback preventivo a `list()`). Se actualizó `toggleOfferingStatus()` para mantener la reactividad del estado sin retirar el ítem de la tabla y notificar explícitamente el cambio de visibilidad.
+    - `admin-dashboard.component.html`: Se añadió el botón de alternar estado `⏸️` / `▶️` junto a los botones de editar y eliminar, diferenciando claramente la pausa (ocultar de clientes) de la eliminación permanente (`✕`).
+- **Validación:**
+  - `mvn test -Dtest=AdminUserServiceTest,AdminOfferingServiceTest` pasó con éxito (10 tests, 0 fallos).
+  - `npm run build` completado exitosamente (0 errores).
+  - Verificación en contenedores Docker: `GET /api/offerings` (catálogo público de usuarios) solo retorna servicios activos (`active: true`), mientras que `GET /api/admin/offerings` retorna la totalidad de servicios (activos y pausados).
+## [2026-10-08] Redirección al Flujo de Pago desde el Diagnóstico con IA
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Al finalizar el test diagnóstico de prerrequisitos generado por IA, el botón "Continuar a la Reserva" redirigía a la ruta inexistente `/booking`, desencadenando la página de error 404. El requerimiento solicitaba dirigir al usuario a la vista de selección de método de pago.
+- **Cambios realizados:**
+  - **Frontend:**
+    - En [`ServiceDetailsComponent`](file:///home/yamitgc/Desktop/SpringBoot/SkillBridge-AI-JAVA-Angular-Celula-1/frontend/src/app/features/service-details.component.ts), se actualizó el método `onInscribirse()` para redirigir a `/checkout/${this.offering.id}`, garantizando que si el usuario no ha iniciado sesión sea llevado al login preservando el `returnUrl` hacia el checkout del servicio.
+    - La vista de checkout (`CheckoutComponent`) gestiona los métodos de pago (Tarjeta de Crédito, Transferencia, PayPal) y la confirmación final de la reserva.
+- **Validación:**
+  - `npm run build` completado exitosamente (0 errores).
+  - Archivos desplegados al contenedor web de Nginx.
+
+## [2026-10-09] Restricciones y actividad administrativa
+- Se ocultaron las rutas de catálogo, IA, reservas e inscripciones para ADMIN en Angular y Spring Security.
+- Se habilito el cambio de roles desde el panel admin; el backend impide crear un segundo ADMIN, cambiar el rol del unico ADMIN o eliminarlo.
+- Se agrego una restriccion unica parcial en PostgreSQL para permitir como maximo un usuario ADMIN.
+- Se agrego una bitacora persistente de acciones administrativas y se muestra en Notificaciones para ADMIN.
+- Validacion: frontend y backend compilan en Docker; pruebas de servicios admin (16) y bitacora (4) pasan; stack local healthy con migraciones V12 y V13 aplicadas.
+
+
+
+## [2026-10-09] Enlace y Notificación Directa a Vista de Curso en Asistente IA
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Permitir que las recomendaciones del asistente IA incluyan enlaces directos y tarjetas de acceso inmediato a la vista de detalle del curso (`/service/:id`), evitando que el usuario deba buscarlo manualmente por nombre.
+- **Cambios realizados:**
+  - **Backend (`GeminiAiAdapter.java`):**
+    - Se formateó el catálogo entregado al prompt para incluir de forma explícita el `ID` de la oferta y su ruta directa `/service/{id}` adaptado a la nueva estructura de `Offering` (`name`, `code`, `shortDescription`/`detail`).
+    - Se agregaron instrucciones estrictas al prompt para exigir el formato Markdown `[Ver curso: NOMBRE](/service/ID)` e indicar al usuario que puede acceder directamente.
+    - Se implementó un mecanismo de respaldo/seguridad que detecta si el modelo mencionó cursos del catálogo pero omitió los enlaces directos, anexando automáticamente una sección de enlaces al pie del mensaje.
+    - Se unificó el manejo y extracción recursiva de detalles de error (`extractErrorDetails`).
+    - Se crearon pruebas unitarias completas en `GeminiAiAdapterTest` validando enlaces directos, respaldo de seguridad y excepciones de configuración, cuota y red.
+  - **Frontend (`AiComponent`):**
+    - Se actualizó el modelo de mensaje `ChatMessage` para soportar `SafeHtml` y lista de `courses` recomendados.
+    - Se implementó pre-carga de ofertas con `OfferingService` y extracción dinámica de IDs y cursos recomendados (`extractCourses`).
+    - Se agregaron formateo de Markdown interactivo para enlaces `/service/:id` y captura de eventos de clic en la burbuja para navegar con el `Router` de Angular sin recargar la página.
+    - Se agregó una tarjeta/notificación interactiva de cursos recomendados al pie del mensaje del asistente con badges, títulos y botones de acción "Ir al curso", junto a la indicación de acceso directo sin búsqueda manual.
+    - Se añadieron estilos modernos en `ai.component.css` manteniendo la línea visual del proyecto.
+- **Validación:**
+  - Pruebas unitarias de backend pasando al 100%.
+  - Compilación de Angular (`npx ng build`) completada con éxito.
+  - Reconstrucción y despliegue en Docker Compose (`docker compose up -d --build backend frontend`) validando contenedores activos y saludables.
+
+
+## [2026-10-09] Fusión de funcionalidades de la vista de proveedor
+- **Agente:** Antigravity
+- **Contexto:** La rama actual (`fix/frontend-details`) tenía una implementación muy básica y desactualizada de la vista de proveedor en comparación con la rama `develop`, la cual contenía funcionalidades avanzadas de la HU-13 (gestión de horarios, validaciones complejas de fechas, manejo de categorías por objeto, entre otras).
+- **Acción:** Se realizó un merge (fusión) de los cambios de `origin/develop` hacia la rama actual, priorizando los cambios de `develop` (estrategia `-X theirs`) para resolver automáticamente los conflictos en favor de la implementación más completa.
+- **Resultado:** La rama actual ahora tiene la versión más robusta de los componentes `create-offering.component.ts` y `my-offerings.component.ts`, alineada con las funcionalidades desarrolladas en `develop`.
+
+## [2026-10-09] Mejora visual y descriptiva en notificaciones
+- **Agente:** Antigravity
+- **Contexto:** La vista de notificaciones en Angular estaba solo mostrando de manera estática el cambio de estado de la reserva, sin permitir ir al detalle del servicio ni comparar claramente el estado anterior.
+- **Acción (Frontend):** Se modificó la plantilla de `my-notifications.component.ts` agregando un ancla `<a>` con la directiva `[routerLink]` que envuelve al título (`notification.title`). Ahora enlaza a `/service/:bookingId` usando clases para estilizar.
+- **Acción (Backend):** En `BookingHistoryController.java` se mejoró la generación del texto de la notificación para que busque en el `BookingHistory` del usuario cuál era su estado anterior. Ahora ensambla dinámicamente el mensaje: `"El/la estado del servicio fue modificado. Antes: [antes], despues [despues]"`. Si es el primer evento en la historia, el "Antes" queda catalogado como "Ninguno".
+- **Validación:** Se recompiló la imagen `backend` en Docker y se verificó que arranca satisfactoriamente.
+
+## [2026-10-09] Corrección de Fallo de CI por Límite de Peticiones en Docker Hub
+- **Agente:** Antigravity
+- **Contexto:** Al empujar los últimos cambios, las pruebas en GitHub Actions (`docker/build-push-action`) fallaron con un error `429 Too Many Requests` proveniente de `registry-1.docker.io`. Esto ocurre porque las IPs públicas de GitHub Actions suelen sobrepasar el límite de descargas anónimas impuesto por Docker Hub para imágenes oficiales.
+- **Acción:** Se modificaron los archivos `backend/Dockerfile` y `frontend/Dockerfile` para sustituir las imágenes base de Docker Hub (`maven`, `eclipse-temurin`, `node`, `nginx`) por sus réplicas oficiales en el registro público de Amazon ECR (`public.ecr.aws/docker/library/...`), el cual no impone límites estrictos de peticiones anónimas.
+- **Resultado:** Los Dockerfiles mantienen las mismas versiones (ej. `node:22-alpine`, `maven:3.9.16-eclipse-temurin-21`), pero descargadas desde un espejo (mirror) confiable, lo que garantiza estabilidad en los pipelines de integración continua.
+
+## [2026-10-09] Registro personal de bloqueantes fuera del repositorio
+- **Agente:** Codex.
+- **Cambios realizados:**
+  - Se movió `BLOQUEANTES.md` a la carpeta personal de Descargas, fuera del repositorio.
+  - El registro deja de formar parte del árbol de trabajo y no podrá incluirse en GitHub.
+
+## [2026-10-09] Traspaso de seguimiento de seguridad a Jira
+- **Agente:** Codex.
+- **Cambios realizados:**
+  - Se creó el issue `KAN-24` en Jira para centralizar el trabajo pendiente de seguridad de sesión.
+  - Se retiraron los registros específicos de JWT de `BLOQUEANTES.md` y el detalle de la historia de esta memoria, por solicitud del usuario.
+- **Estado:** Pendiente de implementación y seguimiento en Jira.
+
+## [2026-10-09] Fusión de rama develop hacia la vista Admin
+- **Agente:** Antigravity
+- **Contexto:** Se solicitó traer los últimos cambios de `develop` (mejoras de notificaciones, enlaces de IA, corrección de CI en Dockerfiles y nueva vista de proveedor y Home) hacia la rama `feature/Vista-Admin`.
+- **Acciones:** 
+  - Se ejecutó `git fetch` y `git merge origin/develop`.
+  - Se resolvieron conflictos en `app.component.ts` preservando la restricción de rutas exclusivas para ADMIN y combinándolo con el rediseño del navbar de `develop`.
+  - Se resolvieron conflictos de importaciones en `my-notifications.component.ts`.
+  - Se corrigieron los marcadores de conflicto residuales en `MEMORIA.md`.
+- **Resultado:** La rama de administración (`feature/Vista-Admin`) ahora integra todos los cambios recientes, incluyendo las soluciones de CI de Docker, sin perder el aislamiento de rutas administrativas.
+
+## [2026-10-09] Sembrado de Usuarios de Prueba vía Flyway
+- **Agente:** Antigravity
+- **Contexto:** El usuario solicitó agregar usuarios para testear los roles de `ADMIN` y `PROVIDER` mediante el sistema de migraciones de base de datos.
+- **Acciones:**
+  - Se creó el archivo de migración inmutable `V14__seed_test_users.sql` en `backend/src/main/resources/db/migration/`.
+  - Se insertó un usuario administrador (`admin@skillbridge.com`) y un proveedor de pruebas extra (`provider_test@skillbridge.com`), usando el hash BCrypt correspondiente a la contraseña `password123`.
+  - Se reinició el contenedor del `backend` para ejecutar la migración.
+- **Resultado:** La base de datos ahora cuenta de manera predeterminada con usuarios fijos para probar ambos flujos.
+
+## [2026-10-13] Implementación de HU-14 — Proteger la sesión de usuario en el navegador
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Se implementó la HU-14 para proteger la sesión de usuario en el navegador y eliminar la exposición de JWT ante scripts y ataques XSS/CSRF.
+- **Criterios de Aceptación Cumplidos:**
+  1. **Token en Cookie HttpOnly:** `AuthController` emite y elimina el token de acceso únicamente a través de una cookie segura (`access_token`) con flags `HttpOnly`, `SameSite=Lax`, `Path=/api` y `Secure` (configurable por entorno / exigido en prod). La respuesta JSON (`AuthResponse`) no expone el JWT en el cuerpo de la respuesta.
+  2. **Eliminación de almacenamiento en frontend:** Se removió completamente el uso de `localStorage` y `sessionStorage` para guardar tokens en Angular. Se eliminó la inyección del encabezado `Authorization: Bearer` en el interceptor.
+  3. **Autenticación en Backend con Cookie:** `JwtAuthenticationFilter` extrae el token directamente de la cookie de sesión (`access_token`) y autentica al usuario en el `SecurityContextHolder`, manteniendo fallback secundario para compatibilidad de migración con tokens emitidos previamente.
+  4. **Protección CSRF para Solicitudes Mutantes:** Se configuró Spring Security con `CookieCsrfTokenRepository.withHttpOnlyFalse()`, `SpaCsrfTokenRequestHandler` y `CsrfCookieFilter`. Toda solicitud mutante (`POST`, `PUT`, `PATCH`, `DELETE`) sin token CSRF válido recibe `403 Forbidden` y no altera datos. En Angular, `authInterceptor` inyecta automáticamente el encabezado `X-XSRF-TOKEN` a partir de la cookie `XSRF-TOKEN` y habilita `withCredentials: true`.
+  5. **Cierre de Sesión:** Endpoint `POST /api/auth/logout` invalida la cookie estableciendo `Max-Age=0` y limpiando el contexto. En Angular, `authService.logout()` y `forceLogout()` limpian el estado reactivo (`signals`) y redirigen a la vista correspondiente.
+  6. **Restauración de Perfil en Arranque:** Se agregó el endpoint `GET /api/users/me` en `UserAccountController` y el caso de uso `RetrieveUserAccountUseCase.getUserAccountByEmail`. En Angular, `main.ts` utiliza `provideAppInitializer` para restaurar reactivamente el perfil con `GET /api/users/me` al cargar la aplicación antes de evaluar los guards.
+  7. **Eliminación de Claves JWT de Respaldo y Validación de Secreto:** Se eliminaron los fallbacks por defecto de `application.yml`, `docker-compose.yml` y `.env.example`. En `JwtService`, se implementó validación estricta al iniciar: la aplicación se rehúsa a iniciar si `JWT_SECRET` falta, está en blanco, tiene menos de 32 caracteres, baja entropía o coincide con valores por defecto conocidos. En entornos de producción (`prod`), `SecurityConfiguration` exige además `cookie.secure=true` y `require-https=true`.
+  8. **Pruebas Automatizadas:**
+     - Backend: `JwtServiceTest` (6 pruebas que cubren rechazo de secretos inseguros, entropía, longitud y generación) y `AuthSessionSecurityTest` (7 pruebas que cubren login con cookie HttpOnly, registro sin token en JSON, logout invalidando cookie, acceso autenticado con cookie a `/api/users/me`, rechazo sin cookie con 401, rechazo CSRF con 403 y éxito con token CSRF válido). Suite total: 68 pruebas pasando al 100%.
+     - Frontend: `auth.service.spec.ts` (5 pruebas unitarias verificando ausencia de tokens en localStorage, restauración con `GET /api/users/me`, manejo de 401, login y logout con cookie). Suite total: 7 pruebas pasando al 100% en Edge Headless.
+
+## [2026-10-14] Completar HU — Vista de reservas y notificaciones de Customer
+- **Contexto:** Se completó la mejora de la vista Customer para hacer legibles las notificaciones de inscripción, mostrar identificadores de servicios, corregir el filtrado por actividad, comunicar cancelaciones repetidas de forma amigable y dar estilo visual al estado `ACTIVE`.
+- **Cambios realizados:**
+  - Las notificaciones de cambio de inscripción incluyen el estado y UUID de servicio/reserva en líneas separadas; Angular presenta los saltos de línea, traduce estados técnicos y conserva el UUID completo en el mensaje.
+  - La tabla de reservas muestra el nombre del servicio y su código cuando están disponibles, con identificador abreviado como alternativa.
+  - La cancelación de una inscripción ya cancelada entrega el mensaje informativo solicitado tanto desde la interfaz como desde la regla de negocio del backend.
+  - El listado carga el conjunto de inscripciones para que los filtros `Todas`, `Activas` y `No activas` se apliquen antes de ordenar y paginar; el estilo `ACTIVE` usa un badge verde diferenciado.
+  - Se corrigió un carácter accidental que impedía compilar `ServiceEnrollmentService` y se añadieron pruebas dirigidas para las reglas backend y los flujos frontend de filtros, formato de notificación, identificador visible, badge y cancelación repetida.
+- **Validación:** Pasaron `mvn -f backend/pom.xml -q -Dtest=ServiceEnrollmentServiceTest test`, `node node_modules/typescript/bin/tsc -p tsconfig.spec.json --noEmit` (ejecutado desde `frontend`), `npm --prefix frontend run build` y `npm --prefix frontend test -- --watch=false --include=src/app/core/booking.service.spec.ts --include=src/app/features/display-bookings/display-bookings.spec.ts --include=src/app/features/my-notifications.component.spec.ts --browsers=ChromeHeadless` (7 pruebas). La primera ejecución en Chrome normal perdió conexión con Karma; el reintento en Chrome Headless pasó. `frontend/public/env.js` ya estaba modificado previamente y no se editó intencionalmente.
+## [2026-10-14] Formato en español para auditoría de cambio de rol
+- **Contexto:** Se solicitó reemplazar la acción `USER_ROLE_CHANGED` en las notificaciones administrativas y mostrar el detalle del cambio con una estructura legible.
+- **Cambios realizados:** La acción ahora se registra como `ROL MODIFICADO`; el mensaje contiene ID Usuario, Correo, Rol Anterior y Rol Nuevo, sin repetir el título. La vista ubica `Recibida` después de Rol Nuevo, oculta la fila redundante `USER: ID` y normaliza notificaciones antiguas sin modificar la base. Se agregó una prueba unitaria del formato.
+- **Validación:** `mvn -Dtest=AdminUserServiceTest test` pasó (11 pruebas), `npx ng build` completó y la vista se verificó en navegador con dos eventos históricos. Backend y frontend quedaron saludables.
+
+## [2026-10-14] Recorte visual de IDs de usuario y servicio
+- **Contexto:** Se solicitó mejorar el aspecto de los UUID visibles sin agregar campos ni cambiar los IDs internos.
+- **Cambios realizados:** Se agregó `compactDisplayId`, que muestra `...` y los últimos cinco caracteres en el panel admin (filas y detalles) y en notificaciones (ID de usuario y target de usuario/servicio). Los IDs completos siguen en datos, rutas y peticiones; no se alteraron IDs de reservas.
+- **Validación:** `npx ng build` pasó y se verificaron en navegador filas, modales y notificaciones. Se reconstruyó el frontend.
+
+## [2026-10-14] Notificación de usuario creado
+- **Contexto:** Se solicitó que el evento de alta se muestre como `USUARIO CREADO` con el formato de actividad administrativa.
+- **Cambios realizados:** El backend registra título, ID, nombre, correo y rol; no incluye contraseña. La vista muestra el mismo formato y adapta eventos históricos `USER_CREATED` al presentarlos.
+- **Validación:** `AdminUserServiceTest` pasó (11 pruebas), `npx ng build` completó y se reconstruyeron backend y frontend. Las pruebas no insertaron usuarios en la base local.
+
+
+## [2026-10-14] Rediseño de la vista admin de Notificaciones (/notifications)
+- **Agente:** Antigravity
+- **Contexto:** Se solicitó rediseñar completamente la vista `/notifications` para el rol ADMIN, manteniendo intacta la vista de cliente regular, sin agregar librerías externas de UI y respetando la arquitectura hexagonal en los cambios de backend.
+- **Cambios realizados:**
+  - **Backend (aditivos, sin romper contratos existentes):**
+    - `AdminActivity.java` (dominio): Se amplió el `record` con 4 campos nuevos (`userId`, `userEmail`, `previousRole`, `newRole`) y se añadió constructor de compatibilidad de 7 parámetros que delega al canónico con `null`, de forma que `AdminActivityServiceTest` y `AdminUserServiceTest` siguen pasando sin cambios.
+    - `AdminActivityPersistenceAdapter.java`: Se agregó lógica de parseo con `Pattern` (regex) en `toDomain()` para extraer `userEmail`, `previousRole` y `newRole` del campo `message` de texto plano de la BD, soportando los formatos `ROL MODIFICADO` (multi-línea), `USER_UPDATED` (línea simple `->`) y `USUARIO CREADO`.
+    - `AdminNotificationController.java`: El record `AdminNotificationOut` ahora incluye `userId`, `userEmail`, `previousRole`, `newRole`; el mapeo en `listMine()` los popula desde `AdminActivity`.
+  - **Frontend (solo vista admin, cliente regular sin cambios):**
+    - `notification.service.ts`: Se ampliaron las interfaces `NotificationSummary` y `NotificationPage` con los campos opcionales nuevos (`userId?`, `userEmail?`, `previousRole?`, `newRole?`).
+    - `my-notifications.component.ts`: Componente reescrito con vista admin nueva que incluye: cabecera con etiqueta ACTIVIDAD ADMINISTRATIVA y botón Actualizar, 3 tarjetas de resumen, agrupación por día, tarjetas con ícono temático, badge de estado, avatar circular, flujo de roles y timestamp formateado. Paginación con indicador X–Y de Z. Responsive para móvil.
+    - Se corrigió bug en `formatDateTime`: eliminado array `months` duplicado con índice 0 incorrecto.
+- **Validación:** `docker compose build frontend` y `docker compose build backend` completaron exitosamente. Todos los servicios Docker están `healthy`. El endpoint `GET /api/admin/notifications` retorna los campos estructurados `userId`, `userEmail`, `previousRole`, `newRole`.
+
+## [2026-10-14] Corrección de redirección tras login y manejo de expiración de sesión por rol
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Se reportaron dos problemas al iniciar sesión con cuentas administrativas (`yamit@gmail.com`):
+  1. Al iniciar sesión no redirigía al panel de administración (`/admin`).
+  2. Al intentar acceder a vistas no autorizadas o de cliente, la aplicación mostraba erróneamente el modal bloqueante de "Sesión expirada".
+- **Causas Identificadas:**
+  - `LoginComponent` (`login.ts`) tenía una redirección fija a `/ai` (`this.router.navigateByUrl('/ai')`), ignorando el rol del usuario autenticado y el parámetro `returnUrl`.
+  - En `SecurityConfiguration.java`, las rutas `/api/bookings/**` y `/api/enrollments/**` restringen el acceso a `CUSTOMER` y `PROVIDER`. Al ingresar un `ADMIN`, la falta de un `accessDeniedHandler` explícito provocaba que Spring Security delegara la respuesta al `authenticationEntryPoint`, retornando un código `401 Unauthorized` en lugar de `403 Forbidden`.
+  - El interceptor `auth.interceptor.ts` reaccionaba ante cualquier código `401` disparando `authService.triggerSessionExpired()`, lo que expulsaba al usuario y mostraba el modal de expiración aunque el token de sesión fuera totalmente válido.
+  - En el pie de página (`app.component.ts`), los enlaces a "Mis reservas" se mostraban indiscriminadamente incluso para administradores.
+  - La plantilla de Nginx permitía el almacenamiento en caché de `index.html`, sirviendo en ocasiones scripts antiguos de bundles previos.
+- **Cambios Realizados:**
+  - **Frontend:**
+    - Se refactorizó `LoginComponent` (`login.ts` y `login.component.ts`) para incluir el método `navigatePostAuth()`, redirigiendo dinámicamente según el rol (`ADMIN` -> `/admin`, `PROVIDER` -> `/provider`, `CUSTOMER` -> `/ai`) y respetando `returnUrl` (desviando rutas no administrativas hacia `/admin` si el rol es `ADMIN`).
+    - En `AppComponent` (`app.component.ts`), se condicionaron los enlaces del footer según el rol: para administradores se muestra "Panel Admin" y "Notificaciones", ocultando "Mis reservas".
+    - En `nginx.conf.template`, se configuró `location = /index.html` con cabeceras `Cache-Control: no-store, no-cache, must-revalidate` para garantizar la descarga de los bundles JS actualizados.
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se configuró explícitamente `.accessDeniedHandler((request, response, accessDeniedException) -> response.setStatus(HttpStatus.FORBIDDEN.value()))` y se añadió `/error` a la lista de `permitAll()`.
+- **Validación:**
+  - Pruebas unitarias de backend pasando al 100% (69 de 69 tests en Maven).
+  - Compilación de Angular (`CI=true npm run build`) exitosa.
+  - Verificación en contenedores en vivo: inicio de sesión de `yamit@gmail.com` valida con rol `ADMIN`, `/api/admin/users` devuelve `200 OK`, y el acceso a `/api/enrollments/me` devuelve `403 Forbidden` (en lugar de `401`), evitando que se dispare el modal de sesión expirada.
+
+## [2026-10-14] Corrección de la doble pulsación en login y creación de usuarios (Ciclo de Vida de Token CSRF)
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Al iniciar sesión o al crear usuarios en la vista administrativa, el primer clic fallaba mostrando error ("No fue posible realizar la autenticación" / "No fue posible crear el usuario") y al presionar por segunda vez la acción se completaba exitosamente.
+- **Causas Raíz Identificadas:**
+  1. **Destrucción de Cookie CSRF en Solicitudes Autenticadas (Backend):** Spring Security, por defecto con protección CSRF activada, registra `CsrfAuthenticationStrategy` dentro de su estrategia de autenticación de sesión. En aplicaciones con autenticación JWT sin estado (`SessionCreationPolicy.STATELESS`), cada petición entrante con cookie de sesión es evaluada por `SessionManagementFilter` como una "nueva autenticación" (al no existir `HttpSession`). Como resultado, `CsrfAuthenticationStrategy` ejecutaba en cada solicitud autenticada `this.csrfTokenRepository.saveToken(null, request, response)`, enviando la cabecera `Set-Cookie: XSRF-TOKEN=; Max-Age=0;` e invalidando la cookie CSRF en el navegador inmediatamente después de cada lectura (`GET /api/admin/users`, `GET /api/users/me`).
+  2. **Ausencia de Token en el Primer Envío Mutante (Frontend):** En el primer intento (en login o tras la invalidación previa), el interceptor HTTP de Angular no encontraba la cookie `XSRF-TOKEN` y enviaba la petición mutante (`POST`) sin el encabezado `X-XSRF-TOKEN`. Spring Security rechazaba la solicitud con `403 Forbidden` y, como efecto colateral, generaba una nueva cookie `XSRF-TOKEN`. Al presionar el botón por segunda vez, la cookie ya estaba disponible en el navegador, permitiendo que la petición fuera aceptada.
+- **Cambios Realizados:**
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se configuró explícitamente `NullAuthenticatedSessionStrategy` tanto en el bloque `.csrf(...)` como en `.sessionManagement(...)`. Esto previene que `CsrfAuthenticationStrategy` borre la cookie CSRF (`Max-Age=0`) en cada petición JWT sin estado, manteniendo el token CSRF persistente y válido a lo largo de toda la sesión del usuario.
+    - Se añadió una prueba unitaria en `AuthSessionSecurityTest.java` (`authenticatedEndpoint_preservesXsrfToken`) que verifica formalmente que las peticiones autenticadas conservan la cookie `XSRF-TOKEN` sin emitir `Max-Age=0`.
+  - **Frontend:**
+    - En `AuthService` (`auth.service.ts`), se implementó el método `fetchCsrfToken(): Observable<void>`, el cual invoca `GET /api/auth/csrf` con credenciales para obtener o refrescar proactivamente el token CSRF.
+    - En `authInterceptor` (`auth.interceptor.ts`), si se detecta un método mutante (`POST`, `PUT`, `PATCH`, `DELETE`) y el navegador no tiene la cookie `XSRF-TOKEN`, el interceptor realiza una llamada transparente y previa a `authService.fetchCsrfToken()` antes de enviar la petición mutante con la cabecera `X-XSRF-TOKEN`, garantizando que jamás falle en el primer clic.
+- **Validación:**
+  - Backend: Se ejecutó la suite completa de pruebas unitarias (`mvn test`), pasando el 100% (70 de 70 pruebas exitosas).
+  - Frontend: Compilación de producción con Angular CLI (`CI=true npm run build`) exitosa con 0 errores.
+  - Verificación en contenedores en vivo: Se comprobó que `GET /api/users/me` y `POST /api/admin/users` ya no emiten `Max-Age=0`. Las creaciones consecutivas de usuarios en la API administrativa se completaron al primer intento con HTTP 201 Created. Se limpiaron los registros de prueba generados.
+
+## [2026-10-15] Etiquetas de actividad administrativa
+- **Cambios realizados:** En el feed administrativo, `OFFERING_STATUS_CHANGED` ahora se muestra como “Oferta modificada” con la etiqueta “Cambio de estado”; `USUARIO CREADO` conserva su título “Usuario creado” y muestra “Nueva cuenta”. Los demás datos y comportamientos permanecen iguales.
+- **Validación:** `npm --prefix frontend run build` completó correctamente. El spec enfocado no pudo ejecutarse porque ya referencia `formatMessage`, método inexistente en el componente.
+
+## [2026-10-16] Limpieza de código basura y archivos obsoletos
+- **Agente:** Antigravity (Gemini 3.8 Flash)
+- **Contexto:** Se realizó una auditoría de código muerto, recursos redundantes y configuraciones huérfanas en el proyecto.
+- **Acciones Realizadas:**
+  - **Frontend:**
+    - Se eliminó el archivo obsoleto `frontend/src/app/features/login.component.ts` (reemplazado por `features/login/login.ts`).
+    - Se eliminó el modelo sin uso `frontend/src/app/core/models/booking.model.ts` (el sistema utiliza `BookingSummary`).
+    - Se eliminó el directorio duplicado `frontend/src/app/images/` y la imagen duplicada `frontend/public/images/Group 23 (1).jpg`.
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se eliminó la ruta inexistente `/api/bookings/**` de `requestMatchers()`, conservando únicamente las rutas activas como `/api/enrollments/**`.
+  - **Raíz y Scripts:**
+    - Se eliminó el directorio `deprecated/` (`Inicio (1).html`, `ai.component.ts.old`, `ia.html.old`).
+    - Se eliminó el `package-lock.json` huérfano de la raíz.
+    - Se corrigió `scripts/smoke-test.sh` para apuntar a `/api/services` en lugar del endpoint obsoleto `/api/offerings`.
+    - Se actualizó el target `test-back-unit` en el `Makefile` para referenciar pruebas unitarias existentes (`OfferingCrudServiceTest,OfferingCatalogServiceTest,ServiceEnrollmentServiceTest`).
+- **Validación:**
+  - Backend: Compilación exitosa de fuentes y pruebas (`mvn test-compile`).
+  - Frontend: Generación exitosa del bundle de producción (`npm run build`) sin advertencias ni errores.
+
+## [2026-10-17] Despliegue y configuración del SFU LiveKit con Docker Compose
+- **Contexto:** Despliegue del servidor LiveKit (SFU) para soportar videoconferencias interactivas de ultra baja latencia (audio, video, pantalla compartida) sin incurrir en costos de procesamiento ni almacenamiento en la nube.
+- **Acciones Realizadas:**
+  - **Variables de Entorno (`.env` / `.env.example`):** Se definieron `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_RTC_USE_EXTERNAL_IP` y los puertos `LIVEKIT_HTTP_PORT` (7880), `LIVEKIT_TCP_PORT` (7881) y `LIVEKIT_UDP_PORT` (7882).
+  - **Configuración Declarativa (`ops/livekit/livekit.yaml`):** Se creó la configuración del motor WebRTC escuchando en TCP 7881 y UDP 7882 sin requerir servicios de Egress ni buckets S3/GCP.
+  - **Orquestación (`docker-compose.yml`):** Se integró el servicio oficial `livekit/livekit-server:v1.8` con mapeo de puertos 7880/tcp, 7881/tcp y 7882/udp, inyección de claves mediante `LIVEKIT_KEYS` y montaje del archivo declarativo en `/etc/livekit.yaml:ro`.
+- **Validación:**
+  - El contenedor `skillbridge-ai-livekit-1` arrancó limpiamente con estado `Up` y enrutamiento `single-node`.
+  - Puertos 7880/tcp, 7881/tcp y 7882/udp expuestos y accesibles correctamente en `0.0.0.0`.
+  - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2 y CA 1.3.
+
+## [2026-10-19] HU-29.4 — Integración de Redis para estado efímero y enrutamiento SFU
+- **Cambios:**
+  - **Redis dedicado (`docker-compose.yml`):** Se agregó `redis-livekit` con la imagen `redis:8-alpine`, solo RAM mediante `--save ""`, `--appendonly no` y `tmpfs` en `/data`; sin volumen ni puertos publicados. Se configuró `--requirepass`, límite de memoria `256mb`, política `noeviction` y healthcheck autenticado.
+  - **LiveKit (`docker-compose.yml`):** Se agregaron `REDIS_HOST` y `REDIS_PASSWORD`, además de `depends_on` con condición `service_healthy` para `redis-livekit`.
+  - **Entorno (`.env.example`):** Se agregó `LIVEKIT_REDIS_PASSWORD`.
+  - No se modificaron `ops/livekit/livekit.yaml`, el servicio Redis existente ni el backend.
+- **Decisión:** Se utiliza un Redis dedicado para LiveKit para no afectar la caché de IA del backend y cumplir el requisito de “0 bytes en disco” para el estado efímero.
+- **Validación:**
+  - **CA 4.1:** Los logs de LiveKit muestran `connecting to redis` sin errores; al probar con una contraseña incorrecta se obtiene `WRONGPASS`.
+  - **CA 4.2:** `save` está vacío, `appendonly` es `no`, `aof_enabled` es `0`, `maxmemory` es `268435456`, `Mounts` está vacío y `/data` no contiene archivos. `docker inspect` muestra `HostConfig.Tmpfs` `{"/data":""}` y `df /data` reporta `tmpfs` con 0 bytes usados.
+  - **CA 4.3:** `DBSIZE` cambia de 2 a 6 al crear una sala, baja a 4 al finalizarla con `DeleteRoom` y vuelve a 2 tras unos segundos, sin claves huérfanas. La finalización se probó con `DeleteRoom` por la API de LiveKit; no se probó un webhook `room_finished` hacia el backend. Tras finalizar, aparecen dos claves temporales que LiveKit elimina solo en segundos.
+- **Nota para el equipo:** Definir `LIVEKIT_REDIS_PASSWORD` en el `.env` local; de lo contrario, `docker compose` falla.
+## [2026-10-19] Dashboard Provisionado de LiveKit Server y Experiencia Multimedia (HU-10)
+- **Rol:** DevOps / SRE
+- **Contexto:** Supervisión de recursos del contenedor livekit-server, ancho de banda y estabilidad de sesiones WebRTC.
+- **Cambios realizados:**
+  - Habilitada la exportación de métricas nativas en `ops/livekit/livekit.yaml` en el puerto 6789.
+  - Configurado el scrape job `livekit` en `ops/prometheus/prometheus.yml`.
+  - Creado el dashboard provisionado como código `ops/grafana/provisioning/dashboards/livekit-metrics.json` con paneles de CPU, RAM, ancho de banda (Mbps), concurrencia de salas/participantes y umbrales de alerta visual (CA 10.1, CA 10.2, CA 10.3).
+
+## [2026-10-19] Configuración y Monitoreo de Métricas Críticas de Calidad y Sesión WebRTC (HU-29.9)
+- **Rol:** DevOps / SRE
+- **Contexto:** Instrumentación y monitoreo de métricas críticas de sesiones activas y calidad de red en LiveKit para detectar saturación de salas, desconexiones masivas y degradación de conectividad (pérdida de paquetes > 5% y variación de retardo/jitter).
+- **Cambios realizados:**
+  - **Prometheus y Reglas PromQL:**
+    - Creado `ops/prometheus/rules/livekit-rules.yml` con reglas de agregación y alertas:
+      - **CA 9.1:** Concurrencia de salas y participantes (`livekit_room_total` y `livekit_participant_total`).
+      - **CA 9.2:** Tasa de procesamiento de paquetes global y por pista (`sum(rate(livekit_packet_total[1m]))`).
+      - **CA 9.3:** Cálculo de tasa de pérdida de paquetes porcentual y alerta crítica `LiveKitHighPacketLoss` con expresión `(sum(rate(livekit_packet_drop_total[2m])) / clamp_min(sum(rate(livekit_packet_total[2m])), 1)) * 100 > 5`.
+      - Métricas de calidad QoS: Jitter en ms (`avg(livekit_jitter_us) / 1000`) y ratio de disponibilidad de transmisión por participante.
+      - Alertas complementarias: `LiveKitRoomSaturation` (> 50 usuarios), `LiveKitMassiveDisconnection` (pérdida de >10 usuarios/min) y `LiveKitHighJitter` (> 30 ms).
+    - Creada la especificación de pruebas unitarias PromQL en `ops/prometheus/rules/livekit-rules.test.yml`.
+    - Actualizado `ops/prometheus/prometheus.yml` con `evaluation_interval: 15s` y carga de reglas desde `/etc/prometheus/rules/*.yml`.
+  - **Infraestructura Docker Compose:**
+    - Montado el volumen `./ops/prometheus/rules:/etc/prometheus/rules:ro` en el servicio `prometheus` en `docker-compose.yml`.
+  - **Dashboards y Documentación:**
+    - Provisionado dashboard de calidad de sesiones y QoS en `ops/grafana/provisioning/dashboards/livekit.json`.
+    - Documentación técnica detallada en `docs/LIVEKIT-MONITORING.md` con arquitectura, puertos, diccionario de métricas y consultas PromQL.
+  - **Validación Automatizada:**
+    - Creado script de validación `scripts/validate-livekit-metrics.js` y target `make test-livekit` en `Makefile`.
+- **Validación:**
+  - Ejecución de `node scripts/validate-livekit-metrics.js`: 26 de 26 pruebas aprobadas (100% de éxito en CA 9.1, CA 9.2 y CA 9.3).
+
+## [2026-10-20] Corrección de inicio de Prometheus para HU de métricas LiveKit
+- **Contexto:** Prometheus no iniciaba al cargar el archivo de pruebas de `promtool` como si fuera un archivo de reglas de producción.
+- **Cambios realizados:**
+  - En `ops/prometheus/prometheus.yml`, se reemplazó el patrón `/etc/prometheus/rules/*.yml` por la ruta explícita `/etc/prometheus/rules/livekit-rules.yml`, evitando incluir `livekit-rules.test.yml` en la configuración de producción.
+- **Validación:**
+  - `promtool check config /etc/prometheus/prometheus.yml` pasó: configuración válida y 12 reglas cargadas.
+  - Prometheus inició y `http://localhost:9090/-/ready` respondió `200 OK`.
+  - El target `livekit:6789` apareció con estado `up`, sin errores de scrape; `up{job="livekit"}` devolvió `1`.
+  - Consultas PromQL confirmaron ingesta de `livekit_room_total`, `livekit_participant_total` y `livekit_packet_total`.
+
+## [2026-10-20] Métrica consultable de build LiveKit
+- **Contexto:** El endpoint de LiveKit no exponía `livekit_server_build_info`; se solicitó habilitar únicamente esa métrica adicional para consulta.
+- **Cambios realizados:**
+  - Se añadió en `ops/prometheus/rules/livekit-rules.yml` una recording rule llamada `livekit_server_build_info`, basada en `up{job="livekit"} == 1` y con `version="v1.8"`, el tag de imagen configurado en `docker-compose.yml`.
+  - Se añadió una prueba PromQL y se documentó la métrica y su consulta en `docs/LIVEKIT-MONITORING.md`.
+  - La serie representa el tag de imagen configurado cuando el target está UP; no es una métrica nativa ni una lectura dinámica de la versión interna de LiveKit.
+- **Validación:**
+  - `promtool check rules` pasó con 13 reglas; la prueba enfocada del primer grupo en `livekit-rules.test.yml` pasó.
+  - La suite completa de pruebas aún reporta un fallo en la prueba preexistente `job:livekit_packet_rate:sum` (esperaba 5, no obtuvo muestra); no corresponde a la prueba de build info.
+  - Tras reiniciar Prometheus, la consulta `livekit_server_build_info{job="livekit"}` devolvió una serie con `instance="livekit:6789"`, `version="v1.8"` y valor `1`; `up{job="livekit"}` también devolvió `1`.
+## [2026-10-20] Unificación y Mejora del Servicio de Generación de Tokens de Acceso (JWT) por Rol (HU-29.2)
+- **Rol:** Backend Developer
+- **Contexto:** Consolidación de la generación de tokens LiveKit con el SDK oficial (`io.livekit.server.AccessToken`), eliminación de adaptadores duplicados y cumplimiento estricto de los Criterios de Aceptación (CA 2.1, CA 2.2, CA 2.3, CA 2.4).
+- **Cambios realizados:**
+  - **Eliminación de duplicados:** Se removieron los archivos redundantes `LiveKitVideoPort.java`, `LiveKitVideoAdapter.java` y `LiveKitConfiguration.java`.
+  - **Uso del SDK Oficial en Adaptador Hexagonal:** Se actualizó `LiveKitRestAdapter.java` para utilizar `io.livekit.server.AccessToken`, `RoomJoin`, `RoomName`, `CanPublish`, `CanSubscribe`, `CanPublishData` y `RoomAdmin`.
+  - **Permisos por Rol (CA 2.1 y CA 2.2):**
+    - Tutor/Proveedor (`PROVIDER`): `canPublish: true`, `canSubscribe: true`, `canPublishData: true`, `roomAdmin: true`.
+    - Alumno/Participante (`PARTICIPANT`): `canPublish: false`, `canSubscribe: true`, `canPublishData: true`, `roomAdmin: false`.
+  - **TTL Configurable (CA 2.3):** Se incorporó `token-ttl-minutes` (default 120 min) en `LiveKitProperties` y `application.yml`.
+  - **Seguridad y Excepciones (CA 2.4):** Se creó `UnauthorizedMeetingAccessException` mapeada a `403 FORBIDDEN` en `GlobalExceptionHandler`.
+- **Validación:**
+  - `mvn test-compile` exitoso sin errores en las 203 clases.
+  - `mvn test -Dtest=MeetingServiceTest` completado exitosamente (7 de 7 pruebas aprobadas).
+
+## [2026-10-21] Implementación de Pruebas Automatizadas de Integración y Ciclo de Vida LiveKit (CA 6.1, CA 6.2, CA 6.3)
+- **Rol:** QA Engineer & Backend Developer
+- **Contexto:** Implementación de pruebas automatizadas en el backend utilizando JUnit 5, Testcontainers y el cliente oficial `RoomServiceClient` de LiveKit para validar de forma desatendida la seguridad de tokens JWT por rol, la creación sintética de salas y su eliminación limpia e inmediata.
+- **Cambios realizados:**
+  - **Validación Criptográfica y de Permisos JWT (`LiveKitTokenSecurityTest.java` - CA 6.1):**
+    - Se implementó prueba unitaria para validar la estructura del token JWT decodificando el payload JSON.
+    - Se asertó que el token para el Tutor (`MeetingRole.PROVIDER`) incluye los grants `canPublish: true` y `roomAdmin: true`.
+    - Se validó por contraste que el Alumno (`MeetingRole.PARTICIPANT`) tiene `canPublish: false` y `roomAdmin: false`, con permisos restringidos a suscripción y chat.
+    - Se comprobó que el timestamp de expiración (`exp`) cumple con el TTL configurado de 120 minutos (2 horas).
+  - **Integración y Ciclo de Vida de Salas (`LiveKitRoomIntegrationTest.java` - CA 6.2 y CA 6.3):**
+    - Se configuró el ciclo de vida de Testcontainers con la imagen oficial `livekit/livekit-server:v1.8` en modo `--dev` y puertos mapeados dinámicamente (`@Testcontainers(disabledWithoutDocker = true)`).
+    - Se inicializó `RoomServiceClient` y se probó la creación de salas sintéticas con configuración controlada y metadatos JSON.
+    - Se verificó la persistencia y presencia de la sala y sus metadatos mediante `listRooms()` (**CA 6.2**).
+    - Se ejecutó el cierre y borrado seguro con `deleteRoom()`, confirmando inmediatamente que la sala deja de figurar en el listado activo del servidor para evitar salas huérfanas en el pipeline de CI/CD (**CA 6.3**).
+- **Validación:**
+  - Ejecución de pruebas específicas: `mvn -f backend/pom.xml test -Dtest="LiveKitTokenSecurityTest,LiveKitRoomIntegrationTest"` aprobada al 100%.
+  - Suite completa del backend: `mvn -f backend/pom.xml test` finalizada con `BUILD SUCCESS` (88 pruebas exitosas sin regresiones).
+

@@ -1,8 +1,16 @@
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/livekit-rules.yml
 
 scrape_configs:
   - job_name: skillbridge-api
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ["backend:8080"]
+
+  - job_name: livekit
+    static_configs:
+      - targets: ["livekit:6789"]
