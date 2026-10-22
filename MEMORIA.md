@@ -2,6 +2,14 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-10-21] HU-29.7: test de simulación de clase en vivo con tráfico WebRTC sintético
+- **Agente:** GitHub Copilot
+- **Objetivo:** Verificar la simulación de una clase en vivo con Tutor y Alumno, tráfico WebRTC sintético y criterios CA 7.1, CA 7.2 y CA 7.3.
+- **Archivos creados:** `scripts/livekit-stream-test/package.json`, `scripts/livekit-stream-test/package-lock.json`, `scripts/livekit-stream-test/.gitignore` y `scripts/livekit-stream-test/stream-test.js`. Se añadió el target `test-livekit-stream` al `Makefile`.
+- **Ejecución:** `make test-livekit-stream`. Requiere `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` exportadas antes de levantar LiveKit con `docker compose up`.
+- **Validación:** Tres corridas con 16/16 pruebas aprobadas en cada corrida. CA 7.1: video alrededor de 250 ms y audio alrededor de 50–60 ms (límite 2000 ms). CA 7.2: alrededor de 118–125 KB recibidos en 5 s, tasa media de 190–200 kbps y bytes de video y audio mayores que cero. CA 7.3: `TrackUnsubscribed` entre 5.8 y 16.4 ms y `ParticipantDisconnected` hasta aproximadamente 17 ms (límite 1000 ms); el Alumno permaneció conectado y estable, sin errores fatales.
+- **Notas:** (a) La medición del CA 7.3 usa la desconexión limpia del Tutor mediante `disconnect()`; una caída abrupta tarda más por el timeout de señalización de LiveKit. (b) Se deben exportar `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` antes de levantar LiveKit; si arranca sin claves, el cliente recibe `Connection reset by peer`.
+
 ## [2026-10-05] Inicialización de Memoria y Contexto
 - **Agente:** Antigravity (Gemini 3.1 Pro)
 - **Contexto:** Inicialización de archivos de control de IA.
@@ -1236,9 +1244,3 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - `mvn test-compile` exitoso sin errores en las 203 clases.
   - `mvn test -Dtest=MeetingServiceTest` completado exitosamente (7 de 7 pruebas aprobadas).
 
-## [2026-10-21] Prueba básica de conexión de sala LiveKit para HU-29.7
-- **Contexto:** Preparar una prueba Node.js CommonJS para verificar conexión básica de Tutor y Alumno en una sala LiveKit; en esta etapa no se publican pistas.
-- **Cambios realizados:**
-  - Se creó `scripts/livekit-stream-test/stream-test.js` con validación de credenciales de entorno, tokens de roles, conexión de ambos participantes, espera de 2 segundos y limpieza de sala.
-  - Se añadió salida PASS/FAIL con contadores, manejo de errores con secretos y tokens redactados, y código de salida no cero ante fallos.
-- **Validación:** No ejecutado por solicitud; pendiente de ejecución manual con el servidor LiveKit disponible.
