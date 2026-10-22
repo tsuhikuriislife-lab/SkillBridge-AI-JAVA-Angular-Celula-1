@@ -2,6 +2,21 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-10-21] Diagnóstico y Corrección de Inicio del Servidor Prometheus
+- **Agente:** Antigravity
+- **Contexto:** El usuario reportó no poder conectar con el puerto 9090 de Prometheus.
+- **Diagnóstico:**
+  - El contenedor `skillbridge-ai-prometheus-1` se encontraba en estado `Exited (2)`.
+  - En los logs de Prometheus se detectó un error fatal al arrancar: `yaml: unmarshal errors: line 2: field rule_files not found in type rulefmt.RuleGroups` al intentar evaluar `/etc/prometheus/rules/livekit-rules.test.yml`. La regla original en `prometheus.yml` usaba el patrón `/etc/prometheus/rules/*.yml`, lo que incluía el archivo de pruebas unitarias (`livekit-rules.test.yml` diseñado para `promtool test rules`), impidiendo el inicio del daemon.
+  - El usuario ajustó `rule_files` para apuntar puntualmente a `/etc/prometheus/rules/livekit-rules.yml`, pero el contenedor se encontraba detenido y requería reinicio.
+- **Solución y Verificación:**
+  - Se validó la configuración con `promtool check config` obteniendo estado de sintaxis válido (`SUCCESS`).
+  - Se levantó el contenedor con `docker compose --profile observability up -d prometheus`.
+  - Se comprobó el estado de salud interno vía `/-/healthy` (`Prometheus Server is Healthy.`).
+  - Se validó que ambos targets configurados (`skillbridge-api` en `backend:8080` y `livekit` en `livekit:6789`) se encuentran en estado `health: up`.
+  - Se verificó que el servicio Grafana conecta exitosamente con `http://prometheus:9090`.
+
+
 ## [2026-10-21] Resolución de Conectividad WebRTC LiveKit, Sala de Pruebas Admin y Deduplicación
 - **Agente:** Antigravity (Gemini 3.1 Pro)
 - **Contexto:** Diagnóstico y solución del fallo `could not establish pc connection`, error 404 transitorio `/rtc/v1/validate`, y cierre de sesión no deseado al ingresar a reuniones virtuales LiveKit.
