@@ -29,12 +29,20 @@ LiveKit Server se integra en la topología de contenedores (`docker-compose.yml`
 | `livekit_packet_total` | Counter | `job="livekit"`, `instance`, `track` | Conteo acumulado de paquetes WebRTC procesados |
 | `livekit_packet_drop_total` | Counter | `job="livekit"`, `instance` | Conteo acumulado de paquetes descartados o perdidos |
 | `livekit_jitter_us` | Gauge / Summary | `job="livekit"`, `instance` | Variación de retardo en microsegundos |
+| `livekit_server_build_info` | Gauge (recording rule) | `job="livekit"`, `instance`, `version` | Valor 1 cuando el target está UP; `version` refleja el tag de imagen configurado (`v1.8`), no una métrica nativa de LiveKit |
 
 ---
 
 ## 3. Reglas de Agregación PromQL (Recording Rules)
 
 Ubicadas en `ops/prometheus/rules/livekit-rules.yml`:
+
+### Build configurado de LiveKit
+La regla `livekit_server_build_info` usa `up{job="livekit"}` y agrega la etiqueta `version="v1.8"`, correspondiente a la imagen configurada para LiveKit en `docker-compose.yml`. Se puede consultar con:
+```promql
+livekit_server_build_info{job="livekit"}
+```
+La serie solo existe mientras el target de LiveKit esté `UP`. Es una recording rule de Prometheus, no una métrica exportada nativamente por LiveKit.
 
 ### Concurrencia de Usuarios y Salas (CA 9.1)
 ```promql
@@ -131,4 +139,3 @@ make test-livekit
 # Vía node
 node scripts/validate-livekit-metrics.js
 ```
-

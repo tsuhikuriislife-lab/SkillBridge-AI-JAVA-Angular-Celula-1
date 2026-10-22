@@ -2,6 +2,14 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-10-21] HU-29.7: test de simulación de clase en vivo con tráfico WebRTC sintético
+- **Agente:** GitHub Copilot
+- **Objetivo:** Verificar la simulación de una clase en vivo con Tutor y Alumno, tráfico WebRTC sintético y criterios CA 7.1, CA 7.2 y CA 7.3.
+- **Archivos creados:** `scripts/livekit-stream-test/package.json`, `scripts/livekit-stream-test/package-lock.json`, `scripts/livekit-stream-test/.gitignore` y `scripts/livekit-stream-test/stream-test.js`. Se añadió el target `test-livekit-stream` al `Makefile`.
+- **Ejecución:** `make test-livekit-stream`. Requiere `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` exportadas antes de levantar LiveKit con `docker compose up`.
+- **Validación:** Tres corridas con 16/16 pruebas aprobadas en cada corrida. CA 7.1: video alrededor de 250 ms y audio alrededor de 50–60 ms (límite 2000 ms). CA 7.2: alrededor de 118–125 KB recibidos en 5 s, tasa media de 190–200 kbps y bytes de video y audio mayores que cero. CA 7.3: `TrackUnsubscribed` entre 5.8 y 16.4 ms y `ParticipantDisconnected` hasta aproximadamente 17 ms (límite 1000 ms); el Alumno permaneció conectado y estable, sin errores fatales.
+- **Notas:** (a) La medición del CA 7.3 usa la desconexión limpia del Tutor mediante `disconnect()`; una caída abrupta tarda más por el timeout de señalización de LiveKit. (b) Se deben exportar `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` antes de levantar LiveKit; si arranca sin claves, el cliente recibe `Connection reset by peer`.
+
 ## [2026-10-21] Diagnóstico y Corrección de Inicio del Servidor Prometheus
 - **Agente:** Antigravity
 - **Contexto:** El usuario reportó no poder conectar con el puerto 9090 de Prometheus.
@@ -15,7 +23,6 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - Se comprobó el estado de salud interno vía `/-/healthy` (`Prometheus Server is Healthy.`).
   - Se validó que ambos targets configurados (`skillbridge-api` en `backend:8080` y `livekit` en `livekit:6789`) se encuentran en estado `health: up`.
   - Se verificó que el servicio Grafana conecta exitosamente con `http://prometheus:9090`.
-
 
 ## [2026-10-21] Resolución de Conectividad WebRTC LiveKit, Sala de Pruebas Admin y Deduplicación
 - **Agente:** Antigravity (Gemini 3.1 Pro)
@@ -90,7 +97,6 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
 - **Cambios realizados:** El componente de ingreso ahora escucha cambios en los parámetros de consulta y muestra el aviso de inicio de sesión cuando el guard redirige con `authRequired=true`, incluso si la vista de ingreso ya estaba abierta.
 - **Validación:** `cd frontend && npm run build` completado correctamente.
 
-
 ## [2026-10-06] Implementación de Detalle de Servicio y Toast de Autenticación
 - **Agente:** Antigravity
 - **Contexto:** HU/Tarea - Implementar la vista de Detalles de Servicio y lógica de "Inscribirse".
@@ -101,6 +107,7 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - Se agregó el método `getById(id)` en `OfferingService` del frontend.
   - Se agregó el endpoint `GET /api/offerings/{id}` en `OfferingController.java` del backend, y configuración correspondiente en `SecurityConfiguration.java` para permitir acceso público.
   - Reconstrucción de contenedores de backend y frontend.
+
 ## [2026-10-05] Listado paginado de reservas propias
 - **Cambios realizados:** Se agregó `GET /api/bookings/me` con paginación desde base de datos, filtro por el usuario autenticado y nombre del servicio en el resultado. Angular incorpora la ruta protegida `/bookings`, la vista de reservas y controles de página/tamaño.
 - **Validación:** `mvn -Dtest=BookingServiceTest test` pasó (3 pruebas) y `npm run build` del frontend completó. La suite completa del backend sigue bloqueada por la versión de API Docker requerida por el test de persistencia existente.
@@ -124,6 +131,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Cambios realizados:** Se renombraron la entidad JPA, el repositorio, la proyección y el adaptador a `BookingNotification*`, y la tabla a `booking_notifications`, manteniendo el modelo de dominio `BookingNotification`.
 - **Migración:** Se añadió V3 para renombrar la tabla, restricciones e índices creados por V2; V2 se conserva inmutable para instalaciones que ya la ejecutaron.
 - **Validación:** Las pruebas enfocadas de persistencia, notificaciones y reservas pasaron; `mvn -DskipTests package` y `git diff --check` completaron correctamente.
+
 ## [2026-10-07] Implementación de Diagnóstico Técnico Previo con IA (Mini-Assessment)
 - **Agente:** Antigravity (Gemini 3.8 Flash)
 - **Contexto:** Se implementó la funcionalidad de diagnóstico previo a la reserva para evaluar prerrequisitos mediante IA generativa.
@@ -139,6 +147,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - **Frontend:**
     - Creación de `AssessmentService` en Angular.
     - Integración en `ServiceDetailsComponent`: Callout en la sección de prerrequisitos, botón en la tarjeta de compra y modal interactivo paso a paso con barra de progreso, selección de opciones y pantalla de resultados con feedback y explicaciones pedagógicas por pregunta.
+
 ## [2026-10-07] Corrección de Cuota y Manejo de Excepciones en Gemini
 - **Agente:** Antigravity (Gemini 3.8 Flash)
 - **Contexto:** Se diagnosticó y corrigió el fallo al generar el diagnóstico con Gemini tras actualizar la API Key.
@@ -152,7 +161,6 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Validación:**
   - Petición directa a `POST /api/assessments/offerings/11111111-1111-1111-1111-111111111111` generó exitosamente 3 preguntas con sus opciones.
   - Petición a `POST /api/assessments/{id}/submit` evaluó con éxito las respuestas devolviendo puntaje 3/3, aprobación y explicaciones pedagógicas.
-
 
 ## [2026-10-07] Implementación de Vista de Checkout (Placeholder)
 - **Agente:** Antigravity (Gemini 3.1 Pro)
@@ -188,6 +196,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - `auth.interceptor.ts`: Al recibir 401/403, se llama a `triggerSessionExpired()` en lugar del `ToastService`.
   - `app.component.ts`: Se añadió el overlay modal con el estado de expiración, con un alto `z-index` y fondo opaco, forzando el botón "Ir al login" para recuperar el estado limpio.
   - Reconstrucción de `frontend` y reinicio del contenedor `skillbridge-ai-frontend-1`.
+
 ## [2026-10-08] Corrección de Paginación en Notificaciones
 - **Agente:** Antigravity
 - **Contexto:** La vista de mis notificaciones mostraba "NaN de NaN" en el indicador de paginación.
@@ -221,6 +230,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Documentación: `docs/API.md` actualizado.
 - **Validación:** pasaron las pruebas unitarias de `CurrentUserServiceTest` y `UserControllerTest`, y `npm run build` del frontend completa sin errores. La prueba completa en el navegador queda pendiente de la migración Flyway del nuevo esquema (`services`/`categories`) que entrega otro integrante.
 - **Pendiente:** Probar de punta a punta con la base de datos del equipo y adaptar reservas (`BookingEntity`, `JpaBookingRepository`) y `JpaOfferingRepositoryTest` al nuevo esquema.
+
 ## [2026-10-08] Fusión de rama feat/implementar-rol-proveedor
 - **Agente:** Antigravity
 - **Contexto:** Resolución de conflictos de la rama `feat/implementar-rol-proveedor`.
@@ -301,7 +311,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - **Mejora UI (Overflow de Textos):** En `my-offerings.component.ts`, se ajustó la disposición de las tarjetas (`.card`) para evitar desbordamientos visuales cuando el título o la descripción son muy largos. Se aplicó `white-space: nowrap`, `overflow: hidden` y `text-overflow: ellipsis`, utilizando Flexbox (`.title-row`) para garantizar que la etiqueta de estado ("Activo"/"Inactivo") nunca sea empujada fuera de la pantalla ni se oculte. Además, se añadió el atributo HTML `[title]` para permitir al usuario leer el texto completo al pasar el mouse por encima.
   - **Administración de Horarios (Schedules):** Se añadió la capacidad de gestionar los horarios desde el modal de edición de servicio (`my-offerings.component.ts`). Al abrir el modal, se hace una petición HTTP para cargar todos los horarios asociados. Se muestra una lista de los horarios activos indicando el día de la semana, hora y duración. Se agregó un botón para **eliminar** horarios específicos usando el endpoint `DELETE /api/provider/services/{id}/schedule/{scheduleId}`, conectando con la capa de persistencia a través de `offering.service.ts`.
   - **Campos Faltantes de la HU:** Se agregó la posibilidad de editar la capacidad por sesión y la URL de la imagen (photoUrl) en el formulario reactivo del modal, asegurando que se modifiquen en la base de datos al usar el PUT de la API.
-  
+
 ## [2026-10-08] Frontend de la Vista de Administración Completo
 - **Agente:** Antigravity (Gemini 3.8 Flash)
 - **Contexto:** Completar los elementos faltantes en el frontend de la vista de Administración antes de la integración con el backend.
@@ -414,6 +424,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - `mvn test -Dtest=AdminUserServiceTest,AdminOfferingServiceTest` pasó con éxito (10 tests, 0 fallos).
   - `npm run build` completado exitosamente (0 errores).
   - Verificación en contenedores Docker: `GET /api/offerings` (catálogo público de usuarios) solo retorna servicios activos (`active: true`), mientras que `GET /api/admin/offerings` retorna la totalidad de servicios (activos y pausados).
+
 ## [2026-10-08] Redirección al Flujo de Pago desde el Diagnóstico con IA
 - **Agente:** Antigravity (Gemini 3.8 Flash)
 - **Contexto:** Al finalizar el test diagnóstico de prerrequisitos generado por IA, el botón "Continuar a la Reserva" redirigía a la ruta inexistente `/booking`, desencadenando la página de error 404. El requerimiento solicitaba dirigir al usuario a la vista de selección de método de pago.
@@ -431,8 +442,6 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - Se agrego una restriccion unica parcial en PostgreSQL para permitir como maximo un usuario ADMIN.
 - Se agrego una bitacora persistente de acciones administrativas y se muestra en Notificaciones para ADMIN.
 - Validacion: frontend y backend compilan en Docker; pruebas de servicios admin (16) y bitacora (4) pasan; stack local healthy con migraciones V12 y V13 aplicadas.
-
-
 
 ## [2026-10-09] Enlace y Notificación Directa a Vista de Curso en Asistente IA
 - **Agente:** Antigravity (Gemini 3.8 Flash)
@@ -454,7 +463,6 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Pruebas unitarias de backend pasando al 100%.
   - Compilación de Angular (`npx ng build`) completada con éxito.
   - Reconstrucción y despliegue en Docker Compose (`docker compose up -d --build backend frontend`) validando contenedores activos y saludables.
-
 
 ## [2026-10-09] Fusión de funcionalidades de la vista de proveedor
 - **Agente:** Antigravity
@@ -531,6 +539,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - El listado carga el conjunto de inscripciones para que los filtros `Todas`, `Activas` y `No activas` se apliquen antes de ordenar y paginar; el estilo `ACTIVE` usa un badge verde diferenciado.
   - Se corrigió un carácter accidental que impedía compilar `ServiceEnrollmentService` y se añadieron pruebas dirigidas para las reglas backend y los flujos frontend de filtros, formato de notificación, identificador visible, badge y cancelación repetida.
 - **Validación:** Pasaron `mvn -f backend/pom.xml -q -Dtest=ServiceEnrollmentServiceTest test`, `node node_modules/typescript/bin/tsc -p tsconfig.spec.json --noEmit` (ejecutado desde `frontend`), `npm --prefix frontend run build` y `npm --prefix frontend test -- --watch=false --include=src/app/core/booking.service.spec.ts --include=src/app/features/display-bookings/display-bookings.spec.ts --include=src/app/features/my-notifications.component.spec.ts --browsers=ChromeHeadless` (7 pruebas). La primera ejecución en Chrome normal perdió conexión con Karma; el reintento en Chrome Headless pasó. `frontend/public/env.js` ya estaba modificado previamente y no se editó intencionalmente.
+
 ## [2026-10-14] Formato en español para auditoría de cambio de rol
 - **Contexto:** Se solicitó reemplazar la acción `USER_ROLE_CHANGED` en las notificaciones administrativas y mostrar el detalle del cambio con una estructura legible.
 - **Cambios realizados:** La acción ahora se registra como `ROL MODIFICADO`; el mensaje contiene ID Usuario, Correo, Rol Anterior y Rol Nuevo, sin repetir el título. La vista ubica `Recibida` después de Rol Nuevo, oculta la fila redundante `USER: ID` y normaliza notificaciones antiguas sin modificar la base. Se agregó una prueba unitaria del formato.
@@ -545,7 +554,6 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Contexto:** Se solicitó que el evento de alta se muestre como `USUARIO CREADO` con el formato de actividad administrativa.
 - **Cambios realizados:** El backend registra título, ID, nombre, correo y rol; no incluye contraseña. La vista muestra el mismo formato y adapta eventos históricos `USER_CREATED` al presentarlos.
 - **Validación:** `AdminUserServiceTest` pasó (11 pruebas), `npx ng build` completó y se reconstruyeron backend y frontend. Las pruebas no insertaron usuarios en la base local.
-
 
 ## [2026-10-14] Rediseño de la vista admin de Notificaciones (/notifications)
 - **Agente:** Antigravity
@@ -648,6 +656,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - **CA 4.2:** `save` está vacío, `appendonly` es `no`, `aof_enabled` es `0`, `maxmemory` es `268435456`, `Mounts` está vacío y `/data` no contiene archivos. `docker inspect` muestra `HostConfig.Tmpfs` `{"/data":""}` y `df /data` reporta `tmpfs` con 0 bytes usados.
   - **CA 4.3:** `DBSIZE` cambia de 2 a 6 al crear una sala, baja a 4 al finalizarla con `DeleteRoom` y vuelve a 2 tras unos segundos, sin claves huérfanas. La finalización se probó con `DeleteRoom` por la API de LiveKit; no se probó un webhook `room_finished` hacia el backend. Tras finalizar, aparecen dos claves temporales que LiveKit elimina solo en segundos.
 - **Nota para el equipo:** Definir `LIVEKIT_REDIS_PASSWORD` en el `.env` local; de lo contrario, `docker compose` falla.
+
 ## [2026-10-19] Dashboard Provisionado de LiveKit Server y Experiencia Multimedia (HU-10)
 - **Rol:** DevOps / SRE
 - **Contexto:** Supervisión de recursos del contenedor livekit-server, ancho de banda y estabilidad de sesiones WebRTC.
@@ -812,5 +821,84 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Frontend Angular compilado exitosamente (`npm run build`).
   - Creación repetida de salas de prueba verificada con 1 único registro por participante y respuestas 200 OK constantes.
 
+## [2026-10-19] Integración del SDK de LiveKit y Configuración de Secretos (Arquitectura Hexagonal)
+- **Autor / Implementación:** Juan Vargas
+- **Contexto:** Habilitar el soporte en el backend para la generación de tokens de acceso y comunicación con el servidor de videollamadas LiveKit respetando las reglas de arquitectura hexagonal y seguridad de credenciales.
+- **Cambios realizados:**
+  - **Gestión de Secretos y Variables de Entorno (`.env.example`, `docker-compose.yml`):**
+    - Se definieron y documentaron las variables `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` y `LIVEKIT_URL`.
+    - Se configuró la inyección de estas variables de entorno en el contenedor del servicio `backend` en Docker Compose con fallback seguro para desarrollo local (`http://livekit:7880`).
+    - Se ajustaron las credenciales en el servicio `livekit` (`LIVEKIT_KEYS`) evitando exponer variables innecesarias al contenedor del servidor WebRTC.
+  - **Mapeo de Configuración Spring Boot (`application.yml` y `application.yml` de test):**
+    - Se incorporó el bloque `app.livekit` con propiedades para URL, API Key y Secret en el archivo principal y en el de pruebas.
+  - **Dependencias Maven (`backend/pom.xml`):**
+    - Inclusión del SDK oficial `io.livekit:livekit-server:0.13.0` para la generación criptográfica de tokens y gestión de salas.
+  - **Arquitectura Hexagonal (Backend Java):**
+    - **Configuración (`infrastructure/config/LiveKitConfiguration.java`):** Clase `@Configuration` para inyectar las propiedades desde Spring y exponer el bean `RoomServiceClient` para administración de salas.
+    - **Puerto de Salida (`application/port/out/LiveKitVideoPort.java`):** Definición de la interfaz del contrato para abstraer la generación de tokens JWT de sala (`generateAccessToken`), aislando la lógica de negocio del proveedor de WebRTC.
+    - **Adaptador de Salida (`infrastructure/adapter/out/livekit/LiveKitVideoAdapter.java`):** Implementación técnica del puerto usando el SDK de LiveKit (`AccessToken`, `RoomJoin`, `RoomName`), firmando los tokens con HMAC-SHA256 usando el secreto inyectado sin exponerlo al cliente.
+# Historial de Cambios (Memoria de Agentes)
 
+Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-10-20] Corrección de inicio de Prometheus para HU de métricas LiveKit
+- **Contexto:** Prometheus no iniciaba al cargar el archivo de pruebas de `promtool` como si fuera un archivo de reglas de producción.
+- **Cambios realizados:**
+  - En `ops/prometheus/prometheus.yml`, se reemplazó el patrón `/etc/prometheus/rules/*.yml` por la ruta explícita `/etc/prometheus/rules/livekit-rules.yml`, evitando incluir `livekit-rules.test.yml` en la configuración de producción.
+- **Validación:**
+  - `promtool check config /etc/prometheus/prometheus.yml` pasó: configuración válida y 12 reglas cargadas.
+  - Prometheus inició y `http://localhost:9090/-/ready` respondió `200 OK`.
+  - El target `livekit:6789` apareció con estado `up`, sin errores de scrape; `up{job="livekit"}` devolvió `1`.
+  - Consultas PromQL confirmaron ingesta de `livekit_room_total`, `livekit_participant_total` y `livekit_packet_total`.
+
+## [2026-10-20] Métrica consultable de build LiveKit
+- **Contexto:** El endpoint de LiveKit no exponía `livekit_server_build_info`; se solicitó habilitar únicamente esa métrica adicional para consulta.
+- **Cambios realizados:**
+  - Se añadió en `ops/prometheus/rules/livekit-rules.yml` una recording rule llamada `livekit_server_build_info`, basada en `up{job="livekit"} == 1` y con `version="v1.8"`, el tag de imagen configurado en `docker-compose.yml`.
+  - Se añadió una prueba PromQL y se documentó la métrica y su consulta en `docs/LIVEKIT-MONITORING.md`.
+  - La serie representa el tag de imagen configurado cuando el target está UP; no es una métrica nativa ni una lectura dinámica de la versión interna de LiveKit.
+- **Validación:**
+  - `promtool check rules` pasó con 13 reglas; la prueba enfocada del primer grupo en `livekit-rules.test.yml` pasó.
+  - La suite completa de pruebas aún reporta un fallo en la prueba preexistente `job:livekit_packet_rate:sum` (esperaba 5, no obtuvo muestra); no corresponde a la prueba de build info.
+  - Tras reiniciar Prometheus, la consulta `livekit_server_build_info{job="livekit"}` devolvió una serie con `instance="livekit:6789"`, `version="v1.8"` y valor `1`; `up{job="livekit"}` también devolvió `1`.
+
+## [2026-10-20] Unificación y Mejora del Servicio de Generación de Tokens de Acceso (JWT) por Rol (HU-29.2)
+- **Rol:** Backend Developer
+- **Contexto:** Consolidación de la generación de tokens LiveKit con el SDK oficial (`io.livekit.server.AccessToken`), eliminación de adaptadores duplicados y cumplimiento estricto de los Criterios de Aceptación (CA 2.1, CA 2.2, CA 2.3, CA 2.4).
+- **Cambios realizados:**
+  - **Eliminación de duplicados:** Se removieron los archivos redundantes `LiveKitVideoPort.java`, `LiveKitVideoAdapter.java` y `LiveKitConfiguration.java`.
+  - **Uso del SDK Oficial en Adaptador Hexagonal:** Se actualizó `LiveKitRestAdapter.java` para utilizar `io.livekit.server.AccessToken`, `RoomJoin`, `RoomName`, `CanPublish`, `CanSubscribe`, `CanPublishData` y `RoomAdmin`.
+  - **Permisos por Rol (CA 2.1 y CA 2.2):**
+    - Tutor/Proveedor (`PROVIDER`): `canPublish: true`, `canSubscribe: true`, `canPublishData: true`, `roomAdmin: true`.
+    - Alumno/Participante (`PARTICIPANT`): `canPublish: false`, `canSubscribe: true`, `canPublishData: true`, `roomAdmin: false`.
+  - **TTL Configurable (CA 2.3):** Se incorporó `token-ttl-minutes` (default 120 min) en `LiveKitProperties` y `application.yml`.
+  - **Seguridad y Excepciones (CA 2.4):** Se creó `UnauthorizedMeetingAccessException` mapeada a `403 FORBIDDEN` en `GlobalExceptionHandler`.
+- **Validación:**
+  - `mvn test-compile` exitoso sin errores en las 203 clases.
+  - `mvn test -Dtest=MeetingServiceTest` completado exitosamente (7 de 7 pruebas aprobadas).
+
+## [2026-10-21] Implementación de Pruebas Automatizadas de Integración y Ciclo de Vida LiveKit (CA 6.1, CA 6.2, CA 6.3)
+- **Rol:** QA Engineer & Backend Developer
+- **Contexto:** Implementación de pruebas automatizadas en el backend utilizando JUnit 5, Testcontainers y el cliente oficial `RoomServiceClient` de LiveKit para validar de forma desatendida la seguridad de tokens JWT por rol, la creación sintética de salas y su eliminación limpia e inmediata.
+- **Cambios realizados:**
+  - **Validación Criptográfica y de Permisos JWT (`LiveKitTokenSecurityTest.java` - CA 6.1):**
+    - Se implementó prueba unitaria para validar la estructura del token JWT decodificando el payload JSON.
+    - Se asertó que el token para el Tutor (`MeetingRole.PROVIDER`) incluye los grants `canPublish: true` y `roomAdmin: true`.
+    - Se validó por contraste que el Alumno (`MeetingRole.PARTICIPANT`) tiene `canPublish: false` y `roomAdmin: false`, con permisos restringidos a suscripción y chat.
+    - Se comprobó que el timestamp de expiración (`exp`) cumple con el TTL configurado de 120 minutos (2 horas).
+  - **Integración y Ciclo de Vida de Salas (`LiveKitRoomIntegrationTest.java` - CA 6.2 y CA 6.3):**
+    - Se configuró el ciclo de vida de Testcontainers con la imagen oficial `livekit/livekit-server:v1.8` en modo `--dev` y puertos mapeados dinámicamente (`@Testcontainers(disabledWithoutDocker = true)`).
+    - Se inicializó `RoomServiceClient` y se probó la creación de salas sintéticas con configuración controlada y metadatos JSON.
+    - Se verificó la persistencia y presencia de la sala y sus metadatos mediante `listRooms()` (**CA 6.2**).
+    - Se ejecutó el cierre y borrado seguro con `deleteRoom()`, confirmando inmediatamente que la sala deja de figurar en el listado activo del servidor para evitar salas huérfanas en el pipeline de CI/CD (**CA 6.3**).
+- **Validación:**
+  - Ejecución de pruebas específicas: `mvn -f backend/pom.xml test -Dtest="LiveKitTokenSecurityTest,LiveKitRoomIntegrationTest"` aprobada al 100%.
+  - Suite completa del backend: `mvn -f backend/pom.xml test` finalizada con `BUILD SUCCESS` (88 pruebas exitosas sin regresiones).
+
+## [2026-10-22] Resolución de Conflictos y Sincronización con Develop (HU-29.11 y LiveKit SDK)
+- **Rol:** Fullstack Developer
+- **Contexto:** Sincronización de la rama `develop` sobre `feature/hu-29.11-interfaz-videoconferencias-livekit` y resolución integral de conflictos de fusión.
+- **Resolución de Conflictos:**
+  - **`LiveKitRestAdapter.java`:** Se adoptó el uso del SDK oficial de LiveKit (`io.livekit.server.AccessToken`), asignando TTL configurable y otorgando grants de publicación y moderación (`CanPublish`, `RoomAdmin`) tanto a `MeetingRole.PROVIDER` como a `MeetingRole.ADMIN`.
+  - **`docker-compose.yml`:** Se mantuvieron las variables de entorno WebRTC locales (`LIVEKIT_RTC_NODE_IP`, `LIVEKIT_RTC_ADVERTISE_INTERNAL_IP`, `LIVEKIT_RTC_USE_ICE_LITE`, etc.) y la dependencia con el contenedor de estado efímero `redis-livekit`, asegurando la estabilidad de la conexión WebRTC.
+  - **`MEMORIA.md`:** Se unificaron sin pérdidas todas las bitácoras técnicas de ambas ramas (69 secciones únicas preservadas).

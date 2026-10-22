@@ -90,4 +90,11 @@ public class GlobalExceptionHandler {
         p.setTitle("LiveKit integration error");
         return p;
     }
+
+    @ExceptionHandler(com.riwi.skillbridge.domain.exception.UnauthorizedMeetingAccessException.class)
+    ProblemDetail meetingAccessForbidden(com.riwi.skillbridge.domain.exception.UnauthorizedMeetingAccessException ex) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        p.setTitle("Forbidden");
+        return p;
+    }
 }

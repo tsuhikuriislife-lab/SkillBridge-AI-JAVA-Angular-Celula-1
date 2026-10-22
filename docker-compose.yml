@@ -30,22 +30,6 @@ services:
       retries: 15
     networks: [ skillbridge ]
 
-  redis-livekit:
-    image: redis:8-alpine
-    command:
-      - sh
-      - -c
-      - exec redis-server --save "" --appendonly no --requirepass "$$LIVEKIT_REDIS_PASSWORD" --maxmemory 256mb --maxmemory-policy noeviction
-    environment:
-      LIVEKIT_REDIS_PASSWORD: ${LIVEKIT_REDIS_PASSWORD:?Set LIVEKIT_REDIS_PASSWORD}
-    tmpfs: [ /data ]
-    healthcheck:
-      test: [ "CMD-SHELL", "REDISCLI_AUTH=$$LIVEKIT_REDIS_PASSWORD redis-cli ping" ]
-      interval: 5s
-      timeout: 3s
-      retries: 15
-    networks: [ skillbridge ]
-
   rabbitmq:
     image: rabbitmq:4-management-alpine
     environment:
@@ -76,9 +60,9 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-dummy_key_for_startup}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-lite}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8088,http://localhost:4200}
-      LIVEKIT_URL: ws://livekit:7880
-      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
-      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-secret}
+      LIVEKIT_API_KEY: "${LIVEKIT_API_KEY}"
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      LIVEKIT_URL: ${LIVEKIT_URL:-http://livekit:7880}
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,8 +70,6 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      livekit:
-        condition: service_started
     ports:
       - "127.0.0.1:8081:8080"
     healthcheck:
@@ -113,7 +95,6 @@ services:
     profiles: [ "observability" ]
     volumes:
       - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./ops/prometheus/rules:/etc/prometheus/rules:ro
     ports:
       - "127.0.0.1:9090:9090"
     networks: [ skillbridge ]
@@ -168,3 +149,6 @@ volumes:
   redis_data:
   rabbitmq_data:
   grafana_data:
+
+
+
