@@ -20,6 +20,7 @@ export const routes: Routes = [
   { path: 'service/:id', loadComponent: () => import('./features/service-details.component').then(m => m.ServiceDetailsComponent), canActivate: [authGuard, nonAdminGuard] },
   { path: 'admin', loadComponent: () => import('./features/admin-dashboard/admin-dashboard.component').then(m => m.AdminDashboardComponent), canActivate: [adminGuard] },
   { path: 'checkout/:id', loadComponent: () => import('./features/checkout.component').then(m => m.CheckoutComponent), canActivate: [authGuard, nonAdminGuard] },
+  { path: 'meeting/:id', loadComponent: () => import('./features/meeting-room/meeting-room.component').then(m => m.MeetingRoomComponent), canActivate: [authGuard] },
   { 
     path: 'provider', 
     loadComponent: () => import('./features/provider/provider-dashboard.component').then(m => m.ProviderDashboardComponent),

@@ -48,6 +48,18 @@ public class MeetingController {
         return toTokenOut(manage.startMeeting(currentUserId(user), serviceId));
     }
 
+    /** Permite a un administrador crear e ingresar inmediatamente a una sala de prueba para un servicio. */
+    @PostMapping("/admin/test-room")
+    @PreAuthorize("hasRole('ADMIN')")
+    public MeetingTokenOut createTestRoom(@AuthenticationPrincipal UserDetails user,
+                                          @RequestBody java.util.Map<String, UUID> request) {
+        UUID serviceId = request.get("serviceId");
+        if (serviceId == null) {
+            throw new BusinessRuleException("El ID del servicio es requerido");
+        }
+        return toTokenOut(manage.createTestMeeting(currentUserId(user), serviceId));
+    }
+
     /** Regla 2: solo inscritos activos o el proveedor; el token se genera en backend. */
     @PostMapping("/{meetingId}/join")
     public MeetingTokenOut join(@AuthenticationPrincipal UserDetails user,
@@ -56,7 +68,7 @@ public class MeetingController {
     }
 
     @PostMapping("/{meetingId}/finish")
-    @PreAuthorize("hasRole('PROVIDER')")
+    @PreAuthorize("hasAnyRole('PROVIDER', 'ADMIN')")
     public MeetingOut finish(@AuthenticationPrincipal UserDetails user,
                              @PathVariable UUID meetingId) {
         return toOut(manage.finishMeeting(currentUserId(user), meetingId));

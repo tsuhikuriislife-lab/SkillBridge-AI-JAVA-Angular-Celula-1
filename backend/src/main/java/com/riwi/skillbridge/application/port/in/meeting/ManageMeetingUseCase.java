@@ -33,4 +33,10 @@ public interface ManageMeetingUseCase {
      * Concede la extensión máxima de tiempo una única vez (Regla 4).
      */
     Meeting extendMeeting(UUID providerId, UUID meetingId);
+
+    /**
+     * Crea e inicia una sala de prueba instantánea para un servicio, permitiendo
+     * el acceso al administrador (con permisos completos) y a los usuarios inscritos.
+     */
+    MeetingAccess createTestMeeting(UUID adminUserId, UUID serviceId);
 }

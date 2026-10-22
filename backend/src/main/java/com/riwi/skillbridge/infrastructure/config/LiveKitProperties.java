@@ -40,6 +40,10 @@ public class LiveKitProperties {
         this.tokenTtlMinutes = tokenTtlMinutes;
     }
 
+    public LiveKitProperties(String url, String apiKey, String apiSecret, int roomEmptyTimeoutSeconds) {
+        this(url, apiKey, apiSecret, roomEmptyTimeoutSeconds, 120L);
+    }
+
     public String getUrl() { return url; }
     public String getApiUrl() { return apiUrl; }
     public String getApiKey() { return apiKey; }

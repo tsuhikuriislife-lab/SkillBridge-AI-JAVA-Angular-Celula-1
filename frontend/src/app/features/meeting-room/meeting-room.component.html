@@ -1,0 +1,105 @@
+<div class="meeting-viewport">
+  <!-- Cabecera de la sala -->
+  <header class="meeting-header">
+    <div class="header-left">
+      <span class="live-indicator" [class.active]="isConnected()">
+        <span class="dot"></span>
+        {{ statusMessage() }}
+      </span>
+      <h1 class="room-title">Sala de Mentoría Virtual</h1>
+    </div>
+
+    <div class="header-right">
+      <div class="chip participant-chip" *ngIf="isConnected()">
+        👥 {{ participantsCount() }} {{ participantsCount() === 1 ? 'persona' : 'personas' }}
+      </div>
+      <div class="chip role-chip" *ngIf="tokenData()">
+        <span *ngIf="tokenData()?.role === 'ADMIN'">👑 Administrador (Control Total)</span>
+        <span *ngIf="tokenData()?.role === 'PROVIDER'">👨‍🏫 Mentor (Host)</span>
+        <span *ngIf="tokenData()?.role === 'PARTICIPANT'">🎓 Participante</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenido Principal -->
+  <main class="meeting-main">
+    <!-- Estado de carga -->
+    <div class="state-overlay" *ngIf="isConnecting() && !errorMessage()">
+      <div class="spinner"></div>
+      <h2>{{ statusMessage() }}</h2>
+      <p>Configurando tu conexión en tiempo real con LiveKit...</p>
+    </div>
+
+    <!-- Estado de error -->
+    <div class="state-overlay error-state" *ngIf="errorMessage()">
+      <div class="error-icon">⚠️</div>
+      <h2>No fue posible ingresar a la sala</h2>
+      <p class="error-text">{{ errorMessage() }}</p>
+      <div class="actions-group">
+        <button class="btn-action" (click)="leaveMeeting()">Volver</button>
+        <button class="btn-action btn-retry" (click)="initMeetingSession()">Reintentar</button>
+      </div>
+    </div>
+
+    <!-- Escenario de Video -->
+    <div class="video-stage" [hidden]="isConnecting() || errorMessage()">
+      <!-- Contenedor dinámico para video/audio de participantes remotos -->
+      <div #remoteMediaContainer class="remote-streams-grid"></div>
+
+      <!-- Pantalla de espera para alumnos si el mentor aún no transmite -->
+      <div class="waiting-placeholder" *ngIf="tokenData()?.role === 'PARTICIPANT' && isConnected() && !hasRemoteVideo()">
+        <div class="waiting-icon">⏳</div>
+        <h3>Esperando al mentor...</h3>
+        <p>La transmisión comenzará automáticamente cuando el mentor encienda su cámara o comparta su pantalla.</p>
+      </div>
+
+      <!-- Video Local (Flotante o en grilla) -->
+      <div class="local-video-wrapper" [class.camera-off]="isCameraOff()" *ngIf="tokenData()?.role === 'PROVIDER' || tokenData()?.role === 'ADMIN'">
+        <video #localVideo autoplay playsinline muted></video>
+        <div class="camera-off-avatar" *ngIf="isCameraOff()">
+          <span>📷 Cámara apagada</span>
+        </div>
+        <div class="participant-tag">
+          <span>{{ tokenData()?.role === 'ADMIN' ? '👑 Tú (Admin)' : '👨‍🏫 Tú (Mentor)' }}</span>
+          <span class="mic-status" [class.muted]="isMicMuted()">{{ isMicMuted() ? '🔇' : '🎤' }}</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Barra de Controles Inferior -->
+  <footer class="meeting-controls" *ngIf="isConnected()">
+    <div class="controls-group">
+      <!-- Micrófono -->
+      <button class="control-btn" [class.off]="isMicMuted()" (click)="toggleMicrophone()" [title]="isMicMuted() ? 'Activar micrófono' : 'Silenciar micrófono'">
+        <span class="icon">{{ isMicMuted() ? '🔇' : '🎤' }}</span>
+        <span class="label">{{ isMicMuted() ? 'Desmutear' : 'Mutear' }}</span>
+      </button>
+
+      <!-- Cámara -->
+      <button class="control-btn" [class.off]="isCameraOff()" (click)="toggleCamera()" [title]="isCameraOff() ? 'Activar cámara' : 'Apagar cámara'">
+        <span class="icon">{{ isCameraOff() ? '🚫' : '📹' }}</span>
+        <span class="label">{{ isCameraOff() ? 'Encender' : 'Apagar' }}</span>
+      </button>
+
+      <!-- Compartir Pantalla -->
+      <button class="control-btn" [class.active-share]="isScreenSharing()" [disabled]="isScreenShareToggling()" (click)="toggleScreenShare()" [title]="isScreenSharing() ? 'Dejar de compartir' : 'Compartir pantalla'">
+        <span class="icon">🖥️</span>
+        <span class="label">{{ isScreenShareToggling() ? 'Cargando...' : (isScreenSharing() ? 'Compartiendo' : 'Compartir') }}</span>
+      </button>
+
+      <!-- Salir / Desconectarse -->
+      <button class="control-btn btn-leave" (click)="leaveMeeting()" title="Salir de la reunión">
+        <span class="icon">🚪</span>
+        <span class="label">Salir</span>
+      </button>
+
+      <!-- Finalizar sala (solo Mentor o Administrador) -->
+      <button class="control-btn btn-danger" *ngIf="tokenData()?.role === 'PROVIDER' || tokenData()?.role === 'ADMIN'" (click)="finishMeeting()" title="Finalizar reunión para todos">
+        <span class="icon">⏹️</span>
+        <span class="label">Terminar clase</span>
+      </button>
+    </div>
+  </footer>
+</div>
+

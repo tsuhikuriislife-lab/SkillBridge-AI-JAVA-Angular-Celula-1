@@ -95,16 +95,17 @@ public class LiveKitRestAdapter implements LiveKitPort {
             : new Date(System.currentTimeMillis() + properties.getTokenTtlMinutes() * 60 * 1000L);
         token.setExpiration(expirationDate);
 
-        boolean isProvider = (role == MeetingRole.PROVIDER);
+        boolean canPublishAndAdmin = (role == MeetingRole.PROVIDER || role == MeetingRole.ADMIN);
 
-        // Grants definidos según el rol del usuario (Tutor / Proveedor vs Alumno / Participante)
+        // Grants definidos según el rol del usuario (Tutor / Proveedor / Admin vs Alumno / Participante)
         token.addGrants(
             new RoomJoin(true),
             new RoomName(roomName),
-            new io.livekit.server.CanPublish(isProvider),
+            new io.livekit.server.CanPublish(canPublishAndAdmin),
             new io.livekit.server.CanSubscribe(true),
             new io.livekit.server.CanPublishData(true),
-            new io.livekit.server.RoomAdmin(isProvider)
+            new io.livekit.server.RoomAdmin(canPublishAndAdmin),
+            new io.livekit.server.CanUpdateOwnMetadata(role == MeetingRole.ADMIN)
         );
 
         return token.toJwt();
@@ -120,7 +121,7 @@ public class LiveKitRestAdapter implements LiveKitPort {
                 .uri(URI.create(properties.getApiUrl() + path))
                 .timeout(HTTP_TIMEOUT)
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .header(HttpHeaders.AUTHORIZATION, basicAuth())
+                .header(HttpHeaders.AUTHORIZATION, adminAuthToken())
                 .POST(HttpRequest.BodyPublishers.ofString(toJson(body)))
                 .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -136,9 +137,14 @@ public class LiveKitRestAdapter implements LiveKitPort {
         }
     }
 
-    private String basicAuth() {
-        String credentials = properties.getApiKey() + ":" + properties.getApiSecret();
-        return "Basic " + Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+    private String adminAuthToken() {
+        AccessToken token = new AccessToken(properties.getApiKey(), properties.getApiSecret());
+        token.addGrants(
+            new io.livekit.server.RoomCreate(true),
+            new io.livekit.server.RoomAdmin(true),
+            new io.livekit.server.RoomList(true)
+        );
+        return "Bearer " + token.toJwt();
     }
 
     private static String toJson(Map<String, Object> body) {

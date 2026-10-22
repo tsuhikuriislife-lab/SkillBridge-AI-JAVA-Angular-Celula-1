@@ -131,12 +131,17 @@ services:
     networks: [ skillbridge ]
 
   livekit:
-    image: livekit/livekit-server:v1.8
+    image: livekit/livekit-server:latest
     command: --config /etc/livekit.yaml
     restart: unless-stopped
     environment:
-      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-devkey}: ${LIVEKIT_API_SECRET}"
       LIVEKIT_RTC_USE_EXTERNAL_IP: ${LIVEKIT_RTC_USE_EXTERNAL_IP:-false}
+      LIVEKIT_RTC_NODE_IP: ${LIVEKIT_RTC_NODE_IP:-127.0.0.1}
+      LIVEKIT_RTC_ADVERTISE_INTERNAL_IP: ${LIVEKIT_RTC_ADVERTISE_INTERNAL_IP:-true}
+      LIVEKIT_RTC_ENABLE_LOOPBACK_CANDIDATE: ${LIVEKIT_RTC_ENABLE_LOOPBACK_CANDIDATE:-true}
+      LIVEKIT_RTC_USE_ICE_LITE: ${LIVEKIT_RTC_USE_ICE_LITE:-true}
+      NODE_IP: ${NODE_IP:-127.0.0.1}
       REDIS_HOST: redis-livekit:6379
       REDIS_PASSWORD: ${LIVEKIT_REDIS_PASSWORD:?Set LIVEKIT_REDIS_PASSWORD}
     volumes:
@@ -148,6 +153,7 @@ services:
       - "${LIVEKIT_HTTP_PORT:-7880}:7880"
       - "${LIVEKIT_TCP_PORT:-7881}:7881"
       - "${LIVEKIT_UDP_PORT:-7882}:7882/udp"
+      - "127.0.0.1:6789:6789"
     networks: [ skillbridge ]
 
 networks:

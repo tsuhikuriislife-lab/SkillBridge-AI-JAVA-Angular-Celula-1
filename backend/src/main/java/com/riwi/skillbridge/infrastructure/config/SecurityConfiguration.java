@@ -70,6 +70,7 @@ public class SecurityConfiguration {
 
         return http
                 .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/api/webhooks/livekit")
                         .csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
                         .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
@@ -91,7 +92,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/actuator/prometheus").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/bookings/**", "/api/enrollments/**", "/api/meetings/**")
-                        .hasAnyRole("CUSTOMER", "PROVIDER")
+                        .hasAnyRole("CUSTOMER", "PROVIDER", "ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
