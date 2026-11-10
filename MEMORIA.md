@@ -2,6 +2,15 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
+- **Agente:** Antigravity (Senior Fullstack Architect)
+- **Objetivo:** Crear documentación exhaustiva individual para las carpetas `backend/` y `frontend/`, incorporar diagramas concisos Mermaid y documentar detalladamente los comandos de terminal para ejecutar cada servicio por separado y en conjunto.
+- **Archivos creados y actualizados:**
+  - `backend/README.md` (NUEVO): Stack tecnológico detallado (Java 21, Spring Boot 3.5.x, Spring AI), diagrama de arquitectura hexagonal y puertos/adaptadores en Mermaid, flujos de secuencia concisos (Cache-Aside con Redis, Event-Driven con RabbitMQ y DLQ, y Mini-Assessment con Google Gemini), tabla completa de variables de entorno del backend y comandos de terminal detallados para ejecutar localmente con Maven, correr pruebas unitarias con JaCoCo y verificar Actuator.
+  - `frontend/README.md` (NUEVO): Stack de Angular 20 (Standalone Components, TypeScript 5.9, RxJS), diagrama de jerarquía y enrutamiento con Guards, diagrama de secuencia del modal de diagnóstico técnico interactivo, seguridad de frontend (cero secretos, interceptor JWT y overlay modal de sesión expirada) y comandos de terminal para instalar, correr dev server con proxy a Spring Boot (`npm start`), correr pruebas unitarias y compilar a producción.
+  - `README.md`: Modernización integral del documento raíz: incorporación de un **Docs Hub** para navegar entre todas las guías, diagrama Mermaid general de arquitectura de extremo a extremo, sección dedicada con **Comandos de Terminal para Ejecutar Cada Servicio** (Docker Compose, modo híbrido local de desarrollo, pruebas automatizadas, observabilidad) y tabla comparativa de puertos locales (Docker vs Host).
+- **Validación:** Comprobación de consistencia de puertos y comandos entre `docker-compose.yml`, `Makefile`, `backend/pom.xml` y `frontend/package.json`.
+
 ## [2026-11-09] Documentación Senior Exhaustiva del Subsistema de IA y Complementación Global de `docs/`
 - **Agente:** Antigravity (Senior Technical Lead & Software Architect)
 - **Objetivo:** Crear la documentación técnica completa del subsistema de Inteligencia Artificial y complementar y actualizar exhaustivamente toda la carpeta `docs/` (API, Arquitectura, Changelog, Checklist de Despliegue, Guía del Instructor y ADRs).
@@ -612,6 +621,15 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 # Historial de Cambios (Memoria de Agentes)
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
+
+## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
+- **Agente:** Antigravity (Senior Fullstack Architect)
+- **Objetivo:** Crear documentación exhaustiva individual para las carpetas `backend/` y `frontend/`, incorporar diagramas concisos Mermaid y documentar detalladamente los comandos de terminal para ejecutar cada servicio por separado y en conjunto.
+- **Archivos creados y actualizados:**
+  - `backend/README.md` (NUEVO): Stack tecnológico detallado (Java 21, Spring Boot 3.5.x, Spring AI), diagrama de arquitectura hexagonal y puertos/adaptadores en Mermaid, flujos de secuencia concisos (Cache-Aside con Redis, Event-Driven con RabbitMQ y DLQ, y Mini-Assessment con Google Gemini), tabla completa de variables de entorno del backend y comandos de terminal detallados para ejecutar localmente con Maven, correr pruebas unitarias con JaCoCo y verificar Actuator.
+  - `frontend/README.md` (NUEVO): Stack de Angular 20 (Standalone Components, TypeScript 5.9, RxJS), diagrama de jerarquía y enrutamiento con Guards, diagrama de secuencia del modal de diagnóstico técnico interactivo, seguridad de frontend (cero secretos, interceptor JWT y overlay modal de sesión expirada) y comandos de terminal para instalar, correr dev server con proxy a Spring Boot (`npm start`), correr pruebas unitarias y compilar a producción.
+  - `README.md`: Modernización integral del documento raíz: incorporación de un **Docs Hub** para navegar entre todas las guías, diagrama Mermaid general de arquitectura de extremo a extremo, sección dedicada con **Comandos de Terminal para Ejecutar Cada Servicio** (Docker Compose, modo híbrido local de desarrollo, pruebas automatizadas, observabilidad) y tabla comparativa de puertos locales (Docker vs Host).
+- **Validación:** Comprobación de consistencia de puertos y comandos entre `docker-compose.yml`, `Makefile`, `backend/pom.xml` y `frontend/package.json`.
 
 ## [2026-11-09] Documentación Senior Exhaustiva del Subsistema de IA y Complementación Global de `docs/`
 - **Agente:** Antigravity (Senior Technical Lead & Software Architect)
