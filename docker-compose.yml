@@ -30,6 +30,22 @@ services:
       retries: 15
     networks: [ skillbridge ]
 
+  redis-livekit:
+    image: redis:8-alpine
+    command:
+      - sh
+      - -c
+      - exec redis-server --save "" --appendonly no --requirepass "$$LIVEKIT_REDIS_PASSWORD" --maxmemory 256mb --maxmemory-policy noeviction
+    environment:
+      LIVEKIT_REDIS_PASSWORD: ${LIVEKIT_REDIS_PASSWORD:?Set LIVEKIT_REDIS_PASSWORD}
+    tmpfs: [ /data ]
+    healthcheck:
+      test: [ "CMD-SHELL", "REDISCLI_AUTH=$$LIVEKIT_REDIS_PASSWORD redis-cli ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    networks: [ skillbridge ]
+
   rabbitmq:
     image: rabbitmq:4-management-alpine
     environment:
@@ -121,8 +137,13 @@ services:
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
       LIVEKIT_RTC_USE_EXTERNAL_IP: ${LIVEKIT_RTC_USE_EXTERNAL_IP:-false}
+      REDIS_HOST: redis-livekit:6379
+      REDIS_PASSWORD: ${LIVEKIT_REDIS_PASSWORD:?Set LIVEKIT_REDIS_PASSWORD}
     volumes:
       - ./ops/livekit/livekit.yaml:/etc/livekit.yaml:ro
+    depends_on:
+      redis-livekit:
+        condition: service_healthy
     ports:
       - "${LIVEKIT_HTTP_PORT:-7880}:7880"
       - "${LIVEKIT_TCP_PORT:-7881}:7881"
