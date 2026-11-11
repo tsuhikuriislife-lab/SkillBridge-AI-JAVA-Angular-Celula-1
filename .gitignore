@@ -33,3 +33,11 @@ frontend/.env
 
 # Diseños
 diseños/
+
+# Data / Analytics outputs
+analytics-service/data/
+
+# Python cache & tests
+__pycache__/
+*.py[cod]
+.pytest_cache/

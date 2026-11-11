@@ -171,6 +171,7 @@ services:
       - "7077:7077"
     volumes:
       - ./analytics-service/jobs:/app/jobs
+      - ./analytics-service/data:/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -200,6 +201,7 @@ services:
       - "4040:4040"
     volumes:
       - ./analytics-service/jobs:/app/jobs
+      - ./analytics-service/data:/data 
     depends_on:
       spark-master:
         condition: service_started

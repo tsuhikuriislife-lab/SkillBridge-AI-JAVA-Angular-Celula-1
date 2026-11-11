@@ -1,1 +1,2 @@
 pyspark==3.5.1
+pytest==8.2.0
