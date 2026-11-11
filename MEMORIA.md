@@ -578,6 +578,24 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Puertos 7880/tcp, 7881/tcp y 7882/udp expuestos y accesibles correctamente en `0.0.0.0`.
   - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2 y CA 1.3.
 
+## [2026-11-11] HU-30.1 Despliegue y Aprovisionamiento del Clúster Spark y PySpark con Docker
+- **Contexto:** Habilitar un entorno analítico distribuido con Apache Spark y PySpark integrado en Docker Compose para el procesamiento masivo de datos, algoritmos de recomendación (Spark MLlib) y analítica avanzada, sin acoplamiento con el backend de Spring Boot.
+- **Acciones Realizadas:**
+  - **Módulo Independiente (`analytics-service/`):**
+    - Se creó `Dockerfile` basado en `apache/spark:3.5.1-python3` con descarga automática del driver JDBC oficial de PostgreSQL (`postgresql-42.7.3.jar`) y configuración de usuario no privilegiado (`spark`).
+    - Se creó `requirements.txt` especificando `pyspark==3.5.1`.
+    - Se implementó `jobs/smoke_test.py` con validación estricta de variables de entorno de conexión, inicialización de `SparkSession` distribuida y verificación de consulta JDBC (`SELECT 1`) contra PostgreSQL.
+  - **Orquestación en Docker (`docker-compose.yml`):**
+    - Se configuraron los servicios `spark-master` (nodo coordinador) y `spark-worker` (nodo ejecutor con 2 cores y 1 GB de memoria).
+    - Mapeo de puertos para interfaces web de monitoreo: puerto `8080` (Spark Master Web UI), puerto `8081` (Worker Web UI) y puerto `4040` (Spark Application UI).
+    - Montaje de volumen bind `./analytics-service/jobs:/app/jobs` para hot-reload de scripts de Python.
+    - Integración en la red interna `skillbridge` con dependencia de salud de `postgres`.
+- **Validación:**
+  - Contenedores `skillbridge-spark-master` y `skillbridge-spark-worker` en ejecución y registrados en el clúster.
+  - Spark Master Web UI operativa y respondiendo HTTP 200 en `http://localhost:8080`.
+  - Ejecución de `smoke_test.py` exitosa mediante `spark-submit`, comprobando conectividad JDBC bidireccional y lectura de DataFrame desde PostgreSQL.
+  - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2, CA 1.3 y CA 1.4.
+
 ## [2026-10-19] Integración del SDK de LiveKit y Configuración de Secretos (Arquitectura Hexagonal)
 - **Autor / Implementación:** Juan Vargas
 - **Contexto:** Habilitar el soporte en el backend para la generación de tokens de acceso y comunicación con el servidor de videollamadas LiveKit respetando las reglas de arquitectura hexagonal y seguridad de credenciales.
