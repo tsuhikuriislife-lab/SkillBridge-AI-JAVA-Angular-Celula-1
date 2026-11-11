@@ -61,6 +61,13 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
     - `PLAN.md`, `CONTRACT.md`, `CONFIGURACION-DOMINIO-Y-SECRETOS.md` (Redis, BD y §9 webhooks), `JIRA.md` y ADR-0005.
   - **Validación:** las guías se **generaron a partir del código verificado** y se aplicaron en orden (Dylan → Kevin → Leonardo) sobre un proyecto NestJS vacío: el `src` resultante es idéntico al verificado; `tsc`, ESLint y `nest build` limpios, **70/70 pruebas Jest**, y las plantillas `.hbs` se copian a `dist`.
   - **Sin verificar:** el Java (no hay Maven ni JDK 21) y la ejecución con RabbitMQ, Redis y Postgres reales (sin acceso a Docker). Una prueba de humo del arranque llegó a los intentos de conexión sin errores de inyección.
+- **Actualización 3 (mismo día), dominio:**
+  - Dominio comprado: `skillbridgeai.online` (Hostinger, activo).
+  - Buzón de respuestas: `support@skillbridgeai.online`.
+  - Dueño de la cuenta de Resend: Mateo Munera.
+  - Se revisó el DNS con el conector de Hostinger (sólo lectura, sin cambios): la raíz ya tiene MX, SPF y DKIM del correo de Hostinger y un `_dmarc p=none`. Por eso Resend se configura en el subdominio `mail.skillbridgeai.online` y no se crea DMARC nuevo.
+  - Se actualizaron `CONFIGURACION-DOMINIO-Y-SECRETOS.md`, la guía de KAN-56 (`MAIL_FROM` y `MAIL_REPLY_TO`) y `PLAN.md`.
+  - Pendiente: los registros MX, SPF y DKIM que genere la cuenta Resend de Mateo.
 - **Próximos pasos:** Dylan sube la base (KAN-56, Bloque 0) para desbloquear a Kevin y Leonardo; integración en `feature/notificaciones` y checklist E2E (`PLAN.md` §6).
 
 ## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
