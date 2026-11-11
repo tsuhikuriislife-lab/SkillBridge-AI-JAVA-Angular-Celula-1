@@ -2,6 +2,67 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-11] Plan y guías de la épica "Notificaciones por correo" (microservicio NestJS + Resend + RabbitMQ)
+- **Agente:** Claude Code (Claude Opus 5.5), solicitado por Dylan (líder de la épica)
+- **Objetivo:** Analizar el repositorio y planificar un microservicio NestJS (`notification-service`) que envíe correos con Resend cuando cambie el estado de la cuenta de un usuario o administrador. Repartir el trabajo entre 3 personas con guías paso a paso que incluyan código listo para copiar y su explicación. **Sólo documentación**: no se modificó código fuente ni se hicieron commits, por decisión del usuario.
+- **Hallazgos del análisis:**
+  - RabbitMQ estaba configurado (`RabbitConfiguration`, retry del listener), pero sin publicadores ni consumidores. La topología `booking.*` es legacy (V8 eliminó `bookings`).
+  - No existía envío de correos.
+  - `PATCH /api/users/{id}/status` no tiene autorización y `login` no bloquea usuarios INACTIVE. Se documentaron como sugerencias opcionales en la Guía A, Paso 13.
+  - El dashboard de Grafana `notifications.json` ya existía; las métricas nuevas reutilizan sus nombres.
+  - `prometheus.yml` referencia `rules/`, que no está montado en compose.
+- **Decisiones:**
+  - Exchange topic `skillbridge.events` con routing keys `user.registered|created|status.changed|role.changed|deleted`.
+  - Colas `notifications.user-events`, `.retry` (TTL por mensaje) y `.dlq`.
+  - Idempotencia con `eventId` + `idempotencyKey` de Resend.
+  - `EMAIL_DRIVER=log|resend`.
+  - Sin migraciones Flyway y sin cambios en el frontend.
+  - Detalle en ADR-0005.
+- **Archivos creados y actualizados:**
+  - `docs/notifications/PLAN.md` (NUEVO): arquitectura, cronograma del día, ramas, Definition of Done, checklist E2E y riesgos.
+  - `docs/notifications/CONTRACT.md` (NUEVO) y `docs/notifications/contract/*.json` (NUEVO, 5 fixtures compartidos por las pruebas de Java y Nest).
+  - `docs/notifications/GUIA-PERSONA-A-JAVA.md` (NUEVO): evento de dominio, puerto, `UserEventEmitter`, adaptador RabbitMQ, cambios en servicios y controllers, pruebas.
+  - `docs/notifications/GUIA-PERSONA-B-NEST-CORE.md` (NUEVO): scaffold NestJS 11, validación de entorno, política, consumidor con retry y DLQ, métricas, health y pruebas.
+  - `docs/notifications/GUIA-PERSONA-C-RESEND-OPS.md` (NUEVO): adaptador Resend, 8 plantillas en español, Dockerfile, compose, Makefile, Prometheus y CI.
+  - `docs/notifications/CONFIGURACION-DOMINIO-Y-SECRETOS.md` (NUEVO): compra del dominio en Hostinger, DNS (SPF/DKIM/MX/DMARC), API keys de Resend y variables por capa.
+  - `docs/notifications/JIRA.md` (NUEVO): conexión del conector Atlassian y desglose de la épica.
+  - `docs/adr/0005-notification-microservice-nestjs-resend.md` (NUEVO).
+- **Validación:**
+  - El código TypeScript de las guías B y C se extrajo automáticamente a un proyecto de prueba fuera del repo, generado con `@nestjs/cli@11`. Resultado: `tsc` sin errores, `eslint` limpio (después de `npm run format`), `nest build` correcto y **38/38 pruebas Jest** en verde.
+  - Esa verificación detectó y corrigió en las guías: `@nestjs/config@12` y `@golevelup/nestjs-rabbitmq@>=7` son ESM y rompen Jest (se fijaron `@4` y `@6`), y faltaba `import 'reflect-metadata'` en el DTO.
+  - Los fixtures JSON se validaron con `JSON.parse`.
+  - **No verificado aquí:** el código Java de la Guía A (no había Maven ni JDK 21 en el entorno) y la prueba con RabbitMQ real (sin acceso a Docker). Ambos quedan en el checklist E2E (`PLAN.md` §6).
+- **Actualización (mismo día):**
+  - El equipo aprobó `MAIL_REDIRECT_TO` y corregir las fallas de seguridad dentro de la épica.
+  - El Paso 13 de la Guía A pasa a ser obligatorio, con código y pruebas:
+    - `AccountAccessDeniedException` → 403 en `GlobalExceptionHandler`.
+    - `ensureCanManage` (sólo ADMIN o el dueño de la cuenta) en `changeStatus` y `deleteUserAccount`.
+    - Prohibido desactivar al ADMIN.
+    - Rechazo del login de cuentas INACTIVE después de validar la contraseña (sin enumeración de usuarios).
+    - Nuevo `AuthServiceTest`.
+  - Se confirmó que `DatabaseUserDetailsService` ya invalida al instante las sesiones de usuarios INACTIVE.
+  - Pendiente fuera de la épica: botón de activar/desactivar en el panel admin de Angular.
+- **Actualización 2 (mismo día), alineación con Jira (épica KAN-49):**
+  - Se leyeron KAN-56/57/58 y se reestructuró el reparto: Dylan (KAN-59 Java + KAN-56), Kevin (KAN-57) y Leonardo (KAN-58).
+  - Se creó **KAN-59** (HU-NOT00, lado Java + seguridad).
+  - Se ajustaron los CA de KAN-56/57/58 y se comentó la guía de cada uno.
+  - Decisiones del equipo:
+    - eventos de cuenta + `enrollment.created` (confirmación de reserva); el recordatorio de sesión queda en el backlog;
+    - idempotencia en Redis (base 1, `SET NX`);
+    - `NotificationLog` en una BD propia `notifications` (TypeORM);
+    - webhooks de Resend verificados con Svix;
+    - Terminus, Swagger y Handlebars;
+    - reintentos exponenciales 5 s/30 s/2 min → `dlq.notifications`;
+    - el microservicio se renombra a `notifications-service`.
+  - Archivos nuevos o reescritos:
+    - `GUIA-DYLAN-HU-NOT00-JAVA.md` (antes Guía A; se agrega `enrollment.created`);
+    - `GUIA-DYLAN-HU-NOT01-KAN-56.md`, `GUIA-KEVIN-HU-NOT02-KAN-57.md` y `GUIA-LEONARDO-HU-NOT03-KAN-58.md` (reemplazan a las guías B y C);
+    - `contract/enrollment.created.json`;
+    - `PLAN.md`, `CONTRACT.md`, `CONFIGURACION-DOMINIO-Y-SECRETOS.md` (Redis, BD y §9 webhooks), `JIRA.md` y ADR-0005.
+  - **Validación:** las guías se **generaron a partir del código verificado** y se aplicaron en orden (Dylan → Kevin → Leonardo) sobre un proyecto NestJS vacío: el `src` resultante es idéntico al verificado; `tsc`, ESLint y `nest build` limpios, **70/70 pruebas Jest**, y las plantillas `.hbs` se copian a `dist`.
+  - **Sin verificar:** el Java (no hay Maven ni JDK 21) y la ejecución con RabbitMQ, Redis y Postgres reales (sin acceso a Docker). Una prueba de humo del arranque llegó a los intentos de conexión sin errores de inyección.
+- **Próximos pasos:** Dylan sube la base (KAN-56, Bloque 0) para desbloquear a Kevin y Leonardo; integración en `feature/notificaciones` y checklist E2E (`PLAN.md` §6).
+
 ## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
 - **Agente:** Antigravity (Senior Fullstack Architect)
 - **Objetivo:** Crear documentación exhaustiva individual para las carpetas `backend/` y `frontend/`, incorporar diagramas concisos Mermaid y documentar detalladamente los comandos de terminal para ejecutar cada servicio por separado y en conjunto.
