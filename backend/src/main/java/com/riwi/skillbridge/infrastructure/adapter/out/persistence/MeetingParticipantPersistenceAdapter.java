@@ -31,7 +31,7 @@ public class MeetingParticipantPersistenceAdapter implements MeetingParticipantP
 
     @Override
     public Optional<MeetingParticipant> findByMeetingIdAndUserId(UUID meetingId, UUID userId) {
-        return repository.findByMeetingIdAndUserId(meetingId, userId).map(this::toDomain);
+        return repository.findFirstByMeetingIdAndUserIdOrderByCreatedAtDesc(meetingId, userId).map(this::toDomain);
     }
 
     @Override
