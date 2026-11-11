@@ -2,6 +2,229 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-11] Plan y guías de la épica "Notificaciones por correo" (microservicio NestJS + Resend + RabbitMQ)
+- **Agente:** Claude Code (Claude Opus 5.5), solicitado por Dylan (líder de la épica)
+- **Objetivo:** Analizar el repositorio y planificar un microservicio NestJS (`notification-service`) que envíe correos con Resend cuando cambie el estado de la cuenta de un usuario o administrador. Repartir el trabajo entre 3 personas con guías paso a paso que incluyan código listo para copiar y su explicación. **Sólo documentación**: no se modificó código fuente ni se hicieron commits, por decisión del usuario.
+- **Hallazgos del análisis:**
+  - RabbitMQ estaba configurado (`RabbitConfiguration`, retry del listener), pero sin publicadores ni consumidores. La topología `booking.*` es legacy (V8 eliminó `bookings`).
+  - No existía envío de correos.
+  - `PATCH /api/users/{id}/status` no tiene autorización y `login` no bloquea usuarios INACTIVE. Se documentaron como sugerencias opcionales en la Guía A, Paso 13.
+  - El dashboard de Grafana `notifications.json` ya existía; las métricas nuevas reutilizan sus nombres.
+  - `prometheus.yml` referencia `rules/`, que no está montado en compose.
+- **Decisiones:**
+  - Exchange topic `skillbridge.events` con routing keys `user.registered|created|status.changed|role.changed|deleted`.
+  - Colas `notifications.user-events`, `.retry` (TTL por mensaje) y `.dlq`.
+  - Idempotencia con `eventId` + `idempotencyKey` de Resend.
+  - `EMAIL_DRIVER=log|resend`.
+  - Sin migraciones Flyway y sin cambios en el frontend.
+  - Detalle en ADR-0005.
+- **Archivos creados y actualizados:**
+  - `docs/notifications/PLAN.md` (NUEVO): arquitectura, cronograma del día, ramas, Definition of Done, checklist E2E y riesgos.
+  - `docs/notifications/CONTRACT.md` (NUEVO) y `docs/notifications/contract/*.json` (NUEVO, 5 fixtures compartidos por las pruebas de Java y Nest).
+  - `docs/notifications/GUIA-PERSONA-A-JAVA.md` (NUEVO): evento de dominio, puerto, `UserEventEmitter`, adaptador RabbitMQ, cambios en servicios y controllers, pruebas.
+  - `docs/notifications/GUIA-PERSONA-B-NEST-CORE.md` (NUEVO): scaffold NestJS 11, validación de entorno, política, consumidor con retry y DLQ, métricas, health y pruebas.
+  - `docs/notifications/GUIA-PERSONA-C-RESEND-OPS.md` (NUEVO): adaptador Resend, 8 plantillas en español, Dockerfile, compose, Makefile, Prometheus y CI.
+  - `docs/notifications/CONFIGURACION-DOMINIO-Y-SECRETOS.md` (NUEVO): compra del dominio en Hostinger, DNS (SPF/DKIM/MX/DMARC), API keys de Resend y variables por capa.
+  - `docs/notifications/JIRA.md` (NUEVO): conexión del conector Atlassian y desglose de la épica.
+  - `docs/adr/0005-notification-microservice-nestjs-resend.md` (NUEVO).
+- **Validación:**
+  - El código TypeScript de las guías B y C se extrajo automáticamente a un proyecto de prueba fuera del repo, generado con `@nestjs/cli@11`. Resultado: `tsc` sin errores, `eslint` limpio (después de `npm run format`), `nest build` correcto y **38/38 pruebas Jest** en verde.
+  - Esa verificación detectó y corrigió en las guías: `@nestjs/config@12` y `@golevelup/nestjs-rabbitmq@>=7` son ESM y rompen Jest (se fijaron `@4` y `@6`), y faltaba `import 'reflect-metadata'` en el DTO.
+  - Los fixtures JSON se validaron con `JSON.parse`.
+  - **No verificado aquí:** el código Java de la Guía A (no había Maven ni JDK 21 en el entorno) y la prueba con RabbitMQ real (sin acceso a Docker). Ambos quedan en el checklist E2E (`PLAN.md` §6).
+- **Actualización (mismo día):**
+  - El equipo aprobó `MAIL_REDIRECT_TO` y corregir las fallas de seguridad dentro de la épica.
+  - El Paso 13 de la Guía A pasa a ser obligatorio, con código y pruebas:
+    - `AccountAccessDeniedException` → 403 en `GlobalExceptionHandler`.
+    - `ensureCanManage` (sólo ADMIN o el dueño de la cuenta) en `changeStatus` y `deleteUserAccount`.
+    - Prohibido desactivar al ADMIN.
+    - Rechazo del login de cuentas INACTIVE después de validar la contraseña (sin enumeración de usuarios).
+    - Nuevo `AuthServiceTest`.
+  - Se confirmó que `DatabaseUserDetailsService` ya invalida al instante las sesiones de usuarios INACTIVE.
+  - Pendiente fuera de la épica: botón de activar/desactivar en el panel admin de Angular.
+- **Actualización 2 (mismo día), alineación con Jira (épica KAN-49):**
+  - Se leyeron KAN-56/57/58 y se reestructuró el reparto: Dylan (KAN-59 Java + KAN-56), Kevin (KAN-57) y Leonardo (KAN-58).
+  - Se creó **KAN-59** (HU-NOT00, lado Java + seguridad).
+  - Se ajustaron los CA de KAN-56/57/58 y se comentó la guía de cada uno.
+  - Decisiones del equipo:
+    - eventos de cuenta + `enrollment.created` (confirmación de reserva); el recordatorio de sesión queda en el backlog;
+    - idempotencia en Redis (base 1, `SET NX`);
+    - `NotificationLog` en una BD propia `notifications` (TypeORM);
+    - webhooks de Resend verificados con Svix;
+    - Terminus, Swagger y Handlebars;
+    - reintentos exponenciales 5 s/30 s/2 min → `dlq.notifications`;
+    - el microservicio se renombra a `notifications-service`.
+  - Archivos nuevos o reescritos:
+    - `GUIA-DYLAN-HU-NOT00-JAVA.md` (antes Guía A; se agrega `enrollment.created`);
+    - `GUIA-DYLAN-HU-NOT01-KAN-56.md`, `GUIA-KEVIN-HU-NOT02-KAN-57.md` y `GUIA-LEONARDO-HU-NOT03-KAN-58.md` (reemplazan a las guías B y C);
+    - `contract/enrollment.created.json`;
+    - `PLAN.md`, `CONTRACT.md`, `CONFIGURACION-DOMINIO-Y-SECRETOS.md` (Redis, BD y §9 webhooks), `JIRA.md` y ADR-0005.
+  - **Validación:** las guías se **generaron a partir del código verificado** y se aplicaron en orden (Dylan → Kevin → Leonardo) sobre un proyecto NestJS vacío: el `src` resultante es idéntico al verificado; `tsc`, ESLint y `nest build` limpios, **70/70 pruebas Jest**, y las plantillas `.hbs` se copian a `dist`.
+  - **Sin verificar:** el Java (no hay Maven ni JDK 21) y la ejecución con RabbitMQ, Redis y Postgres reales (sin acceso a Docker). Una prueba de humo del arranque llegó a los intentos de conexión sin errores de inyección.
+- **Próximos pasos:** Dylan sube la base (KAN-56, Bloque 0) para desbloquear a Kevin y Leonardo; integración en `feature/notificaciones` y checklist E2E (`PLAN.md` §6).
+
+## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
+- **Agente:** Antigravity (Senior Fullstack Architect)
+- **Objetivo:** Crear documentación exhaustiva individual para las carpetas `backend/` y `frontend/`, incorporar diagramas concisos Mermaid y documentar detalladamente los comandos de terminal para ejecutar cada servicio por separado y en conjunto.
+- **Archivos creados y actualizados:**
+  - `backend/README.md` (NUEVO): Stack tecnológico detallado (Java 21, Spring Boot 3.5.x, Spring AI), diagrama de arquitectura hexagonal y puertos/adaptadores en Mermaid, flujos de secuencia concisos (Cache-Aside con Redis, Event-Driven con RabbitMQ y DLQ, y Mini-Assessment con Google Gemini), tabla completa de variables de entorno del backend y comandos de terminal detallados para ejecutar localmente con Maven, correr pruebas unitarias con JaCoCo y verificar Actuator.
+  - `frontend/README.md` (NUEVO): Stack de Angular 20 (Standalone Components, TypeScript 5.9, RxJS), diagrama de jerarquía y enrutamiento con Guards, diagrama de secuencia del modal de diagnóstico técnico interactivo, seguridad de frontend (cero secretos, interceptor JWT y overlay modal de sesión expirada) y comandos de terminal para instalar, correr dev server con proxy a Spring Boot (`npm start`), correr pruebas unitarias y compilar a producción.
+  - `README.md`: Modernización integral del documento raíz: incorporación de un **Docs Hub** para navegar entre todas las guías, diagrama Mermaid general de arquitectura de extremo a extremo, sección dedicada con **Comandos de Terminal para Ejecutar Cada Servicio** (Docker Compose, modo híbrido local de desarrollo, pruebas automatizadas, observabilidad) y tabla comparativa de puertos locales (Docker vs Host).
+- **Validación:** Comprobación de consistencia de puertos y comandos entre `docker-compose.yml`, `Makefile`, `backend/pom.xml` y `frontend/package.json`.
+
+## [2026-11-09] Documentación Senior Exhaustiva del Subsistema de IA y Complementación Global de `docs/`
+- **Agente:** Antigravity (Senior Technical Lead & Software Architect)
+- **Objetivo:** Crear la documentación técnica completa del subsistema de Inteligencia Artificial y complementar y actualizar exhaustivamente toda la carpeta `docs/` (API, Arquitectura, Changelog, Checklist de Despliegue, Guía del Instructor y ADRs).
+- **Archivos creados y actualizados:**
+  - `docs/AI.md` (NUEVO): Especificación integral del subsistema de IA con Google Gemini (Spring AI ChatClient, Arquitectura Hexagonal, puertos y adaptadores, grounding semántico, mini-diagnóstico de prerrequisitos, proyección segura anti-trampas, dual-tier caching Redis + local, análisis recursivo de causas para errores 429/503 y gobernanza de secretos).
+  - `docs/API.md`: Actualización exhaustiva del catálogo de endpoints REST (Auth, Perfil, Catálogo con Cache-Aside, Gestión de Proveedor y Horarios, Inscripciones con políticas de reembolso, Historial/Notificaciones, Endpoints de IA, LiveKit WebRTC y Actuator).
+  - `docs/ARCHITECTURE.md`: Expansión de la arquitectura hexagonal, principios de diseño, diagramas ASCII, patrones Cache-Aside, Dual-Tier Session Cache, EDA con RabbitMQ y DLQ, y seguridad por capas.
+  - `docs/architecture.mmd`: Diagrama Mermaid ampliado con todas las capas (Frontend, Nginx, Hexagonal Core, Redis, PostgreSQL, RabbitMQ DLQ, LiveKit WebRTC, Gemini AI y Prometheus/Grafana).
+  - `docs/CHANGES-HISTORY.md`: Inicialización y formalización del changelog de versiones del proyecto (v1.0.0 a v1.3.0) bajo el estándar Keep a Changelog.
+  - `docs/DEPLOYMENT-CHECKLIST.md`: Ampliación con pre-flight checks de seguridad (TLS, CSRF, variables de LiveKit y Gemini Flash-Lite) y smoke tests post-despliegue.
+  - `docs/INSTRUCTOR-GUIDE.md`: Complementación pedagógica con secuencia didáctica de IA y LiveKit, rúbrica detallada y banco de preguntas de sustentación oral.
+  - `docs/adr/0003-spring-ai-gemini-integration.md` (NUEVO): ADR para la integración de Spring AI, selección de `gemini-3.1-flash-lite` y puertos de salida.
+  - `docs/adr/0004-two-tier-session-cache-for-ai-assessments.md` (NUEVO): ADR para la arquitectura de caché en dos niveles (Redis + ConcurrentHashMap).
+- **Validación:** Verificación de consistencia con las clases y contratos reales del backend y reglas estipuladas en `AGENTS.md`.
+
+## [2026-10-21] HU-29.7: test de simulación de clase en vivo con tráfico WebRTC sintético
+- **Agente:** GitHub Copilot
+- **Objetivo:** Verificar la simulación de una clase en vivo con Tutor y Alumno, tráfico WebRTC sintético y criterios CA 7.1, CA 7.2 y CA 7.3.
+- **Archivos creados:** `scripts/livekit-stream-test/package.json`, `scripts/livekit-stream-test/package-lock.json`, `scripts/livekit-stream-test/.gitignore` y `scripts/livekit-stream-test/stream-test.js`. Se añadió el target `test-livekit-stream` al `Makefile`.
+- **Ejecución:** `make test-livekit-stream`. Requiere `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` exportadas antes de levantar LiveKit con `docker compose up`.
+- **Validación:** Tres corridas con 16/16 pruebas aprobadas en cada corrida. CA 7.1: video alrededor de 250 ms y audio alrededor de 50–60 ms (límite 2000 ms). CA 7.2: alrededor de 118–125 KB recibidos en 5 s, tasa media de 190–200 kbps y bytes de video y audio mayores que cero. CA 7.3: `TrackUnsubscribed` entre 5.8 y 16.4 ms y `ParticipantDisconnected` hasta aproximadamente 17 ms (límite 1000 ms); el Alumno permaneció conectado y estable, sin errores fatales.
+- **Notas:** (a) La medición del CA 7.3 usa la desconexión limpia del Tutor mediante `disconnect()`; una caída abrupta tarda más por el timeout de señalización de LiveKit. (b) Se deben exportar `LIVEKIT_API_KEY` y `LIVEKIT_API_SECRET` antes de levantar LiveKit; si arranca sin claves, el cliente recibe `Connection reset by peer`.
+
+## [2026-10-21] Diagnóstico y Corrección de Inicio del Servidor Prometheus
+- **Agente:** Antigravity
+- **Contexto:** El usuario reportó no poder conectar con el puerto 9090 de Prometheus.
+- **Diagnóstico:**
+  - El contenedor `skillbridge-ai-prometheus-1` se encontraba en estado `Exited (2)`.
+  - En los logs de Prometheus se detectó un error fatal al arrancar: `yaml: unmarshal errors: line 2: field rule_files not found in type rulefmt.RuleGroups` al intentar evaluar `/etc/prometheus/rules/livekit-rules.test.yml`. La regla original en `prometheus.yml` usaba el patrón `/etc/prometheus/rules/*.yml`, lo que incluía el archivo de pruebas unitarias (`livekit-rules.test.yml` diseñado para `promtool test rules`), impidiendo el inicio del daemon.
+  - El usuario ajustó `rule_files` para apuntar puntualmente a `/etc/prometheus/rules/livekit-rules.yml`, pero el contenedor se encontraba detenido y requería reinicio.
+- **Solución y Verificación:**
+  - Se validó la configuración con `promtool check config` obteniendo estado de sintaxis válido (`SUCCESS`).
+  - Se levantó el contenedor con `docker compose --profile observability up -d prometheus`.
+  - Se comprobó el estado de salud interno vía `/-/healthy` (`Prometheus Server is Healthy.`).
+  - Se validó que ambos targets configurados (`skillbridge-api` en `backend:8080` y `livekit` en `livekit:6789`) se encuentran en estado `health: up`.
+  - Se verificó que el servicio Grafana conecta exitosamente con `http://prometheus:9090`.
+
+## [2026-10-21] Resolución de Conectividad WebRTC LiveKit, Sala de Pruebas Admin y Deduplicación
+- **Agente:** Antigravity (Gemini 3.1 Pro)
+- **Contexto:** Diagnóstico y solución del fallo `could not establish pc connection`, error 404 transitorio `/rtc/v1/validate`, y cierre de sesión no deseado al ingresar a reuniones virtuales LiveKit.
+- **Cambios realizados:**
+  - **Actualización de LiveKit Server a v1.13.10 (Compatibilidad de Protocolo 17 y Data Tracks):**
+    - Se descubrió en los logs del servidor la advertencia `unsupported datachannel added ... label: _data_track`.
+    - La versión cliente instalada en frontend (`livekit-client: ^2.23.0`) negociaba el protocolo 17 y un canal de datos dedicado para telemetría/stream (`_data_track`). La imagen anterior de Docker (`livekit-server:v1.8.4`, protocolo 15) no reconocía este canal, causando que la negociación WebRTC nunca se completara y forzara un cierre `CLIENT_REQUEST_LEAVE` / reconexión cada 15 segundos.
+    - Se actualizó `docker-compose.yml` a la imagen oficial `livekit/livekit-server:latest` (v1.13.10, pre-descargada localmente).
+    - Se purgó la caché de Redis efímero (`redis-livekit`) y se reinició el servidor, logrando compatibilidad total con protocolo 17, `_data_track` y modo `SinglePeerConnection`.
+  - **Estabilización de Recepción de Video en Cliente (Eliminación de Cortes cada 3-10s):**
+    - Se identificó que `adaptiveStream: true` y `dynacast: true` provocaban fluctuaciones periódicas ("layout thrashing") entre el `ResizeObserver` del cliente y el SFU local, pausando o alternando capas de video cada 3-10 segundos.
+    - Se configuró `adaptiveStream: false` y `dynacast: false` en `RoomOptions`, asegurando un flujo continuo y estable de reproducción de video sin pausas arbitrarias.
+    - Se corrigió el manejo de re-suscripción en `handleTrackSubscribed`: si el elemento HTML ya existía en el DOM, ahora se re-vincula explícitamente (`track.attach(existingEl)`), evitando que el video se pierda al reiniciar la transmisión.
+    - Se incorporaron escuchas para `RoomEvent.TrackMuted` y `RoomEvent.TrackUnmuted`, garantizando que al apagar/encender la cámara o pantalla la interfaz responda sin requerir recargar la página (`F5`).
+    - Se creó la señal reactiva `hasRemoteVideo` para gobernar el estado de espera del alumno de forma fiable cuando el mentor apaga o enciende sus fuentes de video.
+  - **Estabilización de Transmisión de Pantalla y Prevención de Bucle de Renegociación:**
+    - Se identificó que al activar "Compartir Pantalla" (`setScreenShareEnabled`), el SDK intentaba negociar 3 capas de simulcast de alta resolución por defecto sobre el SFU local, agotando el temporizador de 15 segundos (`NegotiationError: negotiation timed out`).
+    - Al fallar la negociación de pista, el SDK activaba un reintento automático tras reconexión (`publishOrRepublishTrack`), provocando un bucle infinito de reconexión cada 15 segundos (`connected -> reconnecting`).
+    - Se configuró `{ simulcast: false }` en las opciones de publicación de pantalla en `meeting-room.component.ts`, reduciendo drásticamente la carga de negociación SDP a un único stream directo y estable.
+    - Se implementó un semáforo de bloqueo `isScreenShareToggling` en el componente y botón de la UI para prevenir colisiones por múltiples clics concurrentes mientras el selector nativo del navegador está abierto.
+    - Se añadió un listener al evento nativo `ended` del `MediaStreamTrack` para sincronizar el estado reactivo (`isScreenSharing = false`) cuando el usuario pulsa "Dejar de compartir" en la barra flotante del navegador.
+    - Se agregaron listeners a `RoomEvent.Reconnecting`, `RoomEvent.Reconnected` y `RoomEvent.LocalTrackUnpublished`.
+  - **Habilitación de Candidatos Loopback (`enable_loopback_candidate: true`):**
+    - Se identificó que LiveKit Server filtraba los candidatos host de loopback (`[remote][filtered][trickle] udp4 host`) por tener desactivada por defecto la opción `enable_loopback_candidate`.
+    - Se configuró `rtc.enable_loopback_candidate: true` en `ops/livekit/livekit.yaml` y la variable de entorno `LIVEKIT_RTC_ENABLE_LOOPBACK_CANDIDATE: "true"` en `docker-compose.yml`, permitiendo la negociación local tanto en UDP (7882) como en TCP (7881).
+  - **Soporte para Participantes Subscriptores y Pista Remota Preexistente:**
+    - En `meeting-room.component.ts`, se implementó `attachExistingRemoteTracks()` para adjuntar inmediatamente al DOM las pistas de video/audio de participantes que ya se encuentren transmitiendo antes de la entrada del usuario cliente.
+    - Se añadió protección contra duplicidad de elementos DOM de video remoto mediante verificación de identificador `track-${sid}`.
+  - **Resolución WebRTC ICE Host Candidate (`could not establish pc connection`):**
+    - En `ops/livekit/livekit.yaml` y `docker-compose.yml`, LiveKit se ejecutaba dentro de la red puente de Docker publicando su IP interna `172.18.0.x` en los candidatos host ICE.
+    - Se configuró `rtc.node_ip: "127.0.0.1"` y las variables `NODE_IP: 127.0.0.1` / `LIVEKIT_RTC_NODE_IP: 127.0.0.1` en `livekit.yaml`, `docker-compose.yml`, `.env` y `.env.example`.
+    - Con esto, LiveKit anuncia `127.0.0.1:7882` (mapeado hacia el host), permitiendo que el navegador establezca exitosamente el enlace STUN/ICE y la negociación de PeerConnection.
+  - **Aclaración sobre `404 /rtc/v1/validate` y datos "undefined":**
+    - El SDK cliente `livekit-client` v2 prueba primero `/rtc/v1/validate`. Al recibir 404 del servidor v1.8, el cliente realiza un fallback transparente a `ws://localhost:7880/rtc` (v0).
+    - Los registros iniciales de `room: '', roomID: undefined` corresponden al estado transitorio antes de que el servidor emita el evento `JoinResponse`.
+  - **Deduplicación e Idempotencia en Participantes (Solución al 401 / Logout):**
+    - Se creó la migración Flyway `V17__meeting_participants_unique.sql` con la restricción `uq_participant_per_meeting (meeting_id, user_id)`.
+    - Se ajustó `MeetingService.registerParticipant()` y `JpaMeetingParticipantRepository` para ser estrictamente idempotentes.
+    - Se implementó caché de token temporal en `MeetingService` (Angular) para evitar llamadas redundantes de re-inscripción.
+  - **Experiencia de Usuario en Sala Virtual (Admin y Mentor):**
+    - Se habilitó la inicialización automática de periféricos (cámara/micrófono) para usuarios con rol `ADMIN` en `meeting-room.component.ts`.
+    - Se añadió escucha de `RoomEvent.LocalTrackPublished` para adjuntar la cámara automáticamente tan pronto como esté lista.
+    - Indicador de estado y badge `👑 Tú (Admin)` y `👑 Administrador (Control Total)`.
+    - Botón "Terminar clase" habilitado para administradores con navegación de retorno hacia `/admin`.
+  - **Autenticación LiveKit Twirp REST API:**
+    - Se actualizó `LiveKitRestAdapter.java` para autenticarse usando JWT Bearer (`roomCreate`, `roomAdmin`, `roomList`) conforme a la especificación oficial de LiveKit.
+- **Validación:**
+  - Backend: 102/102 pruebas unitarias exitosas con Maven (`BUILD SUCCESS`).
+  - Frontend: Compilación limpia (`npm run build`) y sincronización con el contenedor Nginx.
+  - LiveKit Server: Reiniciado e inicializado correctamente con `nodeIP: "127.0.0.1"`, puerto HTTP 7880 y UDP 7882.
+  - El contenedor `skillbridge-ai-livekit-1` arrancó limpiamente con estado `Up` y enrutamiento `single-node`.
+  - Puertos 7880/tcp, 7881/tcp y 7882/udp expuestos y accesibles correctamente en `0.0.0.0`.
+  - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2 y CA 1.3.
+
+## [2026-11-11] HU-30.1 Despliegue y Aprovisionamiento del Clúster Spark y PySpark con Docker
+- **Contexto:** Habilitar un entorno analítico distribuido con Apache Spark y PySpark integrado en Docker Compose para el procesamiento masivo de datos, algoritmos de recomendación (Spark MLlib) y analítica avanzada, sin acoplamiento con el backend de Spring Boot.
+- **Acciones Realizadas:**
+  - **Módulo Independiente (`analytics-service/`):**
+    - Se creó `Dockerfile` basado en `apache/spark:3.5.1-python3` con descarga automática del driver JDBC oficial de PostgreSQL (`postgresql-42.7.3.jar`) y configuración de usuario no privilegiado (`spark`).
+    - Se creó `requirements.txt` especificando `pyspark==3.5.1`.
+    - Se implementó `jobs/smoke_test.py` con validación estricta de variables de entorno de conexión, inicialización de `SparkSession` distribuida y verificación de consulta JDBC (`SELECT 1`) contra PostgreSQL.
+  - **Orquestación en Docker (`docker-compose.yml`):**
+    - Se configuraron los servicios `spark-master` (nodo coordinador) y `spark-worker` (nodo ejecutor con 2 cores y 1 GB de memoria).
+    - Mapeo de puertos para interfaces web de monitoreo: puerto `8080` (Spark Master Web UI), puerto `8081` (Worker Web UI) y puerto `4040` (Spark Application UI).
+    - Montaje de volumen bind `./analytics-service/jobs:/app/jobs` para hot-reload de scripts de Python.
+    - Integración en la red interna `skillbridge` con dependencia de salud de `postgres`.
+- **Validación:**
+  - Contenedores `skillbridge-spark-master` y `skillbridge-spark-worker` en ejecución y registrados en el clúster.
+  - Spark Master Web UI operativa y respondiendo HTTP 200 en `http://localhost:8080`.
+  - Ejecución de `smoke_test.py` exitosa mediante `spark-submit`, comprobando conectividad JDBC bidireccional y lectura de DataFrame desde PostgreSQL.
+  - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2, CA 1.3 y CA 1.4.
+
+## [2026-10-19] Integración del SDK de LiveKit y Configuración de Secretos (Arquitectura Hexagonal)
+- **Autor / Implementación:** Juan Vargas
+- **Contexto:** Habilitar el soporte en el backend para la generación de tokens de acceso y comunicación con el servidor de videollamadas LiveKit respetando las reglas de arquitectura hexagonal y seguridad de credenciales.
+- **Cambios realizados:**
+  - **Gestión de Secretos y Variables de Entorno (`.env.example`, `docker-compose.yml`):**
+    - Se definieron y documentaron las variables `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` y `LIVEKIT_URL`.
+    - Se configuró la inyección de estas variables de entorno en el contenedor del servicio `backend` en Docker Compose con fallback seguro para desarrollo local (`http://livekit:7880`).
+    - Se ajustaron las credenciales en el servicio `livekit` (`LIVEKIT_KEYS`) evitando exponer variables innecesarias al contenedor del servidor WebRTC.
+  - **Mapeo de Configuración Spring Boot (`application.yml` y `application.yml` de test):**
+    - Se incorporó el bloque `app.livekit` con propiedades para URL, API Key y Secret en el archivo principal y en el de pruebas.
+  - **Dependencias Maven (`backend/pom.xml`):**
+    - Inclusión del SDK oficial `io.livekit:livekit-server:0.13.0` para la generación criptográfica de tokens y gestión de salas.
+  - **Arquitectura Hexagonal (Backend Java):**
+    - **Configuración (`infrastructure/config/LiveKitConfiguration.java`):** Clase `@Configuration` para inyectar las propiedades desde Spring y exponer el bean `RoomServiceClient` para administración de salas.
+    - **Puerto de Salida (`application/port/out/LiveKitVideoPort.java`):** Definición de la interfaz del contrato para abstraer la generación de tokens JWT de sala (`generateAccessToken`), aislando la lógica de negocio del proveedor de WebRTC.
+    - **Adaptador de Salida (`infrastructure/adapter/out/livekit/LiveKitVideoAdapter.java`):** Implementación técnica del puerto usando el SDK de LiveKit (`AccessToken`, `RoomJoin`, `RoomName`), firmando los tokens con HMAC-SHA256 usando el secreto inyectado sin exponerlo al cliente.
+# Historial de Cambios (Memoria de Agentes)
+
+Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
+
+## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
+- **Agente:** Antigravity (Senior Fullstack Architect)
+- **Objetivo:** Crear documentación exhaustiva individual para las carpetas `backend/` y `frontend/`, incorporar diagramas concisos Mermaid y documentar detalladamente los comandos de terminal para ejecutar cada servicio por separado y en conjunto.
+- **Archivos creados y actualizados:**
+  - `backend/README.md` (NUEVO): Stack tecnológico detallado (Java 21, Spring Boot 3.5.x, Spring AI), diagrama de arquitectura hexagonal y puertos/adaptadores en Mermaid, flujos de secuencia concisos (Cache-Aside con Redis, Event-Driven con RabbitMQ y DLQ, y Mini-Assessment con Google Gemini), tabla completa de variables de entorno del backend y comandos de terminal detallados para ejecutar localmente con Maven, correr pruebas unitarias con JaCoCo y verificar Actuator.
+  - `frontend/README.md` (NUEVO): Stack de Angular 20 (Standalone Components, TypeScript 5.9, RxJS), diagrama de jerarquía y enrutamiento con Guards, diagrama de secuencia del modal de diagnóstico técnico interactivo, seguridad de frontend (cero secretos, interceptor JWT y overlay modal de sesión expirada) y comandos de terminal para instalar, correr dev server con proxy a Spring Boot (`npm start`), correr pruebas unitarias y compilar a producción.
+  - `README.md`: Modernización integral del documento raíz: incorporación de un **Docs Hub** para navegar entre todas las guías, diagrama Mermaid general de arquitectura de extremo a extremo, sección dedicada con **Comandos de Terminal para Ejecutar Cada Servicio** (Docker Compose, modo híbrido local de desarrollo, pruebas automatizadas, observabilidad) y tabla comparativa de puertos locales (Docker vs Host).
+- **Validación:** Comprobación de consistencia de puertos y comandos entre `docker-compose.yml`, `Makefile`, `backend/pom.xml` y `frontend/package.json`.
+
+## [2026-11-09] Documentación Senior Exhaustiva del Subsistema de IA y Complementación Global de `docs/`
+- **Agente:** Antigravity (Senior Technical Lead & Software Architect)
+- **Objetivo:** Crear la documentación técnica completa del subsistema de Inteligencia Artificial y complementar y actualizar exhaustivamente toda la carpeta `docs/` (API, Arquitectura, Changelog, Checklist de Despliegue, Guía del Instructor y ADRs).
+- **Archivos creados y actualizados:**
+  - `docs/AI.md` (NUEVO): Especificación integral del subsistema de IA con Google Gemini (Spring AI ChatClient, Arquitectura Hexagonal, puertos y adaptadores, grounding semántico, mini-diagnóstico de prerrequisitos, proyección segura anti-trampas, dual-tier caching Redis + local, análisis recursivo de causas para errores 429/503 y gobernanza de secretos).
+  - `docs/API.md`: Actualización exhaustiva del catálogo de endpoints REST (Auth, Perfil, Catálogo con Cache-Aside, Gestión de Proveedor y Horarios, Inscripciones con políticas de reembolso, Historial/Notificaciones, Endpoints de IA, LiveKit WebRTC y Actuator).
+  - `docs/ARCHITECTURE.md`: Expansión de la arquitectura hexagonal, principios de diseño, diagramas ASCII, patrones Cache-Aside, Dual-Tier Session Cache, EDA con RabbitMQ y DLQ, y seguridad por capas.
+  - `docs/architecture.mmd`: Diagrama Mermaid ampliado con todas las capas (Frontend, Nginx, Hexagonal Core, Redis, PostgreSQL, RabbitMQ DLQ, LiveKit WebRTC, Gemini AI y Prometheus/Grafana).
+  - `docs/CHANGES-HISTORY.md`: Inicialización y formalización del changelog de versiones del proyecto (v1.0.0 a v1.3.0) bajo el estándar Keep a Changelog.
+  - `docs/DEPLOYMENT-CHECKLIST.md`: Ampliación con pre-flight checks de seguridad (TLS, CSRF, variables de LiveKit y Gemini Flash-Lite) y smoke tests post-despliegue.
+  - `docs/INSTRUCTOR-GUIDE.md`: Complementación pedagógica con secuencia didáctica de IA y LiveKit, rúbrica detallada y banco de preguntas de sustentación oral.
+  - `docs/adr/0003-spring-ai-gemini-integration.md` (NUEVO): ADR para la integración de Spring AI, selección de `gemini-3.1-flash-lite` y puertos de salida.
+  - `docs/adr/0004-two-tier-session-cache-for-ai-assessments.md` (NUEVO): ADR para la arquitectura de caché en dos niveles (Redis + ConcurrentHashMap).
+- **Validación:** Verificación de consistencia con las clases y contratos reales del backend y reglas estipuladas en `AGENTS.md`.
+
 ## [2026-10-05] Inicialización de Memoria y Contexto
 - **Agente:** Antigravity (Gemini 3.1 Pro)
 - **Contexto:** Inicialización de archivos de control de IA.
@@ -24,7 +247,6 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
 - **Cambios realizados:** El componente de ingreso ahora escucha cambios en los parámetros de consulta y muestra el aviso de inicio de sesión cuando el guard redirige con `authRequired=true`, incluso si la vista de ingreso ya estaba abierta.
 - **Validación:** `cd frontend && npm run build` completado correctamente.
 
-
 ## [2026-10-06] Implementación de Detalle de Servicio y Toast de Autenticación
 - **Agente:** Antigravity
 - **Contexto:** HU/Tarea - Implementar la vista de Detalles de Servicio y lógica de "Inscribirse".
@@ -35,6 +257,7 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - Se agregó el método `getById(id)` en `OfferingService` del frontend.
   - Se agregó el endpoint `GET /api/offerings/{id}` en `OfferingController.java` del backend, y configuración correspondiente en `SecurityConfiguration.java` para permitir acceso público.
   - Reconstrucción de contenedores de backend y frontend.
+
 ## [2026-10-05] Listado paginado de reservas propias
 - **Cambios realizados:** Se agregó `GET /api/bookings/me` con paginación desde base de datos, filtro por el usuario autenticado y nombre del servicio en el resultado. Angular incorpora la ruta protegida `/bookings`, la vista de reservas y controles de página/tamaño.
 - **Validación:** `mvn -Dtest=BookingServiceTest test` pasó (3 pruebas) y `npm run build` del frontend completó. La suite completa del backend sigue bloqueada por la versión de API Docker requerida por el test de persistencia existente.
@@ -58,6 +281,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Cambios realizados:** Se renombraron la entidad JPA, el repositorio, la proyección y el adaptador a `BookingNotification*`, y la tabla a `booking_notifications`, manteniendo el modelo de dominio `BookingNotification`.
 - **Migración:** Se añadió V3 para renombrar la tabla, restricciones e índices creados por V2; V2 se conserva inmutable para instalaciones que ya la ejecutaron.
 - **Validación:** Las pruebas enfocadas de persistencia, notificaciones y reservas pasaron; `mvn -DskipTests package` y `git diff --check` completaron correctamente.
+
 ## [2026-10-07] Implementación de Diagnóstico Técnico Previo con IA (Mini-Assessment)
 - **Agente:** Antigravity (Gemini 3.8 Flash)
 - **Contexto:** Se implementó la funcionalidad de diagnóstico previo a la reserva para evaluar prerrequisitos mediante IA generativa.
@@ -73,6 +297,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - **Frontend:**
     - Creación de `AssessmentService` en Angular.
     - Integración en `ServiceDetailsComponent`: Callout en la sección de prerrequisitos, botón en la tarjeta de compra y modal interactivo paso a paso con barra de progreso, selección de opciones y pantalla de resultados con feedback y explicaciones pedagógicas por pregunta.
+
 ## [2026-10-07] Corrección de Cuota y Manejo de Excepciones en Gemini
 - **Agente:** Antigravity (Gemini 3.8 Flash)
 - **Contexto:** Se diagnosticó y corrigió el fallo al generar el diagnóstico con Gemini tras actualizar la API Key.
@@ -86,7 +311,6 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Validación:**
   - Petición directa a `POST /api/assessments/offerings/11111111-1111-1111-1111-111111111111` generó exitosamente 3 preguntas con sus opciones.
   - Petición a `POST /api/assessments/{id}/submit` evaluó con éxito las respuestas devolviendo puntaje 3/3, aprobación y explicaciones pedagógicas.
-
 
 ## [2026-10-07] Implementación de Vista de Checkout (Placeholder)
 - **Agente:** Antigravity (Gemini 3.1 Pro)
@@ -122,6 +346,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - `auth.interceptor.ts`: Al recibir 401/403, se llama a `triggerSessionExpired()` en lugar del `ToastService`.
   - `app.component.ts`: Se añadió el overlay modal con el estado de expiración, con un alto `z-index` y fondo opaco, forzando el botón "Ir al login" para recuperar el estado limpio.
   - Reconstrucción de `frontend` y reinicio del contenedor `skillbridge-ai-frontend-1`.
+
 ## [2026-10-08] Corrección de Paginación en Notificaciones
 - **Agente:** Antigravity
 - **Contexto:** La vista de mis notificaciones mostraba "NaN de NaN" en el indicador de paginación.
@@ -155,6 +380,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Documentación: `docs/API.md` actualizado.
 - **Validación:** pasaron las pruebas unitarias de `CurrentUserServiceTest` y `UserControllerTest`, y `npm run build` del frontend completa sin errores. La prueba completa en el navegador queda pendiente de la migración Flyway del nuevo esquema (`services`/`categories`) que entrega otro integrante.
 - **Pendiente:** Probar de punta a punta con la base de datos del equipo y adaptar reservas (`BookingEntity`, `JpaBookingRepository`) y `JpaOfferingRepositoryTest` al nuevo esquema.
+
 ## [2026-10-08] Fusión de rama feat/implementar-rol-proveedor
 - **Agente:** Antigravity
 - **Contexto:** Resolución de conflictos de la rama `feat/implementar-rol-proveedor`.
@@ -235,7 +461,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - **Mejora UI (Overflow de Textos):** En `my-offerings.component.ts`, se ajustó la disposición de las tarjetas (`.card`) para evitar desbordamientos visuales cuando el título o la descripción son muy largos. Se aplicó `white-space: nowrap`, `overflow: hidden` y `text-overflow: ellipsis`, utilizando Flexbox (`.title-row`) para garantizar que la etiqueta de estado ("Activo"/"Inactivo") nunca sea empujada fuera de la pantalla ni se oculte. Además, se añadió el atributo HTML `[title]` para permitir al usuario leer el texto completo al pasar el mouse por encima.
   - **Administración de Horarios (Schedules):** Se añadió la capacidad de gestionar los horarios desde el modal de edición de servicio (`my-offerings.component.ts`). Al abrir el modal, se hace una petición HTTP para cargar todos los horarios asociados. Se muestra una lista de los horarios activos indicando el día de la semana, hora y duración. Se agregó un botón para **eliminar** horarios específicos usando el endpoint `DELETE /api/provider/services/{id}/schedule/{scheduleId}`, conectando con la capa de persistencia a través de `offering.service.ts`.
   - **Campos Faltantes de la HU:** Se agregó la posibilidad de editar la capacidad por sesión y la URL de la imagen (photoUrl) en el formulario reactivo del modal, asegurando que se modifiquen en la base de datos al usar el PUT de la API.
-  
+
 ## [2026-10-08] Frontend de la Vista de Administración Completo
 - **Agente:** Antigravity (Gemini 3.8 Flash)
 - **Contexto:** Completar los elementos faltantes en el frontend de la vista de Administración antes de la integración con el backend.
@@ -348,6 +574,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - `mvn test -Dtest=AdminUserServiceTest,AdminOfferingServiceTest` pasó con éxito (10 tests, 0 fallos).
   - `npm run build` completado exitosamente (0 errores).
   - Verificación en contenedores Docker: `GET /api/offerings` (catálogo público de usuarios) solo retorna servicios activos (`active: true`), mientras que `GET /api/admin/offerings` retorna la totalidad de servicios (activos y pausados).
+
 ## [2026-10-08] Redirección al Flujo de Pago desde el Diagnóstico con IA
 - **Agente:** Antigravity (Gemini 3.8 Flash)
 - **Contexto:** Al finalizar el test diagnóstico de prerrequisitos generado por IA, el botón "Continuar a la Reserva" redirigía a la ruta inexistente `/booking`, desencadenando la página de error 404. El requerimiento solicitaba dirigir al usuario a la vista de selección de método de pago.
@@ -365,8 +592,6 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - Se agrego una restriccion unica parcial en PostgreSQL para permitir como maximo un usuario ADMIN.
 - Se agrego una bitacora persistente de acciones administrativas y se muestra en Notificaciones para ADMIN.
 - Validacion: frontend y backend compilan en Docker; pruebas de servicios admin (16) y bitacora (4) pasan; stack local healthy con migraciones V12 y V13 aplicadas.
-
-
 
 ## [2026-10-09] Enlace y Notificación Directa a Vista de Curso en Asistente IA
 - **Agente:** Antigravity (Gemini 3.8 Flash)
@@ -388,7 +613,6 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - Pruebas unitarias de backend pasando al 100%.
   - Compilación de Angular (`npx ng build`) completada con éxito.
   - Reconstrucción y despliegue en Docker Compose (`docker compose up -d --build backend frontend`) validando contenedores activos y saludables.
-
 
 ## [2026-10-09] Fusión de funcionalidades de la vista de proveedor
 - **Agente:** Antigravity
@@ -465,6 +689,7 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
   - El listado carga el conjunto de inscripciones para que los filtros `Todas`, `Activas` y `No activas` se apliquen antes de ordenar y paginar; el estilo `ACTIVE` usa un badge verde diferenciado.
   - Se corrigió un carácter accidental que impedía compilar `ServiceEnrollmentService` y se añadieron pruebas dirigidas para las reglas backend y los flujos frontend de filtros, formato de notificación, identificador visible, badge y cancelación repetida.
 - **Validación:** Pasaron `mvn -f backend/pom.xml -q -Dtest=ServiceEnrollmentServiceTest test`, `node node_modules/typescript/bin/tsc -p tsconfig.spec.json --noEmit` (ejecutado desde `frontend`), `npm --prefix frontend run build` y `npm --prefix frontend test -- --watch=false --include=src/app/core/booking.service.spec.ts --include=src/app/features/display-bookings/display-bookings.spec.ts --include=src/app/features/my-notifications.component.spec.ts --browsers=ChromeHeadless` (7 pruebas). La primera ejecución en Chrome normal perdió conexión con Karma; el reintento en Chrome Headless pasó. `frontend/public/env.js` ya estaba modificado previamente y no se editó intencionalmente.
+
 ## [2026-10-14] Formato en español para auditoría de cambio de rol
 - **Contexto:** Se solicitó reemplazar la acción `USER_ROLE_CHANGED` en las notificaciones administrativas y mostrar el detalle del cambio con una estructura legible.
 - **Cambios realizados:** La acción ahora se registra como `ROL MODIFICADO`; el mensaje contiene ID Usuario, Correo, Rol Anterior y Rol Nuevo, sin repetir el título. La vista ubica `Recibida` después de Rol Nuevo, oculta la fila redundante `USER: ID` y normaliza notificaciones antiguas sin modificar la base. Se agregó una prueba unitaria del formato.
@@ -479,7 +704,6 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Contexto:** Se solicitó que el evento de alta se muestre como `USUARIO CREADO` con el formato de actividad administrativa.
 - **Cambios realizados:** El backend registra título, ID, nombre, correo y rol; no incluye contraseña. La vista muestra el mismo formato y adapta eventos históricos `USER_CREATED` al presentarlos.
 - **Validación:** `AdminUserServiceTest` pasó (11 pruebas), `npx ng build` completó y se reconstruyeron backend y frontend. Las pruebas no insertaron usuarios en la base local.
-
 
 ## [2026-10-14] Rediseño de la vista admin de Notificaciones (/notifications)
 - **Agente:** Antigravity
@@ -540,23 +764,291 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 - **Cambios realizados:** En el feed administrativo, `OFFERING_STATUS_CHANGED` ahora se muestra como “Oferta modificada” con la etiqueta “Cambio de estado”; `USUARIO CREADO` conserva su título “Usuario creado” y muestra “Nueva cuenta”. Los demás datos y comportamientos permanecen iguales.
 - **Validación:** `npm --prefix frontend run build` completó correctamente. El spec enfocado no pudo ejecutarse porque ya referencia `formatMessage`, método inexistente en el componente.
 
-## [2026-10-16] Verificación de Contenedores y Provisión de Dashboard en Grafana
+## [2026-10-16] Limpieza de código basura y archivos obsoletos
 - **Agente:** Antigravity (Gemini 3.8 Flash)
-- **Contexto:** Diagnóstico del ciclo de construcción y arranque de contenedores Docker, y configuración de visualización de métricas en Prometheus y Grafana.
-- **Cambios realizados:**
-  - Se diagnosticó y verificó el ciclo multi-stage de los Dockerfiles y el estado saludable (`healthy`) de los 5 contenedores principales (`postgres`, `redis`, `rabbitmq`, `backend`, `frontend`).
-  - Se verificó la recolección de métricas de Spring Boot Actuator (`/actuator/prometheus`) por parte de Prometheus en el puerto 9090.
-  - Se creó el dashboard provisionado `system-metrics.json` en `ops/grafana/provisioning/dashboards/` para Grafana ("SkillBridge - Sistema y API") con 6 paneles clave: peticiones HTTP por segundo por endpoint/estado, latencia promedio, uso de memoria heap de la JVM, porcentaje de CPU (backend vs sistema), hilos activos y pool de conexiones HikariCP.
+- **Contexto:** Se realizó una auditoría de código muerto, recursos redundantes y configuraciones huérfanas en el proyecto.
+- **Acciones Realizadas:**
+  - **Frontend:**
+    - Se eliminó el archivo obsoleto `frontend/src/app/features/login.component.ts` (reemplazado por `features/login/login.ts`).
+    - Se eliminó el modelo sin uso `frontend/src/app/core/models/booking.model.ts` (el sistema utiliza `BookingSummary`).
+    - Se eliminó el directorio duplicado `frontend/src/app/images/` y la imagen duplicada `frontend/public/images/Group 23 (1).jpg`.
+  - **Backend:**
+    - En `SecurityConfiguration.java`, se eliminó la ruta inexistente `/api/bookings/**` de `requestMatchers()`, conservando únicamente las rutas activas como `/api/enrollments/**`.
+  - **Raíz y Scripts:**
+    - Se eliminó el directorio `deprecated/` (`Inicio (1).html`, `ai.component.ts.old`, `ia.html.old`).
+    - Se eliminó el `package-lock.json` huérfano de la raíz.
+    - Se corrigió `scripts/smoke-test.sh` para apuntar a `/api/services` en lugar del endpoint obsoleto `/api/offerings`.
+    - Se actualizó el target `test-back-unit` en el `Makefile` para referenciar pruebas unitarias existentes (`OfferingCrudServiceTest,OfferingCatalogServiceTest,ServiceEnrollmentServiceTest`).
 - **Validación:**
-  - Prometheus scrapéa exitosamente cada 15s el endpoint `http://backend:8080/actuator/prometheus` (estado `up`).
-  - Grafana aprovisionó automáticamente el nuevo dashboard bajo la carpeta `SkillBridge` (`uid: skillbridge-system-api`).
-## [2026-10-16] Unificación First-Party y Proxy de Reescritura en Vercel (HU-14 Prod Fix)
-- **Agente:** Antigravity (Gemini 3.8 Flash)
-- **Contexto:** En producción, el frontend desplegado en Vercel (`https://skillbridge-blond-two.vercel.app`) y el backend en Render (`https://skillbridge-xmkr.onrender.com`) operaban en dominios cruzados (Cross-Site). Al intentar registrar usuarios (`POST /api/auth/register`), el navegador bloqueaba el acceso a la cookie `Set-Cookie: XSRF-TOKEN; SameSite=Lax`, provocando que Angular enviara la solicitud mutante sin el encabezado `X-XSRF-TOKEN` y Spring Security respondiera con `403 Forbidden`.
-- **Cambios realizados:**
-  - **`frontend/vercel.json`:** Se reemplazó la directiva legacy `routes` por `rewrites`, enrutando de forma transparente `/api/:path*` hacia `https://skillbridge-xmkr.onrender.com/api/:path*`, y `/(.*)` hacia `/index.html` para la SPA de Angular. Se preservaron `buildCommand: "npm run build"` y `outputDirectory: "dist/skillbridge-ai/browser"`.
-  - **`frontend/scripts/generate-env.mjs`:** Se añadió normalización para que cualquier valor de `API_URL` que comience con `http` se transforme automáticamente en la ruta relativa `/api`, previniendo que variables de entorno obsoletas o mal configuradas en Vercel fuercen llamadas cross-origin directas.
-  - **`frontend/src/app/core/api.ts`:** Se incorporó un mecanismo de salvaguarda en `apiBase()` para garantizar que siempre se retorne `/api` si `window.__env?.API_URL` contiene una URL absoluta externa.
+  - Backend: Compilación exitosa de fuentes y pruebas (`mvn test-compile`).
+  - Frontend: Generación exitosa del bundle de producción (`npm run build`) sin advertencias ni errores.
+
+## [2026-10-17] Despliegue y configuración del SFU LiveKit con Docker Compose
+- **Contexto:** Despliegue del servidor LiveKit (SFU) para soportar videoconferencias interactivas de ultra baja latencia (audio, video, pantalla compartida) sin incurrir en costos de procesamiento ni almacenamiento en la nube.
+- **Acciones Realizadas:**
+  - **Variables de Entorno (`.env` / `.env.example`):** Se definieron `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_RTC_USE_EXTERNAL_IP` y los puertos `LIVEKIT_HTTP_PORT` (7880), `LIVEKIT_TCP_PORT` (7881) y `LIVEKIT_UDP_PORT` (7882).
+  - **Configuración Declarativa (`ops/livekit/livekit.yaml`):** Se creó la configuración del motor WebRTC escuchando en TCP 7881 y UDP 7882 sin requerir servicios de Egress ni buckets S3/GCP.
+  - **Orquestación (`docker-compose.yml`):** Se integró el servicio oficial `livekit/livekit-server:v1.8` con mapeo de puertos 7880/tcp, 7881/tcp y 7882/udp, inyección de claves mediante `LIVEKIT_KEYS` y montaje del archivo declarativo en `/etc/livekit.yaml:ro`.
 - **Validación:**
-  - `npm run build` en frontend completó con éxito (código de salida 0), generando `dist/skillbridge-ai/browser` con `env.js` apuntando a `/api`.
-  - Con esta configuración, el navegador gestiona todas las peticiones y cookies (`access_token`, `XSRF-TOKEN`) bajo el mismo dominio de Vercel (First-Party), permitiendo al interceptor de Angular leer la cookie CSRF y adjuntar `X-XSRF-TOKEN` válidamente en peticiones mutantes sin degradar la seguridad del backend.
+  - El contenedor `skillbridge-ai-livekit-1` arrancó limpiamente con estado `Up` y enrutamiento `single-node`.
+  - Puertos 7880/tcp, 7881/tcp y 7882/udp expuestos y accesibles correctamente en `0.0.0.0`.
+  - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2 y CA 1.3.
+
+## [2026-10-19] HU-29.4 — Integración de Redis para estado efímero y enrutamiento SFU
+- **Cambios:**
+  - **Redis dedicado (`docker-compose.yml`):** Se agregó `redis-livekit` con la imagen `redis:8-alpine`, solo RAM mediante `--save ""`, `--appendonly no` y `tmpfs` en `/data`; sin volumen ni puertos publicados. Se configuró `--requirepass`, límite de memoria `256mb`, política `noeviction` y healthcheck autenticado.
+  - **LiveKit (`docker-compose.yml`):** Se agregaron `REDIS_HOST` y `REDIS_PASSWORD`, además de `depends_on` con condición `service_healthy` para `redis-livekit`.
+  - **Entorno (`.env.example`):** Se agregó `LIVEKIT_REDIS_PASSWORD`.
+  - No se modificaron `ops/livekit/livekit.yaml`, el servicio Redis existente ni el backend.
+- **Decisión:** Se utiliza un Redis dedicado para LiveKit para no afectar la caché de IA del backend y cumplir el requisito de “0 bytes en disco” para el estado efímero.
+- **Validación:**
+  - **CA 4.1:** Los logs de LiveKit muestran `connecting to redis` sin errores; al probar con una contraseña incorrecta se obtiene `WRONGPASS`.
+  - **CA 4.2:** `save` está vacío, `appendonly` es `no`, `aof_enabled` es `0`, `maxmemory` es `268435456`, `Mounts` está vacío y `/data` no contiene archivos. `docker inspect` muestra `HostConfig.Tmpfs` `{"/data":""}` y `df /data` reporta `tmpfs` con 0 bytes usados.
+  - **CA 4.3:** `DBSIZE` cambia de 2 a 6 al crear una sala, baja a 4 al finalizarla con `DeleteRoom` y vuelve a 2 tras unos segundos, sin claves huérfanas. La finalización se probó con `DeleteRoom` por la API de LiveKit; no se probó un webhook `room_finished` hacia el backend. Tras finalizar, aparecen dos claves temporales que LiveKit elimina solo en segundos.
+- **Nota para el equipo:** Definir `LIVEKIT_REDIS_PASSWORD` en el `.env` local; de lo contrario, `docker compose` falla.
+
+## [2026-10-19] Dashboard Provisionado de LiveKit Server y Experiencia Multimedia (HU-10)
+- **Rol:** DevOps / SRE
+- **Contexto:** Supervisión de recursos del contenedor livekit-server, ancho de banda y estabilidad de sesiones WebRTC.
+- **Cambios realizados:**
+  - Habilitada la exportación de métricas nativas en `ops/livekit/livekit.yaml` en el puerto 6789.
+  - Configurado el scrape job `livekit` en `ops/prometheus/prometheus.yml`.
+  - Creado el dashboard provisionado como código `ops/grafana/provisioning/dashboards/livekit-metrics.json` con paneles de CPU, RAM, ancho de banda (Mbps), concurrencia de salas/participantes y umbrales de alerta visual (CA 10.1, CA 10.2, CA 10.3).
+
+## [2026-10-19] Configuración y Monitoreo de Métricas Críticas de Calidad y Sesión WebRTC (HU-29.9)
+- **Rol:** DevOps / SRE
+- **Contexto:** Instrumentación y monitoreo de métricas críticas de sesiones activas y calidad de red en LiveKit para detectar saturación de salas, desconexiones masivas y degradación de conectividad (pérdida de paquetes > 5% y variación de retardo/jitter).
+- **Cambios realizados:**
+  - **Prometheus y Reglas PromQL:**
+    - Creado `ops/prometheus/rules/livekit-rules.yml` con reglas de agregación y alertas:
+      - **CA 9.1:** Concurrencia de salas y participantes (`livekit_room_total` y `livekit_participant_total`).
+      - **CA 9.2:** Tasa de procesamiento de paquetes global y por pista (`sum(rate(livekit_packet_total[1m]))`).
+      - **CA 9.3:** Cálculo de tasa de pérdida de paquetes porcentual y alerta crítica `LiveKitHighPacketLoss` con expresión `(sum(rate(livekit_packet_drop_total[2m])) / clamp_min(sum(rate(livekit_packet_total[2m])), 1)) * 100 > 5`.
+      - Métricas de calidad QoS: Jitter en ms (`avg(livekit_jitter_us) / 1000`) y ratio de disponibilidad de transmisión por participante.
+      - Alertas complementarias: `LiveKitRoomSaturation` (> 50 usuarios), `LiveKitMassiveDisconnection` (pérdida de >10 usuarios/min) y `LiveKitHighJitter` (> 30 ms).
+    - Creada la especificación de pruebas unitarias PromQL en `ops/prometheus/rules/livekit-rules.test.yml`.
+    - Actualizado `ops/prometheus/prometheus.yml` con `evaluation_interval: 15s` y carga de reglas desde `/etc/prometheus/rules/*.yml`.
+  - **Infraestructura Docker Compose:**
+    - Montado el volumen `./ops/prometheus/rules:/etc/prometheus/rules:ro` en el servicio `prometheus` en `docker-compose.yml`.
+  - **Dashboards y Documentación:**
+    - Provisionado dashboard de calidad de sesiones y QoS en `ops/grafana/provisioning/dashboards/livekit.json`.
+    - Documentación técnica detallada en `docs/LIVEKIT-MONITORING.md` con arquitectura, puertos, diccionario de métricas y consultas PromQL.
+  - **Validación Automatizada:**
+    - Creado script de validación `scripts/validate-livekit-metrics.js` y target `make test-livekit` en `Makefile`.
+- **Validación:**
+  - Ejecución de `node scripts/validate-livekit-metrics.js`: 26 de 26 pruebas aprobadas (100% de éxito en CA 9.1, CA 9.2 y CA 9.3).
+
+## [2026-10-20] HU-29.3 — Receptor de Webhooks de LiveKit para Ciclo de Vida de Salas
+- **Rol:** Backend / Eventos
+- **Contexto:** Configurar la entrega y recepción de eventos Webhook de LiveKit en el endpoint seguro `POST /api/webhooks/livekit` para sincronizar en tiempo real el ciclo de vida de reuniones virtuales (`room_started`, `room_finished`) y asistencia de participantes (`participant_joined`, `participant_left`) con validación criptográfica estricta.
+- **Cambios realizados:**
+  - **Infraestructura LiveKit (`ops/livekit/livekit.yaml`):**
+    - Configurado el bloque `webhook:` con la URL `http://backend:8080/api/webhooks/livekit` y `api_key: devkey`.
+  - **Arquitectura Hexagonal (Puertos de Aplicación):**
+    - Creada la interfaz de puerto de entrada `ProcessLiveKitWebhookUseCase` en `application/port/in/meeting/` con métodos para:
+      - `handleRoomStarted(UUID meetingId, OffsetDateTime timestamp)`
+      - `handleRoomFinished(UUID meetingId, OffsetDateTime timestamp)`
+      - `handleParticipantJoined(UUID meetingId, UUID userId, OffsetDateTime timestamp)`
+      - `handleParticipantLeft(UUID meetingId, UUID userId, OffsetDateTime timestamp)`
+    - Implementación de `ProcessLiveKitWebhookUseCase` en `MeetingService.java`:
+      - Transición de sala a `EN_CURSO` y persistencia de `actualStart` y evento en auditoría `MeetingHistory`.
+      - Transición de sala a `FINALIZADA`, persistencia de `actualEnd` y cierre ordenado de asistencias de participantes a `SALIDA_REGISTRADA` con su respectiva marca temporal.
+      - Idempotencia garantizada ante reintentos de LiveKit o cierres forzados con `deleteRoom`.
+  - **Adaptador Inbound REST (`LiveKitWebhookController.java`):**
+    - Inyección desacoplada del puerto `ProcessLiveKitWebhookUseCase` y `ObjectMapper`.
+    - Recepción del cuerpo crudo (`byte[] rawBody`) para validación de integridad.
+    - Validación criptográfica (CA 3.1): Soporta tanto tokens directos como con prefijo `Bearer `, verificación de firma HMAC-SHA256 con la clave compartida (`apiSecret`), validación de emisor (`issuer == apiKey`), y verificación del hash SHA-256 del cuerpo contra el claim `sha256` en Base64 o Hex. Peticiones no firmadas o con firma/hash alterado son rechazadas con `401 Unauthorized`.
+    - Despacho y parseo de eventos para salas y participantes (CA 3.2 y CA 3.3).
+  - **Testing Unitario y de Integración (JUnit 5 + MockMvc):**
+    - Creado `LiveKitWebhookControllerTest.java` con 11 pruebas unitarias cubriendo rechazo 401 por cabecera ausente, firma inválida, emisor incorrecto, payload manipulado, y respuestas exitosas 200 OK con despacho a dominio para los 4 eventos y casos límite.
+    - Ampliado `MeetingServiceTest.java` con 4 pruebas específicas para los métodos del webhook.
+- **Validación:**
+  - Ejecución de `mvn -Dtest=MeetingServiceTest,LiveKitWebhookControllerTest test`: 22 de 22 pruebas aprobadas (100% de éxito).
+  - Ejecución de la suite completa de backend `mvn test`: 99 de 99 pruebas aprobadas sin regresiones.
+
+## [2026-10-21] HU-29.11 -- Interfaz de Usuario y Sala de Videoconferencias en Vivo con LiveKit (Frontend / Angular)
+- **Rol:** Frontend / WebRTC
+- **Contexto:** Desarrollo de la interfaz de usuario en Angular 20 para permitir a mentores y estudiantes conectarse a sesiones de videollamada interactivas de ultra baja latencia utilizando LiveKit Client.
+- **Acciones Realizadas:**
+  - **Dependencia WebRTC (`frontend/package.json`):**
+    - Instalada la librería oficial `livekit-client` (^2.23.0).
+    - Ajustado `tsconfig.json` con `"skipLibCheck": true` para optimizar la compilación de tipos de dependencias WebRTC.
+  - **Capa de Servicios (`MeetingService.ts`):**
+    - Creado `MeetingService` en `frontend/src/app/core/meeting.service.ts` con integración a los endpoints protegidos del backend: `startMeeting`, `joinMeeting`, `finishMeeting`, `getMeeting` y `getByService`.
+    - Ampliado `ToastService` (`toast.service.ts`) con utilidades de notificación (`info`, `error`, `success`).
+  - **Componente de Sala Virtual (`MeetingRoomComponent`):**
+    - Creado `frontend/src/app/features/meeting-room/` (`meeting-room.component.ts`, `.html`, `.css`).
+    - Gestión del ciclo de vida de la sala (`Room`): conexión WebRTC mediante JWT dinámico, adaptación automática de URL en entornos locales/docker (`resolveLiveKitUrl`), y liberación ordenada de recursos en `ngOnDestroy`.
+    - Rol `PROVIDER`: publicación y captura de cámara y micrófono local, visualización en miniatura flotante con soporte de espejo.
+    - Rol `PARTICIPANT`: suscripción dinámica a tracks remotos y estado de espera mientras el mentor inicia transmisión.
+    - Barra de controles multimedia: mutear/desmutear micrófono, prender/apagar cámara, compartir pantalla y colgar/finalizar clase.
+  - **Enrutamiento y Navegación:**
+    - Registrada la ruta protegida `/meeting/:id` en `app.routes.ts` con `canActivate: [authGuard]`.
+    - Añadido botón "🎥 Iniciar clase" en el panel de proveedor (`my-offerings.component.ts`).
+    - Añadido botón "🎥 Entrar a la clase en vivo" en la tabla de reservas de estudiantes (`display-bookings.ts` y `.html`).
+- **Validación:**
+  - Compilación exitosa del bundle de producción de Angular (`npm run build`) generando `chunk-GOVFZMYG.js` con lazy-loading sin errores ni advertencias de tipo.
+
+## [2026-10-21] Habilitación de Sala de Pruebas de LiveKit para Administradores
+- **Rol:** Fullstack / Testing & Observabilidad
+- **Contexto:** Se implementó una funcionalidad que permite a los usuarios con rol `ADMIN` iniciar inmediatamente una sala de reunión virtual de prueba sobre cualquier servicio, omitiendo las restricciones de calendario y ventana horaria de 48 horas de anticipación.
+- **Acciones Realizadas:**
+  - **Base de Datos & Flyway:**
+    - Creada migración `V16__admin_test_meeting.sql` que amplía el check de `meeting_participants` para admitir `role IN ('PROVIDER', 'PARTICIPANT', 'ADMIN')` y elimina la restricción única `uq_meeting_per_session` para permitir múltiples sesiones de prueba en el mismo día.
+  - **Backend (Spring Boot):**
+    - En `MeetingRole.java`, se incorporó el valor `ADMIN`.
+    - En `LiveKitRestAdapter.java`, se corrigió la autenticación hacia la API Twirp de LiveKit (`RoomService/CreateRoom` y `DeleteRoom`) sustituyendo la autenticación Basic por tokens JWT firmados con el `apiSecret` y cabecera `Authorization: Bearer <token>` con permisos administrativos (`roomCreate`, `roomAdmin`, `roomList`). Asimismo, se otorgaron permisos completos de publicación (`canPublish: true`), suscripción y actualización de metadatos para el rol `ADMIN`.
+    - En `MeetingService.java`, se implementó `createTestMeeting(adminUserId, serviceId)` para iniciar la reunión en estado `EN_CURSO` por 2 horas, crear la sala en LiveKit y registrar al administrador. Además, en `join()` y `finishMeeting()`, se autoriza al `ADMIN` con control total y a los usuarios con inscripción activa (`ServiceEnrollment`) para unirse como participantes.
+    - En `MeetingController.java`, se expuso el endpoint seguro `POST /api/meetings/admin/test-room` restringido a administradores.
+    - En `SecurityConfiguration.java`, se habilitó el acceso del rol `ADMIN` sobre `/api/meetings/**`.
+  - **Frontend (Angular 20):**
+    - En `MeetingService` (`meeting.service.ts`), se añadió el método `createTestRoom(serviceId)` y se tipó el rol `ADMIN`.
+    - En `AdminDashboardComponent` (`admin-dashboard.component.ts` y `.html`), se añadió el botón de acción con ícono de cámara `🎥` en la tabla de servicios y el botón "🎥 Iniciar Sala de Testeo LiveKit" en el modal de detalles del servicio.
+    - En `MeetingRoomComponent` (`meeting-room.component.ts` y `.html`), se integró el rol `ADMIN` con permisos de publicación de cámara y micrófono, etiqueta `👑 Tú (Admin)` y botón para finalizar la sala para todos.
+- **Validación:**
+  - Migración Flyway `v16` aplicada con éxito en PostgreSQL.
+  - Pruebas unitarias de backend pasando al 100% (25 de 25 tests en `MeetingServiceTest` y `LiveKitWebhookControllerTest`, sumando pruebas específicas de creación, reutilización y control de acceso de salas de prueba).
+  - Compilación de Angular (`npm run build`) exitosa sin errores de tipado estricto.
+  - Contenedores Docker de `backend` y `frontend` reconstruidos y corriendo en estado Healthy.
+  - Verificación End-to-End validada en caliente:
+    1. Creación de sala de prueba por Admin (`POST /api/meetings/admin/test-room`) -> 200 OK con token LiveKit de rol `ADMIN`.
+    2. Ingreso de estudiante inscrito (`POST /api/meetings/{id}/join`) -> 200 OK con token LiveKit de rol `PARTICIPANT`.
+    3. Finalización de la sala por Admin (`POST /api/meetings/{id}/finish`) -> 200 OK con transición a estado `FINALIZADA`.
+
+## [2026-10-21] Estabilización de WebRTC en LiveKit: ICE Lite, Retransmisión de Pantalla y CSRF de Webhooks
+- **Rol:** Fullstack & WebRTC Bugfix
+- **Contexto:** Se diagnosticaron y solucionaron los errores de conexión de PeerConnection WebRTC (`ConnectionError: could not establish pc connection`), bucles de renegociación al compartir pantalla, congelamiento periódico de video y rechazos 403 en webhooks de LiveKit.
+- **Causas Raíz Detectadas:**
+  1. **Fallo de Chequeo de ICE en LiveKit Server (Full ICE vs NAT Loopback):** LiveKit operaba en modo Full-ICE intentando enviar paquetes STUN de conectividad hacia las direcciones públicas reflejadas (`srflx`) del cliente. Dado que los routers residenciales descartan paquetes loopback UDP hacia su propia IP WAN, los 8 intentos de LiveKit no recibían respuesta (`requestsSent: 8, responsesReceived: 0`), provocando el timeout de 15 segundos y el fallo de PeerConnection.
+  2. **Bucle de Renegociación en Screen Sharing:** La habilitación de screen share por defecto solicitaba simulcast multinivel. LiveKit y el navegador generaban renegociaciones simultáneas concurrentes sin mutex, provocando `negotiation timed out` y desconexión/reconexión continua.
+  3. **Pérdida de Video cada 3-10 segundos en el Cliente:** `adaptiveStream: true` y `dynacast: true` pausaban capas de video ante variaciones mínimas de visibilidad en el DOM, sin re-adjuntar los tracks automáticamente al reanudarse.
+  4. **Bloqueo de Audio por Autoplay Policy:** El navegador bloqueaba el AudioContext generado en background arrojando advertencias de permisos de reproducción de audio.
+  5. **Rechazo 403 en Webhooks de LiveKit:** Spring Security interceptaba las peticiones POST de `LiveKitWebhookController` (`/api/webhooks/livekit`) por validación de tokens CSRF requeridos a SPAs de navegador.
+- **Acciones Realizadas:**
+  - **LiveKit Server (Docker & YAML):**
+    - Actualización de imagen a `livekit/livekit-server:latest` (v1.13.10) para alineación completa con el protocolo 17 de `livekit-client` v2.23.0.
+    - Configuración de `rtc.use_ice_lite: true` y `rtc.allow_tcp_fallback: true` en `ops/livekit/livekit.yaml` y `docker-compose.yml`. Como agente ICE-Lite, el servidor responde directamente a los sondeos entrantes de los clientes en los puertos 7882 (UDP) y 7881 (TCP) sin depender de NAT hairpinning.
+  - **Backend (Spring Boot):**
+    - En `SecurityConfiguration.java`, se añadió `.ignoringRequestMatchers("/api/webhooks/livekit")` al filtro de CSRF, permitiendo la comunicación criptográfica directa servidor-a-servidor mediante firmas HMAC-SHA256 en la cabecera `Authorization`.
+    - 102/102 pruebas unitarias pasando con éxito.
+  - **Frontend (Angular 20):**
+    - En `meeting-room.component.ts`:
+      - Screen Share optimizado con `{ simulcast: false }`, bloqueo por mutex `isScreenShareToggling` y escucha del evento nativo `MediaStreamTrack.ended`.
+      - Desactivación de `adaptiveStream` y `dynacast` en `RoomOptions` para flujo de video continuo y estable.
+      - Adición de `webAudioMix: false`, llamada a `room.startAudio()` tras conectar y `@HostListener('click')` / `@HostListener('keydown')` para desbloqueo transparente de audio con el primer clic del usuario.
+      - Desconexión explícita de cualquier sesión o sala previa (`await this.room.disconnect()`) al inicio de `initMeetingSession()`, previniendo bucles de reconexión fantasma (`reconnect attempt cancelled`, `CONNECTION_TIMEOUT`, `leave-reconnect disconnected`).
+      - Manejo robusto de `RoomEvent.TrackMuted` / `TrackUnmuted` y reutilización de elementos `<video>` existentes sin recrear el nodo DOM.
+    - En `meeting-room.component.html`: Botón "Reintentar" integrado ante eventuales cortes de red.
+  - **Resolución Multi-Navegador (Firefox / Chrome):**
+    - Configurado `rtc.advertise_internal_ip: true` en `livekit.yaml` y `docker-compose.yml`, permitiendo a LiveKit publicar la dirección de red privada del contenedor (`172.18.0.x`) junto con la IP local. Esto soluciona la restricción de Firefox donde los candidatos loopback (`127.0.0.1`) son descartados por defecto por su política de seguridad WebRTC (`media.peerconnection.ice.loopback = false`).
+    - Purga de estados residuales de sesiones previas en `redis-livekit`.
+- **Validación:**
+  - Suite de 102 pruebas de backend ejecutadas (`mvn test`) con 0 fallos.
+  - Compilación de Angular (`npm run build`) limpia y sincronizada con el contenedor Nginx.
+  - Contenedores Docker (`livekit`, `backend`, `frontend`, `postgres`, `redis`, `redis-livekit`) reiniciados y activos.
+
+- **Contexto:** Se resolvió el error de cierre de sesión forzoso (`401 Unauthorized` / sesión expirada) al intentar ingresar o recrear una sala, y se corrigió la renderización de la información del participante/sala en la interfaz de Angular.
+- **Causas Raíz Detectadas:**
+  1. **Registros Duplicados en `meeting_participants`:** `registerParticipant()` generaba siempre una nueva fila con `UUID.randomUUID()`. Ante múltiples accesos o creaciones sobre la misma reunión, se acumulaban filas para `(meeting_id, user_id)`. Como `JpaMeetingParticipantRepository.findByMeetingIdAndUserId` retornaba `Optional<...>`, Hibernate lanzaba `NonUniqueResultException` (500/401), provocando que `auth.interceptor.ts` forzara un logout inmediato (`triggerSessionExpired`).
+  2. **Resolución de Nombre en Tokens LiveKit:** El nombre del participante se emitía con el UUID crudo del usuario (`00000000-...`) en lugar del nombre real de la cuenta.
+  3. **Reutilización de Tokens en Frontend:** Al crear la sala de prueba desde el dashboard de administración, el token recibido se descartaba y el componente `MeetingRoomComponent` ejecutaba una segunda petición HTTP innecesaria a `/join`.
+  4. **Condicionales de Visualización en UI:** `meeting-room.component.html` solo renderizaba el video local propio y el botón de finalizar clase cuando `role === 'PROVIDER'`, omitiendo al `ADMIN`.
+  5. **Comportamiento del Fallback `/rtc/v1/validate` en LiveKit Client:** `livekit-client` v2 intenta conectarse por defecto a la ruta `/rtc/v1`. LiveKit Server v1.8 responde con 404, disparando un sondeo de clasificación a `/rtc/v1/validate` (404), tras lo cual conmuta de forma segura al protocolo estándar `/rtc` (`useV0Path = true`). La información de la sala (`roomID`, `participantID`) queda vacía únicamente durante el estado transitorio `connecting` y se pobla inmediatamente tras la negociación WebRTC.
+- **Acciones Realizadas:**
+  - **Migración Flyway `V17__meeting_participants_unique.sql`:**
+    - Limpieza de duplicados residuales conservando el registro más reciente.
+    - Creación de la restricción `uq_participant_per_meeting UNIQUE (meeting_id, user_id)`.
+  - **Backend (Spring Boot):**
+    - En `MeetingService.java`, se volvió idempotente `registerParticipant()` buscando primero el participante existente antes de crear uno nuevo.
+    - En `MeetingService.java`, `participantName()` ahora consulta `UserAccountPort` para resolver el nombre legible del usuario.
+    - En `JpaMeetingParticipantRepository.java` y `MeetingParticipantPersistenceAdapter.java`, se utilizó `findFirstByMeetingIdAndUserIdOrderByCreatedAtDesc` para proteger contra posibles inconsistencias de registros múltiples.
+  - **Frontend (Angular 20):**
+    - En `MeetingService` (`meeting.service.ts`), se implementó una caché en memoria (`setCachedToken` / `consumeCachedToken`) para evitar llamadas duplicadas a `/join` tras la creación desde el dashboard de admin.
+    - En `meeting-room.component.ts` y `.html`, se habilitó la activación de cámara/micrófono para `ADMIN`, la etiqueta `👑 Tú (Admin)`, la redirección a `/admin` al colgar o terminar la sala, y los controles completos.
+- **Validación:**
+  - Migración Flyway `v17` ejecutada y verificada en base de datos.
+  - 25 pruebas unitarias de backend pasando al 100%.
+  - Frontend Angular compilado exitosamente (`npm run build`).
+  - Creación repetida de salas de prueba verificada con 1 único registro por participante y respuestas 200 OK constantes.
+
+## [2026-10-19] Integración del SDK de LiveKit y Configuración de Secretos (Arquitectura Hexagonal)
+- **Autor / Implementación:** Juan Vargas
+- **Contexto:** Habilitar el soporte en el backend para la generación de tokens de acceso y comunicación con el servidor de videollamadas LiveKit respetando las reglas de arquitectura hexagonal y seguridad de credenciales.
+- **Cambios realizados:**
+  - **Gestión de Secretos y Variables de Entorno (`.env.example`, `docker-compose.yml`):**
+    - Se definieron y documentaron las variables `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` y `LIVEKIT_URL`.
+    - Se configuró la inyección de estas variables de entorno en el contenedor del servicio `backend` en Docker Compose con fallback seguro para desarrollo local (`http://livekit:7880`).
+    - Se ajustaron las credenciales en el servicio `livekit` (`LIVEKIT_KEYS`) evitando exponer variables innecesarias al contenedor del servidor WebRTC.
+  - **Mapeo de Configuración Spring Boot (`application.yml` y `application.yml` de test):**
+    - Se incorporó el bloque `app.livekit` con propiedades para URL, API Key y Secret en el archivo principal y en el de pruebas.
+  - **Dependencias Maven (`backend/pom.xml`):**
+    - Inclusión del SDK oficial `io.livekit:livekit-server:0.13.0` para la generación criptográfica de tokens y gestión de salas.
+  - **Arquitectura Hexagonal (Backend Java):**
+    - **Configuración (`infrastructure/config/LiveKitConfiguration.java`):** Clase `@Configuration` para inyectar las propiedades desde Spring y exponer el bean `RoomServiceClient` para administración de salas.
+    - **Puerto de Salida (`application/port/out/LiveKitVideoPort.java`):** Definición de la interfaz del contrato para abstraer la generación de tokens JWT de sala (`generateAccessToken`), aislando la lógica de negocio del proveedor de WebRTC.
+    - **Adaptador de Salida (`infrastructure/adapter/out/livekit/LiveKitVideoAdapter.java`):** Implementación técnica del puerto usando el SDK de LiveKit (`AccessToken`, `RoomJoin`, `RoomName`), firmando los tokens con HMAC-SHA256 usando el secreto inyectado sin exponerlo al cliente.
+# Historial de Cambios (Memoria de Agentes)
+
+Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
+
+## [2026-10-20] Corrección de inicio de Prometheus para HU de métricas LiveKit
+- **Contexto:** Prometheus no iniciaba al cargar el archivo de pruebas de `promtool` como si fuera un archivo de reglas de producción.
+- **Cambios realizados:**
+  - En `ops/prometheus/prometheus.yml`, se reemplazó el patrón `/etc/prometheus/rules/*.yml` por la ruta explícita `/etc/prometheus/rules/livekit-rules.yml`, evitando incluir `livekit-rules.test.yml` en la configuración de producción.
+- **Validación:**
+  - `promtool check config /etc/prometheus/prometheus.yml` pasó: configuración válida y 12 reglas cargadas.
+  - Prometheus inició y `http://localhost:9090/-/ready` respondió `200 OK`.
+  - El target `livekit:6789` apareció con estado `up`, sin errores de scrape; `up{job="livekit"}` devolvió `1`.
+  - Consultas PromQL confirmaron ingesta de `livekit_room_total`, `livekit_participant_total` y `livekit_packet_total`.
+
+## [2026-10-20] Métrica consultable de build LiveKit
+- **Contexto:** El endpoint de LiveKit no exponía `livekit_server_build_info`; se solicitó habilitar únicamente esa métrica adicional para consulta.
+- **Cambios realizados:**
+  - Se añadió en `ops/prometheus/rules/livekit-rules.yml` una recording rule llamada `livekit_server_build_info`, basada en `up{job="livekit"} == 1` y con `version="v1.8"`, el tag de imagen configurado en `docker-compose.yml`.
+  - Se añadió una prueba PromQL y se documentó la métrica y su consulta en `docs/LIVEKIT-MONITORING.md`.
+  - La serie representa el tag de imagen configurado cuando el target está UP; no es una métrica nativa ni una lectura dinámica de la versión interna de LiveKit.
+- **Validación:**
+  - `promtool check rules` pasó con 13 reglas; la prueba enfocada del primer grupo en `livekit-rules.test.yml` pasó.
+  - La suite completa de pruebas aún reporta un fallo en la prueba preexistente `job:livekit_packet_rate:sum` (esperaba 5, no obtuvo muestra); no corresponde a la prueba de build info.
+  - Tras reiniciar Prometheus, la consulta `livekit_server_build_info{job="livekit"}` devolvió una serie con `instance="livekit:6789"`, `version="v1.8"` y valor `1`; `up{job="livekit"}` también devolvió `1`.
+
+## [2026-10-20] Unificación y Mejora del Servicio de Generación de Tokens de Acceso (JWT) por Rol (HU-29.2)
+- **Rol:** Backend Developer
+- **Contexto:** Consolidación de la generación de tokens LiveKit con el SDK oficial (`io.livekit.server.AccessToken`), eliminación de adaptadores duplicados y cumplimiento estricto de los Criterios de Aceptación (CA 2.1, CA 2.2, CA 2.3, CA 2.4).
+- **Cambios realizados:**
+  - **Eliminación de duplicados:** Se removieron los archivos redundantes `LiveKitVideoPort.java`, `LiveKitVideoAdapter.java` y `LiveKitConfiguration.java`.
+  - **Uso del SDK Oficial en Adaptador Hexagonal:** Se actualizó `LiveKitRestAdapter.java` para utilizar `io.livekit.server.AccessToken`, `RoomJoin`, `RoomName`, `CanPublish`, `CanSubscribe`, `CanPublishData` y `RoomAdmin`.
+  - **Permisos por Rol (CA 2.1 y CA 2.2):**
+    - Tutor/Proveedor (`PROVIDER`): `canPublish: true`, `canSubscribe: true`, `canPublishData: true`, `roomAdmin: true`.
+    - Alumno/Participante (`PARTICIPANT`): `canPublish: false`, `canSubscribe: true`, `canPublishData: true`, `roomAdmin: false`.
+  - **TTL Configurable (CA 2.3):** Se incorporó `token-ttl-minutes` (default 120 min) en `LiveKitProperties` y `application.yml`.
+  - **Seguridad y Excepciones (CA 2.4):** Se creó `UnauthorizedMeetingAccessException` mapeada a `403 FORBIDDEN` en `GlobalExceptionHandler`.
+- **Validación:**
+  - `mvn test-compile` exitoso sin errores en las 203 clases.
+  - `mvn test -Dtest=MeetingServiceTest` completado exitosamente (7 de 7 pruebas aprobadas).
+
+## [2026-10-21] Implementación de Pruebas Automatizadas de Integración y Ciclo de Vida LiveKit (CA 6.1, CA 6.2, CA 6.3)
+- **Rol:** QA Engineer & Backend Developer
+- **Contexto:** Implementación de pruebas automatizadas en el backend utilizando JUnit 5, Testcontainers y el cliente oficial `RoomServiceClient` de LiveKit para validar de forma desatendida la seguridad de tokens JWT por rol, la creación sintética de salas y su eliminación limpia e inmediata.
+- **Cambios realizados:**
+  - **Validación Criptográfica y de Permisos JWT (`LiveKitTokenSecurityTest.java` - CA 6.1):**
+    - Se implementó prueba unitaria para validar la estructura del token JWT decodificando el payload JSON.
+    - Se asertó que el token para el Tutor (`MeetingRole.PROVIDER`) incluye los grants `canPublish: true` y `roomAdmin: true`.
+    - Se validó por contraste que el Alumno (`MeetingRole.PARTICIPANT`) tiene `canPublish: false` y `roomAdmin: false`, con permisos restringidos a suscripción y chat.
+    - Se comprobó que el timestamp de expiración (`exp`) cumple con el TTL configurado de 120 minutos (2 horas).
+  - **Integración y Ciclo de Vida de Salas (`LiveKitRoomIntegrationTest.java` - CA 6.2 y CA 6.3):**
+    - Se configuró el ciclo de vida de Testcontainers con la imagen oficial `livekit/livekit-server:v1.8` en modo `--dev` y puertos mapeados dinámicamente (`@Testcontainers(disabledWithoutDocker = true)`).
+    - Se inicializó `RoomServiceClient` y se probó la creación de salas sintéticas con configuración controlada y metadatos JSON.
+    - Se verificó la persistencia y presencia de la sala y sus metadatos mediante `listRooms()` (**CA 6.2**).
+    - Se ejecutó el cierre y borrado seguro con `deleteRoom()`, confirmando inmediatamente que la sala deja de figurar en el listado activo del servidor para evitar salas huérfanas en el pipeline de CI/CD (**CA 6.3**).
+- **Validación:**
+  - Ejecución de pruebas específicas: `mvn -f backend/pom.xml test -Dtest="LiveKitTokenSecurityTest,LiveKitRoomIntegrationTest"` aprobada al 100%.
+  - Suite completa del backend: `mvn -f backend/pom.xml test` finalizada con `BUILD SUCCESS` (88 pruebas exitosas sin regresiones).
+
+## [2026-10-22] Resolución de Conflictos y Sincronización con Develop (HU-29.11 y LiveKit SDK)
+- **Rol:** Fullstack Developer
+- **Contexto:** Sincronización de la rama `develop` sobre `feature/hu-29.11-interfaz-videoconferencias-livekit` y resolución integral de conflictos de fusión.
+- **Resolución de Conflictos:**
+  - **`LiveKitRestAdapter.java`:** Se adoptó el uso del SDK oficial de LiveKit (`io.livekit.server.AccessToken`), asignando TTL configurable y otorgando grants de publicación y moderación (`CanPublish`, `RoomAdmin`) tanto a `MeetingRole.PROVIDER` como a `MeetingRole.ADMIN`.
+  - **`docker-compose.yml`:** Se mantuvieron las variables de entorno WebRTC locales (`LIVEKIT_RTC_NODE_IP`, `LIVEKIT_RTC_ADVERTISE_INTERNAL_IP`, `LIVEKIT_RTC_USE_ICE_LITE`, etc.) y la dependencia con el contenedor de estado efímero `redis-livekit`, asegurando la estabilidad de la conexión WebRTC.
+  - **`MEMORIA.md`:** Se unificaron sin pérdidas todas las bitácoras técnicas de ambas ramas (69 secciones únicas preservadas).

@@ -4,6 +4,7 @@ import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { BookingService, BookingSummary, BookingSort, BookingActivityFilter, BookingPage } from '../../core/booking.service';
 import { ToastService } from '../../core/toast.service';
+import { MeetingService } from '../../core/meeting.service';
 
 
 @Component({
@@ -144,6 +145,28 @@ export class DisplayBookingsComponent implements OnInit {
 
   private router = inject(Router);
   private toastService = inject(ToastService);
+  private meetingService = inject(MeetingService);
+
+  unirseReunion(reserva: BookingSummary): void {
+    const serviceId = reserva.offeringId || reserva.id;
+    this.meetingService.getByService(serviceId).subscribe({
+      next: (meetings) => {
+        const activeMeeting = meetings.find(m => m.status === 'EN_CURSO') || meetings.find(m => m.status === 'PROGRAMADA');
+        if (activeMeeting) {
+          this.router.navigate(['/meeting', activeMeeting.id]);
+        } else {
+          this.toastService.show('El mentor aún no ha iniciado la sesión en vivo para esta mentoría.', [
+            { label: 'Entendido', primary: true, action: () => this.toastService.clear() }
+          ]);
+        }
+      },
+      error: () => {
+        this.toastService.show('No fue posible consultar la sala de reunión en este momento.', [
+          { label: 'Cerrar', primary: true, action: () => this.toastService.clear() }
+        ]);
+      }
+    });
+  }
 
   verDetalle(id: string): void {
     this.router.navigate(['/service', id], { queryParams: { viewOnly: true } });

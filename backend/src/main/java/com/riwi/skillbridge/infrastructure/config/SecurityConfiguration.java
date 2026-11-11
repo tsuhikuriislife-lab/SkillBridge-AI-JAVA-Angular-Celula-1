@@ -70,6 +70,7 @@ public class SecurityConfiguration {
 
         return http
                 .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/api/webhooks/livekit")
                         .csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
                         .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
@@ -86,12 +87,12 @@ public class SecurityConfiguration {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/actuator/health", "/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/error").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/webhooks/livekit", "/actuator/health", "/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/services/**", "/api/catalog/**").permitAll()
                         .requestMatchers("/actuator/prometheus").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/bookings/**", "/api/enrollments/**")
-                        .hasAnyRole("CUSTOMER", "PROVIDER")
+                        .requestMatchers("/api/bookings/**", "/api/enrollments/**", "/api/meetings/**")
+                        .hasAnyRole("CUSTOMER", "PROVIDER", "ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)

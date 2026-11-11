@@ -1,0 +1,11 @@
+{
+  "name": "skillbridge-livekit-stream-test",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@livekit/rtc-node": "1.1.0",
+    "livekit-server-sdk": "2.19.1"
+  }
+}
