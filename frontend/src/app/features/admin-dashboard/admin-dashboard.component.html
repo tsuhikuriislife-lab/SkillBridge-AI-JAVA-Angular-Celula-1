@@ -138,6 +138,12 @@
                   </span>
                 </td>
                 <td class="text-right">
+                  <button class="icon-btn btn-live" 
+                    title="Iniciar sala de prueba en vivo para este servicio"
+                    style="background: #4f46e5; color: white;"
+                    (click)="createTestRoom(item)">
+                    🎥
+                  </button>
                   <button class="icon-btn btn-view" title="Ver detalles" (click)="openDetail(item)">👁</button>
                   <button class="icon-btn" 
                     [title]="$any(item).estado === 'Publicado' ? 'Pausar servicio (ocultar de usuarios)' : 'Publicar servicio (mostrar a usuarios)'"
@@ -227,7 +233,12 @@
           }
         }
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        @if (selectedTab() === 'servicios') {
+          <button class="btn-primary" (click)="createTestRoom(detailItem())" style="background:#4f46e5;">
+            🎥 Iniciar Sala de Testeo LiveKit
+          </button>
+        }
         <button class="btn-secondary" (click)="closeDetail()">Cerrar</button>
       </div>
     </div>

@@ -71,7 +71,7 @@ flowchart LR
 
 | Bloque | Dylan | Kevin | Leonardo |
 |---|---|---|---|
-| **0 (0:00-0:45)** | **KAN-56 Bloque 0: base del microservicio → PR.** Comprar el dominio en Hostinger y empezar el DNS. | Leer el contrato y la guía, revisar RabbitMQ/Redis en compose | Leer el contrato y la guía. Crear la cuenta de `cloudflared`/`ngrok` |
+| **0 (0:00-0:45)** | **KAN-56 Bloque 0: base del microservicio → PR.** Dominio `skillbridgeai.online` ✅ comprado; DNS de Resend en cuanto Mateo cree la cuenta y agregue `mail.skillbridgeai.online`. | Leer el contrato y la guía, revisar RabbitMQ/Redis en compose | Leer el contrato y la guía. Crear la cuenta de `cloudflared`/`ngrok` |
 | **1 (0:45-3:00)** | KAN-59 (Java), Pasos 1-10B | KAN-57, Pasos 1-5 | KAN-58 Bloque 1, Pasos 1-5 |
 | ☕ **Sync (3:00)** | 10 min: cada uno muestra lo suyo. ¿Cambió el contrato? | | |
 | **2 (3:15-5:30)** | KAN-59, Pasos 11-15 (pruebas y seguridad) → PR. KAN-56 Bloque 1 (Resend, plantillas, Docker) | KAN-57, Pasos 6-11 → PR | Al mergearse lo de Kevin: KAN-58 Bloque 2 (health, Swagger, CI) → PR |

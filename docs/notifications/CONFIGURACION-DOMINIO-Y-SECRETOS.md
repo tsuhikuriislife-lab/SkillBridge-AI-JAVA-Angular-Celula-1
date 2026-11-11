@@ -1,13 +1,22 @@
 # Configuración: dominio (Hostinger), Resend, API keys y variables por capa
 
-> **Responsables:** Dylan (dominio, DNS, cuenta de Resend y API keys; KAN-56) y Leonardo (webhooks, §9; KAN-58).
+> **Responsables:**
+> - **Mateo Munera** (líder del grupo): dueño de la cuenta de Resend y de las API keys.
+> - **Dylan:** dominio y DNS en Hostinger (KAN-56).
+> - **Leonardo:** webhooks (§9, KAN-58).
+>
+> **Datos reales del proyecto:**
+> - Dominio: **`skillbridgeai.online`** (Hostinger, comprado el 2026-11-11).
+> - Subdominio de envío: **`mail.skillbridgeai.online`**.
+> - Remitente: `SkillBridge AI <notificaciones@mail.skillbridgeai.online>`.
+> - Respuestas: **`support@skillbridgeai.online`** (buzón de correo de Hostinger).
 > **Hazlo PRIMERO** (Bloque 0): la propagación DNS puede tardar desde minutos hasta algunas horas.
 
 ## Resumen: ¿qué cambia en cada capa?
 
 | Capa | ¿Cambia? | Qué | Dónde |
 |---|---|---|---|
-| **Dominio / DNS** | ✅ Sí | 3 registros de Resend + 1 DMARC | Hostinger hPanel (§2) |
+| **Dominio / DNS** | ✅ Sí | 3 registros de Resend en `mail.` (el DMARC ya existe) | Hostinger hPanel (§2) |
 | **Resend** | ✅ Sí | Dominio verificado + API key | resend.com (§3) |
 | **`.env` raíz (local, NO se sube)** | ✅ Sí | `EMAIL_DRIVER`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `MAIL_FROM`, `MAIL_REPLY_TO`, `MAIL_REDIRECT_TO`, `FRONTEND_URL` | §4 |
 | **`.env.example` raíz (sí se sube)** | ✅ Sí | Las mismas variables **sin valores secretos** | KAN-56, Paso 11 |
@@ -31,24 +40,29 @@
 4. Espera a que el estado del dominio sea **Activo** (hPanel → Dominios → Portafolio de dominios). Suele tardar unos minutos.
 5. **No cambies los nameservers.** Por defecto Hostinger administra el DNS (`ns1.dns-parking.com` / `ns2.dns-parking.com`), y ahí se agregan los registros. Si algún día pasan el DNS a Cloudflare, los registros de §2 se agregan **allá**.
 
-> En esta guía usamos `tudominio.com` como ejemplo. **Reemplázalo** por el dominio real.
+> ✅ **Ya hecho:** se compró `skillbridgeai.online` y se creó el buzón `support@skillbridgeai.online` en Hostinger.
+>
+> **Estado del DNS al 2026-11-11:**
+> - La raíz (`@`) ya tiene los registros del **correo de Hostinger**: MX `mx1`/`mx2.hostinger.com`, SPF `include:_spf.mail.hostinger.com` y DKIM `hostingermail-a/b/c._domainkey`.
+> - Ya existe `_dmarc` con `v=DMARC1; p=none`, que también cubre los subdominios.
+> - **No tocar ninguno de esos registros.** Los de Resend van en el subdominio `mail.`, así que no chocan.
 
-### ¿Por qué enviar desde un subdominio (`mail.tudominio.com`)?
+### ¿Por qué enviar desde un subdominio (`mail.skillbridgeai.online`)?
 
 Recomendado por Resend:
 - **Aísla la reputación:** si los correos transaccionales tienen problemas (rebotes), no afectan al dominio principal (web y correo corporativo).
 - **Evita conflictos de SPF:** Hostinger suele crear un registro SPF en la raíz (`@`) para su propio correo. Al usar `mail.`, los registros de Resend no chocan con esos.
 
-Remitente final: `SkillBridge AI <notificaciones@mail.tudominio.com>`.
+Remitente final: `SkillBridge AI <notificaciones@mail.skillbridgeai.online>`.
 
 ---
 
 ## 2. Verificar el dominio en Resend y crear los registros DNS en Hostinger
 
 ### 2.1 En Resend
-1. Crea la cuenta en <https://resend.com> (Dylan es dueño). Plan gratis: 3.000 correos al mes, 100 al día y 1 dominio, suficiente para el proyecto.
+1. Crea la cuenta en <https://resend.com>. El dueño es **Mateo Munera**, el líder del grupo. Plan gratis: 3.000 correos al mes, 100 al día y 1 dominio, suficiente para el proyecto.
 2. **Domains → Add Domain**.
-   - Name: `mail.tudominio.com`
+   - Name: `mail.skillbridgeai.online`
    - Region: `South America (São Paulo) – sa-east-1` (la más cercana a Colombia) o la que sugiera Resend.
 3. Resend muestra una tabla de registros. **Copia los valores EXACTOS de tu pantalla.** Se verán así:
 
@@ -66,30 +80,30 @@ Remitente final: `SkillBridge AI <notificaciones@mail.tudominio.com>`.
 1. **Dominios → Portafolio de dominios →** tu dominio **→ Administrar → DNS / Nameservers →** pestaña **Registros DNS**.
 2. Por cada fila de la tabla de Resend, en **"Administrar registros DNS"**:
    - **Tipo:** MX o TXT.
-   - **Nombre:** sólo la parte del host, **sin** el dominio: `send.mail`, `resend._domainkey.mail`. Hostinger agrega `.tudominio.com` solo.
+   - **Nombre:** sólo la parte del host, **sin** el dominio: `send.mail`, `resend._domainkey.mail`. Hostinger agrega `.skillbridgeai.online` solo.
    - **Apunta a / Contenido / Valor:** pega el valor tal cual (sin comillas extra).
    - **Prioridad** (sólo MX): `10`.
    - **TTL:** deja el valor por defecto (14400) o pon `3600`.
    - Haz clic en **Agregar registro**.
-3. **Recomendado: DMARC.** Mejora la entregabilidad y Gmail lo exige para volúmenes altos.
+3. **DMARC: ✅ ya existe en `skillbridgeai.online`** (`v=DMARC1; p=none`) y cubre a `mail.`, así que **no crees otro**. Como referencia, el formato es:
 
 | Tipo | Nombre | Valor |
 |---|---|---|
 | TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:tu-correo@gmail.com` |
 
-> Errores típicos: escribir `send.mail.tudominio.com` en "Nombre" (queda duplicado como `send.mail.tudominio.com.tudominio.com`), o borrar el `p=` del DKIM.
+> Errores típicos: escribir `send.mail.skillbridgeai.online` en "Nombre" (queda duplicado como `send.mail.skillbridgeai.online.skillbridgeai.online`), o borrar el `p=` del DKIM.
 
 ### 2.3 Comprobar la propagación y verificar
 
 ```bash
 # Debe responder con el valor de SPF
-dig +short TXT send.mail.tudominio.com
+dig +short TXT send.mail.skillbridgeai.online
 
 # Debe responder con la llave DKIM (p=...)
-dig +short TXT resend._domainkey.mail.tudominio.com
+dig +short TXT resend._domainkey.mail.skillbridgeai.online
 
 # Debe responder "10 feedback-smtp.sa-east-1.amazonses.com."
-dig +short MX send.mail.tudominio.com
+dig +short MX send.mail.skillbridgeai.online
 ```
 
 > En Arch Linux, `dig` viene en el paquete `bind` (`sudo pacman -S bind`). Alternativa web: <https://dnschecker.org>.
@@ -107,8 +121,8 @@ En la configuración del dominio en Resend, **desactiva Click tracking y Open tr
 
 | Nombre | Permiso | Dominio | Quién la usa |
 |---|---|---|---|
-| `skillbridge-dev-dylan` | **Sending access** | `mail.tudominio.com` | Dylan (local) |
-| `skillbridge-dev-kevin` | Sending access | `mail.tudominio.com` | Kevin (local) |
+| `skillbridge-dev-dylan` | **Sending access** | `mail.skillbridgeai.online` | Dylan (local) |
+| `skillbridge-dev-kevin` | Sending access | `mail.skillbridgeai.online` | Kevin (local) |
 | `skillbridge-dev-leonardo` | **Full access** (sólo dev) | — | Leonardo (local: el health check usa `domains.list`, que requiere Full access) |
 | `skillbridge-prod` | **Full access** | — | Despliegue (§8). El `/health` consulta `domains.list` |
 
@@ -134,8 +148,8 @@ Agrega al final de tu `.env` (el que **no** se sube):
 EMAIL_DRIVER=resend
 RESEND_API_KEY=re_tu_llave_personal
 RESEND_WEBHOOK_SECRET=whsec_del_endpoint_de_webhook   # §9
-MAIL_FROM=SkillBridge AI <notificaciones@mail.tudominio.com>
-MAIL_REPLY_TO=
+MAIL_FROM=SkillBridge AI <notificaciones@mail.skillbridgeai.online>
+MAIL_REPLY_TO=support@skillbridgeai.online
 # En desarrollo, redirige TODO a tu correo para no escribirle a cuentas de prueba
 MAIL_REDIRECT_TO=tu-correo-personal@gmail.com
 FRONTEND_URL=http://localhost:8088
@@ -147,7 +161,7 @@ FRONTEND_URL=http://localhost:8088
 | `RESEND_API_KEY` | Autenticación con Resend | `re_...` (obligatoria si `resend`) |
 | `RESEND_WEBHOOK_SECRET` | Verificar la firma de los webhooks (§9) | `whsec_...`. Sin él, `/webhooks/resend` responde 503 |
 | `MAIL_FROM` | Remitente visible | `Nombre <direccion@dominio-verificado>` |
-| `MAIL_REPLY_TO` | Dirección a la que llegan las respuestas (opcional) | Por ejemplo, `soporte@tudominio.com` |
+| `MAIL_REPLY_TO` | Dirección a la que llegan las respuestas (opcional) | `support@skillbridgeai.online` (buzón de Hostinger) |
 | `MAIL_REDIRECT_TO` | **Sólo desarrollo**: redirige todos los correos | Tu correo, o vacío en producción |
 | `FRONTEND_URL` | Base de los botones de los correos | `http://localhost:8088` / URL de producción |
 
@@ -157,7 +171,7 @@ Puedes probar **hoy mismo** sin dominio:
 ```dotenv
 EMAIL_DRIVER=resend
 MAIL_FROM=SkillBridge AI <onboarding@resend.dev>
-MAIL_REDIRECT_TO=<el correo con el que Dylan creó la cuenta de Resend>
+MAIL_REDIRECT_TO=<el correo con el que Mateo creó la cuenta de Resend>
 ```
 
 `onboarding@resend.dev` es el remitente de pruebas de Resend. **Sólo** puede enviar al correo del dueño de la cuenta, por eso se combina con `MAIL_REDIRECT_TO`. También puedes enviar a las direcciones de prueba `delivered@resend.dev` y `bounced@resend.dev` (no llegan a nadie, pero aparecen en el dashboard).
@@ -220,7 +234,7 @@ En el proveedor donde corra el compose o los contenedores (ver `docs/DEPLOYMENT-
 |---|---|
 | `EMAIL_DRIVER` | `resend` |
 | `RESEND_API_KEY` | Llave `skillbridge-prod` (como **secreto** del proveedor) |
-| `MAIL_FROM` | `SkillBridge AI <notificaciones@mail.tudominio.com>` |
+| `MAIL_FROM` | `SkillBridge AI <notificaciones@mail.skillbridgeai.online>` |
 | `MAIL_REDIRECT_TO` | **vacío** (si queda con valor, ¡ningún usuario recibe sus correos!) |
 | `FRONTEND_URL` | URL pública del frontend (por ejemplo, `https://skillbridge.vercel.app`) |
 | `RABBITMQ_URL` | La misma del backend. Si es un RabbitMQ administrado (CloudAMQP, etc.), usar `amqps://...` |
@@ -230,7 +244,7 @@ En el proveedor donde corra el compose o los contenedores (ver `docs/DEPLOYMENT-
 
 Checklist de salida a producción:
 - [ ] Dominio **Verified** en Resend.
-- [ ] DMARC publicado.
+- [x] DMARC publicado (ya existía en la raíz).
 - [ ] `MAIL_REDIRECT_TO` vacío.
 - [ ] Prueba real: registrar un usuario con un correo propio y verificar que llega a **Recibidos** (no a Spam).
 - [ ] Webhook de producción configurado con la URL real (`https://<dominio-api>/webhooks/resend`).

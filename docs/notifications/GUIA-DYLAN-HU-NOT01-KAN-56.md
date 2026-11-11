@@ -1813,8 +1813,8 @@ RESEND_API_KEY=
 # Secreto de firma del webhook de Resend (empieza por whsec_). Ver CONFIGURACION-DOMINIO-Y-SECRETOS.md §9
 RESEND_WEBHOOK_SECRET=
 # Remitente de un dominio VERIFICADO. Mientras no lo esté: SkillBridge AI <onboarding@resend.dev>
-MAIL_FROM=SkillBridge AI <notificaciones@mail.tudominio.com>
-MAIL_REPLY_TO=
+MAIL_FROM=SkillBridge AI <notificaciones@mail.skillbridgeai.online>
+MAIL_REPLY_TO=support@skillbridgeai.online
 # Sólo desarrollo: redirige TODOS los correos a esta dirección
 MAIL_REDIRECT_TO=
 FRONTEND_URL=http://localhost:8088
