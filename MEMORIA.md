@@ -2,6 +2,91 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-11] Plan y guías de la épica "Notificaciones por correo" (microservicio NestJS + Resend + RabbitMQ)
+- **Agente:** Claude Code (Claude Opus 5.5), solicitado por Dylan (líder de la épica)
+- **Objetivo:** Analizar el repositorio y planificar un microservicio NestJS (`notification-service`) que envíe correos con Resend cuando cambie el estado de la cuenta de un usuario o administrador. Repartir el trabajo entre 3 personas con guías paso a paso que incluyan código listo para copiar y su explicación. **Sólo documentación**: no se modificó código fuente ni se hicieron commits, por decisión del usuario.
+- **Hallazgos del análisis:**
+  - RabbitMQ estaba configurado (`RabbitConfiguration`, retry del listener), pero sin publicadores ni consumidores. La topología `booking.*` es legacy (V8 eliminó `bookings`).
+  - No existía envío de correos.
+  - `PATCH /api/users/{id}/status` no tiene autorización y `login` no bloquea usuarios INACTIVE. Se documentaron como sugerencias opcionales en la Guía A, Paso 13.
+  - El dashboard de Grafana `notifications.json` ya existía; las métricas nuevas reutilizan sus nombres.
+  - `prometheus.yml` referencia `rules/`, que no está montado en compose.
+- **Decisiones:**
+  - Exchange topic `skillbridge.events` con routing keys `user.registered|created|status.changed|role.changed|deleted`.
+  - Colas `notifications.user-events`, `.retry` (TTL por mensaje) y `.dlq`.
+  - Idempotencia con `eventId` + `idempotencyKey` de Resend.
+  - `EMAIL_DRIVER=log|resend`.
+  - Sin migraciones Flyway y sin cambios en el frontend.
+  - Detalle en ADR-0005.
+- **Archivos creados y actualizados:**
+  - `docs/notifications/PLAN.md` (NUEVO): arquitectura, cronograma del día, ramas, Definition of Done, checklist E2E y riesgos.
+  - `docs/notifications/CONTRACT.md` (NUEVO) y `docs/notifications/contract/*.json` (NUEVO, 5 fixtures compartidos por las pruebas de Java y Nest).
+  - `docs/notifications/GUIA-PERSONA-A-JAVA.md` (NUEVO): evento de dominio, puerto, `UserEventEmitter`, adaptador RabbitMQ, cambios en servicios y controllers, pruebas.
+  - `docs/notifications/GUIA-PERSONA-B-NEST-CORE.md` (NUEVO): scaffold NestJS 11, validación de entorno, política, consumidor con retry y DLQ, métricas, health y pruebas.
+  - `docs/notifications/GUIA-PERSONA-C-RESEND-OPS.md` (NUEVO): adaptador Resend, 8 plantillas en español, Dockerfile, compose, Makefile, Prometheus y CI.
+  - `docs/notifications/CONFIGURACION-DOMINIO-Y-SECRETOS.md` (NUEVO): compra del dominio en Hostinger, DNS (SPF/DKIM/MX/DMARC), API keys de Resend y variables por capa.
+  - `docs/notifications/JIRA.md` (NUEVO): conexión del conector Atlassian y desglose de la épica.
+  - `docs/adr/0005-notification-microservice-nestjs-resend.md` (NUEVO).
+- **Validación:**
+  - El código TypeScript de las guías B y C se extrajo automáticamente a un proyecto de prueba fuera del repo, generado con `@nestjs/cli@11`. Resultado: `tsc` sin errores, `eslint` limpio (después de `npm run format`), `nest build` correcto y **38/38 pruebas Jest** en verde.
+  - Esa verificación detectó y corrigió en las guías: `@nestjs/config@12` y `@golevelup/nestjs-rabbitmq@>=7` son ESM y rompen Jest (se fijaron `@4` y `@6`), y faltaba `import 'reflect-metadata'` en el DTO.
+  - Los fixtures JSON se validaron con `JSON.parse`.
+  - **No verificado aquí:** el código Java de la Guía A (no había Maven ni JDK 21 en el entorno) y la prueba con RabbitMQ real (sin acceso a Docker). Ambos quedan en el checklist E2E (`PLAN.md` §6).
+- **Actualización (mismo día):**
+  - El equipo aprobó `MAIL_REDIRECT_TO` y corregir las fallas de seguridad dentro de la épica.
+  - El Paso 13 de la Guía A pasa a ser obligatorio, con código y pruebas:
+    - `AccountAccessDeniedException` → 403 en `GlobalExceptionHandler`.
+    - `ensureCanManage` (sólo ADMIN o el dueño de la cuenta) en `changeStatus` y `deleteUserAccount`.
+    - Prohibido desactivar al ADMIN.
+    - Rechazo del login de cuentas INACTIVE después de validar la contraseña (sin enumeración de usuarios).
+    - Nuevo `AuthServiceTest`.
+  - Se confirmó que `DatabaseUserDetailsService` ya invalida al instante las sesiones de usuarios INACTIVE.
+  - Pendiente fuera de la épica: botón de activar/desactivar en el panel admin de Angular.
+- **Actualización 2 (mismo día), alineación con Jira (épica KAN-49):**
+  - Se leyeron KAN-56/57/58 y se reestructuró el reparto: Dylan (KAN-59 Java + KAN-56), Kevin (KAN-57) y Leonardo (KAN-58).
+  - Se creó **KAN-59** (HU-NOT00, lado Java + seguridad).
+  - Se ajustaron los CA de KAN-56/57/58 y se comentó la guía de cada uno.
+  - Decisiones del equipo:
+    - eventos de cuenta + `enrollment.created` (confirmación de reserva); el recordatorio de sesión queda en el backlog;
+    - idempotencia en Redis (base 1, `SET NX`);
+    - `NotificationLog` en una BD propia `notifications` (TypeORM);
+    - webhooks de Resend verificados con Svix;
+    - Terminus, Swagger y Handlebars;
+    - reintentos exponenciales 5 s/30 s/2 min → `dlq.notifications`;
+    - el microservicio se renombra a `notifications-service`.
+  - Archivos nuevos o reescritos:
+    - `GUIA-DYLAN-HU-NOT00-JAVA.md` (antes Guía A; se agrega `enrollment.created`);
+    - `GUIA-DYLAN-HU-NOT01-KAN-56.md`, `GUIA-KEVIN-HU-NOT02-KAN-57.md` y `GUIA-LEONARDO-HU-NOT03-KAN-58.md` (reemplazan a las guías B y C);
+    - `contract/enrollment.created.json`;
+    - `PLAN.md`, `CONTRACT.md`, `CONFIGURACION-DOMINIO-Y-SECRETOS.md` (Redis, BD y §9 webhooks), `JIRA.md` y ADR-0005.
+  - **Validación:** las guías se **generaron a partir del código verificado** y se aplicaron en orden (Dylan → Kevin → Leonardo) sobre un proyecto NestJS vacío: el `src` resultante es idéntico al verificado; `tsc`, ESLint y `nest build` limpios, **70/70 pruebas Jest**, y las plantillas `.hbs` se copian a `dist`.
+  - **Sin verificar:** el Java (no hay Maven ni JDK 21) y la ejecución con RabbitMQ, Redis y Postgres reales (sin acceso a Docker). Una prueba de humo del arranque llegó a los intentos de conexión sin errores de inyección.
+- **Próximos pasos:** Dylan sube la base (KAN-56, Bloque 0) para desbloquear a Kevin y Leonardo; integración en `feature/notificaciones` y checklist E2E (`PLAN.md` §6).
+
+## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
+- **Agente:** Antigravity (Senior Fullstack Architect)
+- **Objetivo:** Crear documentación exhaustiva individual para las carpetas `backend/` y `frontend/`, incorporar diagramas concisos Mermaid y documentar detalladamente los comandos de terminal para ejecutar cada servicio por separado y en conjunto.
+- **Archivos creados y actualizados:**
+  - `backend/README.md` (NUEVO): Stack tecnológico detallado (Java 21, Spring Boot 3.5.x, Spring AI), diagrama de arquitectura hexagonal y puertos/adaptadores en Mermaid, flujos de secuencia concisos (Cache-Aside con Redis, Event-Driven con RabbitMQ y DLQ, y Mini-Assessment con Google Gemini), tabla completa de variables de entorno del backend y comandos de terminal detallados para ejecutar localmente con Maven, correr pruebas unitarias con JaCoCo y verificar Actuator.
+  - `frontend/README.md` (NUEVO): Stack de Angular 20 (Standalone Components, TypeScript 5.9, RxJS), diagrama de jerarquía y enrutamiento con Guards, diagrama de secuencia del modal de diagnóstico técnico interactivo, seguridad de frontend (cero secretos, interceptor JWT y overlay modal de sesión expirada) y comandos de terminal para instalar, correr dev server con proxy a Spring Boot (`npm start`), correr pruebas unitarias y compilar a producción.
+  - `README.md`: Modernización integral del documento raíz: incorporación de un **Docs Hub** para navegar entre todas las guías, diagrama Mermaid general de arquitectura de extremo a extremo, sección dedicada con **Comandos de Terminal para Ejecutar Cada Servicio** (Docker Compose, modo híbrido local de desarrollo, pruebas automatizadas, observabilidad) y tabla comparativa de puertos locales (Docker vs Host).
+- **Validación:** Comprobación de consistencia de puertos y comandos entre `docker-compose.yml`, `Makefile`, `backend/pom.xml` y `frontend/package.json`.
+
+## [2026-11-09] Documentación Senior Exhaustiva del Subsistema de IA y Complementación Global de `docs/`
+- **Agente:** Antigravity (Senior Technical Lead & Software Architect)
+- **Objetivo:** Crear la documentación técnica completa del subsistema de Inteligencia Artificial y complementar y actualizar exhaustivamente toda la carpeta `docs/` (API, Arquitectura, Changelog, Checklist de Despliegue, Guía del Instructor y ADRs).
+- **Archivos creados y actualizados:**
+  - `docs/AI.md` (NUEVO): Especificación integral del subsistema de IA con Google Gemini (Spring AI ChatClient, Arquitectura Hexagonal, puertos y adaptadores, grounding semántico, mini-diagnóstico de prerrequisitos, proyección segura anti-trampas, dual-tier caching Redis + local, análisis recursivo de causas para errores 429/503 y gobernanza de secretos).
+  - `docs/API.md`: Actualización exhaustiva del catálogo de endpoints REST (Auth, Perfil, Catálogo con Cache-Aside, Gestión de Proveedor y Horarios, Inscripciones con políticas de reembolso, Historial/Notificaciones, Endpoints de IA, LiveKit WebRTC y Actuator).
+  - `docs/ARCHITECTURE.md`: Expansión de la arquitectura hexagonal, principios de diseño, diagramas ASCII, patrones Cache-Aside, Dual-Tier Session Cache, EDA con RabbitMQ y DLQ, y seguridad por capas.
+  - `docs/architecture.mmd`: Diagrama Mermaid ampliado con todas las capas (Frontend, Nginx, Hexagonal Core, Redis, PostgreSQL, RabbitMQ DLQ, LiveKit WebRTC, Gemini AI y Prometheus/Grafana).
+  - `docs/CHANGES-HISTORY.md`: Inicialización y formalización del changelog de versiones del proyecto (v1.0.0 a v1.3.0) bajo el estándar Keep a Changelog.
+  - `docs/DEPLOYMENT-CHECKLIST.md`: Ampliación con pre-flight checks de seguridad (TLS, CSRF, variables de LiveKit y Gemini Flash-Lite) y smoke tests post-despliegue.
+  - `docs/INSTRUCTOR-GUIDE.md`: Complementación pedagógica con secuencia didáctica de IA y LiveKit, rúbrica detallada y banco de preguntas de sustentación oral.
+  - `docs/adr/0003-spring-ai-gemini-integration.md` (NUEVO): ADR para la integración de Spring AI, selección de `gemini-3.1-flash-lite` y puertos de salida.
+  - `docs/adr/0004-two-tier-session-cache-for-ai-assessments.md` (NUEVO): ADR para la arquitectura de caché en dos niveles (Redis + ConcurrentHashMap).
+- **Validación:** Verificación de consistencia con las clases y contratos reales del backend y reglas estipuladas en `AGENTS.md`.
+
 ## [2026-10-21] HU-29.7: test de simulación de clase en vivo con tráfico WebRTC sintético
 - **Agente:** GitHub Copilot
 - **Objetivo:** Verificar la simulación de una clase en vivo con Tutor y Alumno, tráfico WebRTC sintético y criterios CA 7.1, CA 7.2 y CA 7.3.
@@ -74,6 +159,71 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - Backend: 102/102 pruebas unitarias exitosas con Maven (`BUILD SUCCESS`).
   - Frontend: Compilación limpia (`npm run build`) y sincronización con el contenedor Nginx.
   - LiveKit Server: Reiniciado e inicializado correctamente con `nodeIP: "127.0.0.1"`, puerto HTTP 7880 y UDP 7882.
+  - El contenedor `skillbridge-ai-livekit-1` arrancó limpiamente con estado `Up` y enrutamiento `single-node`.
+  - Puertos 7880/tcp, 7881/tcp y 7882/udp expuestos y accesibles correctamente en `0.0.0.0`.
+  - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2 y CA 1.3.
+
+## [2026-11-11] HU-30.1 Despliegue y Aprovisionamiento del Clúster Spark y PySpark con Docker
+- **Contexto:** Habilitar un entorno analítico distribuido con Apache Spark y PySpark integrado en Docker Compose para el procesamiento masivo de datos, algoritmos de recomendación (Spark MLlib) y analítica avanzada, sin acoplamiento con el backend de Spring Boot.
+- **Acciones Realizadas:**
+  - **Módulo Independiente (`analytics-service/`):**
+    - Se creó `Dockerfile` basado en `apache/spark:3.5.1-python3` con descarga automática del driver JDBC oficial de PostgreSQL (`postgresql-42.7.3.jar`) y configuración de usuario no privilegiado (`spark`).
+    - Se creó `requirements.txt` especificando `pyspark==3.5.1`.
+    - Se implementó `jobs/smoke_test.py` con validación estricta de variables de entorno de conexión, inicialización de `SparkSession` distribuida y verificación de consulta JDBC (`SELECT 1`) contra PostgreSQL.
+  - **Orquestación en Docker (`docker-compose.yml`):**
+    - Se configuraron los servicios `spark-master` (nodo coordinador) y `spark-worker` (nodo ejecutor con 2 cores y 1 GB de memoria).
+    - Mapeo de puertos para interfaces web de monitoreo: puerto `8080` (Spark Master Web UI), puerto `8081` (Worker Web UI) y puerto `4040` (Spark Application UI).
+    - Montaje de volumen bind `./analytics-service/jobs:/app/jobs` para hot-reload de scripts de Python.
+    - Integración en la red interna `skillbridge` con dependencia de salud de `postgres`.
+- **Validación:**
+  - Contenedores `skillbridge-spark-master` y `skillbridge-spark-worker` en ejecución y registrados en el clúster.
+  - Spark Master Web UI operativa y respondiendo HTTP 200 en `http://localhost:8080`.
+  - Ejecución de `smoke_test.py` exitosa mediante `spark-submit`, comprobando conectividad JDBC bidireccional y lectura de DataFrame desde PostgreSQL.
+  - Cumplimiento verificado de los criterios de aceptación CA 1.1, CA 1.2, CA 1.3 y CA 1.4.
+
+## [2026-10-19] Integración del SDK de LiveKit y Configuración de Secretos (Arquitectura Hexagonal)
+- **Autor / Implementación:** Juan Vargas
+- **Contexto:** Habilitar el soporte en el backend para la generación de tokens de acceso y comunicación con el servidor de videollamadas LiveKit respetando las reglas de arquitectura hexagonal y seguridad de credenciales.
+- **Cambios realizados:**
+  - **Gestión de Secretos y Variables de Entorno (`.env.example`, `docker-compose.yml`):**
+    - Se definieron y documentaron las variables `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` y `LIVEKIT_URL`.
+    - Se configuró la inyección de estas variables de entorno en el contenedor del servicio `backend` en Docker Compose con fallback seguro para desarrollo local (`http://livekit:7880`).
+    - Se ajustaron las credenciales en el servicio `livekit` (`LIVEKIT_KEYS`) evitando exponer variables innecesarias al contenedor del servidor WebRTC.
+  - **Mapeo de Configuración Spring Boot (`application.yml` y `application.yml` de test):**
+    - Se incorporó el bloque `app.livekit` con propiedades para URL, API Key y Secret en el archivo principal y en el de pruebas.
+  - **Dependencias Maven (`backend/pom.xml`):**
+    - Inclusión del SDK oficial `io.livekit:livekit-server:0.13.0` para la generación criptográfica de tokens y gestión de salas.
+  - **Arquitectura Hexagonal (Backend Java):**
+    - **Configuración (`infrastructure/config/LiveKitConfiguration.java`):** Clase `@Configuration` para inyectar las propiedades desde Spring y exponer el bean `RoomServiceClient` para administración de salas.
+    - **Puerto de Salida (`application/port/out/LiveKitVideoPort.java`):** Definición de la interfaz del contrato para abstraer la generación de tokens JWT de sala (`generateAccessToken`), aislando la lógica de negocio del proveedor de WebRTC.
+    - **Adaptador de Salida (`infrastructure/adapter/out/livekit/LiveKitVideoAdapter.java`):** Implementación técnica del puerto usando el SDK de LiveKit (`AccessToken`, `RoomJoin`, `RoomName`), firmando los tokens con HMAC-SHA256 usando el secreto inyectado sin exponerlo al cliente.
+# Historial de Cambios (Memoria de Agentes)
+
+Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
+
+## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
+- **Agente:** Antigravity (Senior Fullstack Architect)
+- **Objetivo:** Crear documentación exhaustiva individual para las carpetas `backend/` y `frontend/`, incorporar diagramas concisos Mermaid y documentar detalladamente los comandos de terminal para ejecutar cada servicio por separado y en conjunto.
+- **Archivos creados y actualizados:**
+  - `backend/README.md` (NUEVO): Stack tecnológico detallado (Java 21, Spring Boot 3.5.x, Spring AI), diagrama de arquitectura hexagonal y puertos/adaptadores en Mermaid, flujos de secuencia concisos (Cache-Aside con Redis, Event-Driven con RabbitMQ y DLQ, y Mini-Assessment con Google Gemini), tabla completa de variables de entorno del backend y comandos de terminal detallados para ejecutar localmente con Maven, correr pruebas unitarias con JaCoCo y verificar Actuator.
+  - `frontend/README.md` (NUEVO): Stack de Angular 20 (Standalone Components, TypeScript 5.9, RxJS), diagrama de jerarquía y enrutamiento con Guards, diagrama de secuencia del modal de diagnóstico técnico interactivo, seguridad de frontend (cero secretos, interceptor JWT y overlay modal de sesión expirada) y comandos de terminal para instalar, correr dev server con proxy a Spring Boot (`npm start`), correr pruebas unitarias y compilar a producción.
+  - `README.md`: Modernización integral del documento raíz: incorporación de un **Docs Hub** para navegar entre todas las guías, diagrama Mermaid general de arquitectura de extremo a extremo, sección dedicada con **Comandos de Terminal para Ejecutar Cada Servicio** (Docker Compose, modo híbrido local de desarrollo, pruebas automatizadas, observabilidad) y tabla comparativa de puertos locales (Docker vs Host).
+- **Validación:** Comprobación de consistencia de puertos y comandos entre `docker-compose.yml`, `Makefile`, `backend/pom.xml` y `frontend/package.json`.
+
+## [2026-11-09] Documentación Senior Exhaustiva del Subsistema de IA y Complementación Global de `docs/`
+- **Agente:** Antigravity (Senior Technical Lead & Software Architect)
+- **Objetivo:** Crear la documentación técnica completa del subsistema de Inteligencia Artificial y complementar y actualizar exhaustivamente toda la carpeta `docs/` (API, Arquitectura, Changelog, Checklist de Despliegue, Guía del Instructor y ADRs).
+- **Archivos creados y actualizados:**
+  - `docs/AI.md` (NUEVO): Especificación integral del subsistema de IA con Google Gemini (Spring AI ChatClient, Arquitectura Hexagonal, puertos y adaptadores, grounding semántico, mini-diagnóstico de prerrequisitos, proyección segura anti-trampas, dual-tier caching Redis + local, análisis recursivo de causas para errores 429/503 y gobernanza de secretos).
+  - `docs/API.md`: Actualización exhaustiva del catálogo de endpoints REST (Auth, Perfil, Catálogo con Cache-Aside, Gestión de Proveedor y Horarios, Inscripciones con políticas de reembolso, Historial/Notificaciones, Endpoints de IA, LiveKit WebRTC y Actuator).
+  - `docs/ARCHITECTURE.md`: Expansión de la arquitectura hexagonal, principios de diseño, diagramas ASCII, patrones Cache-Aside, Dual-Tier Session Cache, EDA con RabbitMQ y DLQ, y seguridad por capas.
+  - `docs/architecture.mmd`: Diagrama Mermaid ampliado con todas las capas (Frontend, Nginx, Hexagonal Core, Redis, PostgreSQL, RabbitMQ DLQ, LiveKit WebRTC, Gemini AI y Prometheus/Grafana).
+  - `docs/CHANGES-HISTORY.md`: Inicialización y formalización del changelog de versiones del proyecto (v1.0.0 a v1.3.0) bajo el estándar Keep a Changelog.
+  - `docs/DEPLOYMENT-CHECKLIST.md`: Ampliación con pre-flight checks de seguridad (TLS, CSRF, variables de LiveKit y Gemini Flash-Lite) y smoke tests post-despliegue.
+  - `docs/INSTRUCTOR-GUIDE.md`: Complementación pedagógica con secuencia didáctica de IA y LiveKit, rúbrica detallada y banco de preguntas de sustentación oral.
+  - `docs/adr/0003-spring-ai-gemini-integration.md` (NUEVO): ADR para la integración de Spring AI, selección de `gemini-3.1-flash-lite` y puertos de salida.
+  - `docs/adr/0004-two-tier-session-cache-for-ai-assessments.md` (NUEVO): ADR para la arquitectura de caché en dos niveles (Redis + ConcurrentHashMap).
+- **Validación:** Verificación de consistencia con las clases y contratos reales del backend y reglas estipuladas en `AGENTS.md`.
 
 ## [2026-10-05] Inicialización de Memoria y Contexto
 - **Agente:** Antigravity (Gemini 3.1 Pro)

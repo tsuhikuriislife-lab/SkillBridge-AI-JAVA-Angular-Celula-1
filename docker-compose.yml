@@ -156,6 +156,63 @@ services:
       - "127.0.0.1:6789:6789"
     networks: [ skillbridge ]
 
+  spark-master:
+    build:
+      context: ./analytics-service
+    container_name: skillbridge-spark-master
+    command: [ "/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master" ]
+    environment:
+      SPARK_MODE: master
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-skillbridge}
+      POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./analytics-service/jobs:/app/jobs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [ skillbridge ]
+
+  spark-worker:
+    build:
+      context: ./analytics-service
+    container_name: skillbridge-spark-worker
+    command: [ "/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077" ]
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 1g
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-skillbridge}
+      POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
+    ports:
+      - "8081:8081"
+      - "4040:4040"
+    volumes:
+      - ./analytics-service/jobs:/app/jobs
+    depends_on:
+      spark-master:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    networks: [ skillbridge ]
+
 networks:
   skillbridge:
     driver: bridge
