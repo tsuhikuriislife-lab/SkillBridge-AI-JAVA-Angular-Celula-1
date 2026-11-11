@@ -2,6 +2,30 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
+- **Agente:** Antigravity (Senior Fullstack Architect)
+- **Objetivo:** Crear documentación exhaustiva individual para las carpetas `backend/` y `frontend/`, incorporar diagramas concisos Mermaid y documentar detalladamente los comandos de terminal para ejecutar cada servicio por separado y en conjunto.
+- **Archivos creados y actualizados:**
+  - `backend/README.md` (NUEVO): Stack tecnológico detallado (Java 21, Spring Boot 3.5.x, Spring AI), diagrama de arquitectura hexagonal y puertos/adaptadores en Mermaid, flujos de secuencia concisos (Cache-Aside con Redis, Event-Driven con RabbitMQ y DLQ, y Mini-Assessment con Google Gemini), tabla completa de variables de entorno del backend y comandos de terminal detallados para ejecutar localmente con Maven, correr pruebas unitarias con JaCoCo y verificar Actuator.
+  - `frontend/README.md` (NUEVO): Stack de Angular 20 (Standalone Components, TypeScript 5.9, RxJS), diagrama de jerarquía y enrutamiento con Guards, diagrama de secuencia del modal de diagnóstico técnico interactivo, seguridad de frontend (cero secretos, interceptor JWT y overlay modal de sesión expirada) y comandos de terminal para instalar, correr dev server con proxy a Spring Boot (`npm start`), correr pruebas unitarias y compilar a producción.
+  - `README.md`: Modernización integral del documento raíz: incorporación de un **Docs Hub** para navegar entre todas las guías, diagrama Mermaid general de arquitectura de extremo a extremo, sección dedicada con **Comandos de Terminal para Ejecutar Cada Servicio** (Docker Compose, modo híbrido local de desarrollo, pruebas automatizadas, observabilidad) y tabla comparativa de puertos locales (Docker vs Host).
+- **Validación:** Comprobación de consistencia de puertos y comandos entre `docker-compose.yml`, `Makefile`, `backend/pom.xml` y `frontend/package.json`.
+
+## [2026-11-09] Documentación Senior Exhaustiva del Subsistema de IA y Complementación Global de `docs/`
+- **Agente:** Antigravity (Senior Technical Lead & Software Architect)
+- **Objetivo:** Crear la documentación técnica completa del subsistema de Inteligencia Artificial y complementar y actualizar exhaustivamente toda la carpeta `docs/` (API, Arquitectura, Changelog, Checklist de Despliegue, Guía del Instructor y ADRs).
+- **Archivos creados y actualizados:**
+  - `docs/AI.md` (NUEVO): Especificación integral del subsistema de IA con Google Gemini (Spring AI ChatClient, Arquitectura Hexagonal, puertos y adaptadores, grounding semántico, mini-diagnóstico de prerrequisitos, proyección segura anti-trampas, dual-tier caching Redis + local, análisis recursivo de causas para errores 429/503 y gobernanza de secretos).
+  - `docs/API.md`: Actualización exhaustiva del catálogo de endpoints REST (Auth, Perfil, Catálogo con Cache-Aside, Gestión de Proveedor y Horarios, Inscripciones con políticas de reembolso, Historial/Notificaciones, Endpoints de IA, LiveKit WebRTC y Actuator).
+  - `docs/ARCHITECTURE.md`: Expansión de la arquitectura hexagonal, principios de diseño, diagramas ASCII, patrones Cache-Aside, Dual-Tier Session Cache, EDA con RabbitMQ y DLQ, y seguridad por capas.
+  - `docs/architecture.mmd`: Diagrama Mermaid ampliado con todas las capas (Frontend, Nginx, Hexagonal Core, Redis, PostgreSQL, RabbitMQ DLQ, LiveKit WebRTC, Gemini AI y Prometheus/Grafana).
+  - `docs/CHANGES-HISTORY.md`: Inicialización y formalización del changelog de versiones del proyecto (v1.0.0 a v1.3.0) bajo el estándar Keep a Changelog.
+  - `docs/DEPLOYMENT-CHECKLIST.md`: Ampliación con pre-flight checks de seguridad (TLS, CSRF, variables de LiveKit y Gemini Flash-Lite) y smoke tests post-despliegue.
+  - `docs/INSTRUCTOR-GUIDE.md`: Complementación pedagógica con secuencia didáctica de IA y LiveKit, rúbrica detallada y banco de preguntas de sustentación oral.
+  - `docs/adr/0003-spring-ai-gemini-integration.md` (NUEVO): ADR para la integración de Spring AI, selección de `gemini-3.1-flash-lite` y puertos de salida.
+  - `docs/adr/0004-two-tier-session-cache-for-ai-assessments.md` (NUEVO): ADR para la arquitectura de caché en dos niveles (Redis + ConcurrentHashMap).
+- **Validación:** Verificación de consistencia con las clases y contratos reales del backend y reglas estipuladas en `AGENTS.md`.
+
 ## [2026-10-21] HU-29.7: test de simulación de clase en vivo con tráfico WebRTC sintético
 - **Agente:** GitHub Copilot
 - **Objetivo:** Verificar la simulación de una clase en vivo con Tutor y Alumno, tráfico WebRTC sintético y criterios CA 7.1, CA 7.2 y CA 7.3.
@@ -615,6 +639,30 @@ Java solicita API 1.32 y el daemon exige 1.44. El cambio de `DOCKER_API_VERSION`
 # Historial de Cambios (Memoria de Agentes)
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
+
+## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
+- **Agente:** Antigravity (Senior Fullstack Architect)
+- **Objetivo:** Crear documentación exhaustiva individual para las carpetas `backend/` y `frontend/`, incorporar diagramas concisos Mermaid y documentar detalladamente los comandos de terminal para ejecutar cada servicio por separado y en conjunto.
+- **Archivos creados y actualizados:**
+  - `backend/README.md` (NUEVO): Stack tecnológico detallado (Java 21, Spring Boot 3.5.x, Spring AI), diagrama de arquitectura hexagonal y puertos/adaptadores en Mermaid, flujos de secuencia concisos (Cache-Aside con Redis, Event-Driven con RabbitMQ y DLQ, y Mini-Assessment con Google Gemini), tabla completa de variables de entorno del backend y comandos de terminal detallados para ejecutar localmente con Maven, correr pruebas unitarias con JaCoCo y verificar Actuator.
+  - `frontend/README.md` (NUEVO): Stack de Angular 20 (Standalone Components, TypeScript 5.9, RxJS), diagrama de jerarquía y enrutamiento con Guards, diagrama de secuencia del modal de diagnóstico técnico interactivo, seguridad de frontend (cero secretos, interceptor JWT y overlay modal de sesión expirada) y comandos de terminal para instalar, correr dev server con proxy a Spring Boot (`npm start`), correr pruebas unitarias y compilar a producción.
+  - `README.md`: Modernización integral del documento raíz: incorporación de un **Docs Hub** para navegar entre todas las guías, diagrama Mermaid general de arquitectura de extremo a extremo, sección dedicada con **Comandos de Terminal para Ejecutar Cada Servicio** (Docker Compose, modo híbrido local de desarrollo, pruebas automatizadas, observabilidad) y tabla comparativa de puertos locales (Docker vs Host).
+- **Validación:** Comprobación de consistencia de puertos y comandos entre `docker-compose.yml`, `Makefile`, `backend/pom.xml` y `frontend/package.json`.
+
+## [2026-11-09] Documentación Senior Exhaustiva del Subsistema de IA y Complementación Global de `docs/`
+- **Agente:** Antigravity (Senior Technical Lead & Software Architect)
+- **Objetivo:** Crear la documentación técnica completa del subsistema de Inteligencia Artificial y complementar y actualizar exhaustivamente toda la carpeta `docs/` (API, Arquitectura, Changelog, Checklist de Despliegue, Guía del Instructor y ADRs).
+- **Archivos creados y actualizados:**
+  - `docs/AI.md` (NUEVO): Especificación integral del subsistema de IA con Google Gemini (Spring AI ChatClient, Arquitectura Hexagonal, puertos y adaptadores, grounding semántico, mini-diagnóstico de prerrequisitos, proyección segura anti-trampas, dual-tier caching Redis + local, análisis recursivo de causas para errores 429/503 y gobernanza de secretos).
+  - `docs/API.md`: Actualización exhaustiva del catálogo de endpoints REST (Auth, Perfil, Catálogo con Cache-Aside, Gestión de Proveedor y Horarios, Inscripciones con políticas de reembolso, Historial/Notificaciones, Endpoints de IA, LiveKit WebRTC y Actuator).
+  - `docs/ARCHITECTURE.md`: Expansión de la arquitectura hexagonal, principios de diseño, diagramas ASCII, patrones Cache-Aside, Dual-Tier Session Cache, EDA con RabbitMQ y DLQ, y seguridad por capas.
+  - `docs/architecture.mmd`: Diagrama Mermaid ampliado con todas las capas (Frontend, Nginx, Hexagonal Core, Redis, PostgreSQL, RabbitMQ DLQ, LiveKit WebRTC, Gemini AI y Prometheus/Grafana).
+  - `docs/CHANGES-HISTORY.md`: Inicialización y formalización del changelog de versiones del proyecto (v1.0.0 a v1.3.0) bajo el estándar Keep a Changelog.
+  - `docs/DEPLOYMENT-CHECKLIST.md`: Ampliación con pre-flight checks de seguridad (TLS, CSRF, variables de LiveKit y Gemini Flash-Lite) y smoke tests post-despliegue.
+  - `docs/INSTRUCTOR-GUIDE.md`: Complementación pedagógica con secuencia didáctica de IA y LiveKit, rúbrica detallada y banco de preguntas de sustentación oral.
+  - `docs/adr/0003-spring-ai-gemini-integration.md` (NUEVO): ADR para la integración de Spring AI, selección de `gemini-3.1-flash-lite` y puertos de salida.
+  - `docs/adr/0004-two-tier-session-cache-for-ai-assessments.md` (NUEVO): ADR para la arquitectura de caché en dos niveles (Redis + ConcurrentHashMap).
+- **Validación:** Verificación de consistencia con las clases y contratos reales del backend y reglas estipuladas en `AGENTS.md`.
 
 ## [2026-10-05] Inicialización de Memoria y Contexto
 - **Agente:** Antigravity (Gemini 3.1 Pro)

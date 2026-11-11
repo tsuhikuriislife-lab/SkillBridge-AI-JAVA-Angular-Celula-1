@@ -1,12 +1,58 @@
 flowchart TD
-    U[Usuario] --> FE[Angular]
-    FE --> NX[Nginx / Vercel Edge]
-    NX --> API[Spring Boot API]
-    API --> PG[(PostgreSQL)]
-    API --> RD[(Redis)]
-    API --> MQ[RabbitMQ]
-    API --> AI[Gemini API]
-    MQ --> C[Async Consumer]
-    API --> ACT[Actuator / Micrometer]
-    ACT --> PR[Prometheus]
-    PR --> GF[Grafana]
+    subgraph Cliente["Capa Cliente & Edge"]
+        U["Usuario / Navegador"]
+        FE["Angular 20 Standalone SPA"]
+        NX["Nginx Reverse Proxy"]
+        U --> FE
+        FE --> NX
+    end
+
+    subgraph Backend["Backend Monolítico (Spring Boot 3.5.x - Arquitectura Hexagonal)"]
+        API["REST Controllers (Inbound)"]
+        APP["Casos de Uso & Lógica de Negocio (Application & Domain)"]
+        PORTS["Puertos de Salida (Outbound Ports)"]
+        CONSUMER["Async Consumer (Idempotente)"]
+        ACT["Actuator & Micrometer"]
+
+        NX -->|/api/*| API
+        API --> APP
+        APP --> PORTS
+    end
+
+    subgraph Persistencia["Datos & Caché"]
+        PG[("PostgreSQL 17\n(System of Record)")]
+        RD[("Redis 8\n(Cache-Aside & Assessment Sessions)")]
+        PORTS -->|JPA Adapter| PG
+        PORTS -->|Redis Template & Local Fallback| RD
+    end
+
+    subgraph Mensajeria["Event-Driven Architecture"]
+        MQ{"RabbitMQ 4 Exchange"}
+        Q_MAIN["Cola Principal\n(BookingCreated)"]
+        Q_DLQ["Dead Letter Queue (DLQ)\n(Reintentos Agotados)"]
+
+        PORTS -->|Publica Evento| MQ
+        MQ -->|Enruta| Q_MAIN
+        Q_MAIN -->|Consume| CONSUMER
+        Q_MAIN -.->|Error tras reintentos| Q_DLQ
+        CONSUMER -->|Persiste Notificación| PG
+    end
+
+    subgraph InteligenciaArtificial["Subsistema de IA"]
+        GEMINI["Google Gemini API\n(gemini-3.1-flash-lite)"]
+        PORTS -->|Spring AI ChatClient\n(Recomendaciones & Diagnósticos)| GEMINI
+    end
+
+    subgraph WebRTC["Tiempo Real Multimedia"]
+        LK["LiveKit SFU Server"]
+        PORTS -->|Genera Token JWT| LK
+        FE <===>|WebRTC Audio/Video Directo| LK
+        LK -->|Webhooks de Sala| API
+    end
+
+    subgraph Observabilidad["Métricas & Telemetría"]
+        PR["Prometheus"]
+        GF["Grafana"]
+        ACT -->|Scrape /actuator/prometheus| PR
+        PR --> GF
+    end
