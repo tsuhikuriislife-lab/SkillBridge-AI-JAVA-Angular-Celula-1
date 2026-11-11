@@ -68,6 +68,11 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - Se revisó el DNS con el conector de Hostinger (sólo lectura, sin cambios): la raíz ya tiene MX, SPF y DKIM del correo de Hostinger y un `_dmarc p=none`. Por eso Resend se configura en el subdominio `mail.skillbridgeai.online` y no se crea DMARC nuevo.
   - Se actualizaron `CONFIGURACION-DOMINIO-Y-SECRETOS.md`, la guía de KAN-56 (`MAIL_FROM` y `MAIL_REPLY_TO`) y `PLAN.md`.
   - Pendiente: los registros MX, SPF y DKIM que genere la cuenta Resend de Mateo.
+- **Actualización 4 (mismo día), DNS de Resend y base del microservicio:**
+  - Base de `notifications-service` (KAN-56, Bloque 0) revisada: archivos idénticos a la guía; build, lint y arranque (`/health/live` 200) OK. PR #75 hacia `feature/notificaciones`.
+  - Con el conector de Hostinger (`overwrite: false`, sin tocar la raíz) se crearon los registros que generó Resend para `mail.skillbridgeai.online`: TXT `resend._domainkey.mail` (DKIM) y CNAME `send.mail` → `send.forge.rmta.net` y `rsend.mail` → `rsend-sae1.forge.rmta.net` (SPF / return-path). Los 3 se ven en el DNS público.
+  - Resend ya no pide MX + TXT con `amazonses.com`, sino CNAMEs. Se actualizó `CONFIGURACION-DOMINIO-Y-SECRETOS.md` §2. "Enable receiving" se apaga (no se crea el MX en `mail`).
+  - Pendiente: Mateo pulsa **Verify** y crea las API keys.
 - **Próximos pasos:** Dylan sube la base (KAN-56, Bloque 0) para desbloquear a Kevin y Leonardo; integración en `feature/notificaciones` y checklist E2E (`PLAN.md` §6).
 
 ## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
