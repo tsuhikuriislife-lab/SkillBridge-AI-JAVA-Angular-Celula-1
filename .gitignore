@@ -33,3 +33,8 @@ frontend/.env
 
 # Diseños
 diseños/
+
+# Notifications service (NestJS)
+notifications-service/node_modules/
+notifications-service/dist/
+notifications-service/coverage/
