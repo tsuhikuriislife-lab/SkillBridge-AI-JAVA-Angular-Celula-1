@@ -2,6 +2,17 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-11] Preparación del contrato técnico HU-PS06 Feature Store
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** KAN-55; crear V18 para persistir batches, features numéricas de mentores y embeddings de servicios, y preparar la configuración del sincronizador de analytics.
+- **Cambios realizados:**
+  - Creación de `backend/src/main/resources/db/migration/V18__feature_store.sql` con estados y contadores de batch, cuatro scores normalizados, embeddings float32 en `bytea`, claves foráneas válidas e índices por `batch_id`.
+  - Actualización de `docs/FEATURE-STORE.md` con los scores tipados, dimensión provisional 384, validación de filas/configuración y defaults del contrato.
+  - Fijación de `redis==5.2.1` y `pika==1.3.2` en `analytics-service/requirements.txt`.
+  - Configuración de Redis, RabbitMQ y variables del Feature Store en `spark-master` y `spark-worker`; ambos esperan los healthchecks existentes de Redis y RabbitMQ.
+  - Documentación de las variables sin secretos reales en `.env.example`. No se modificaron límites o política de evicción de Redis.
+- **Validación:** PostgreSQL quedó healthy. Al arrancar el backend, Flyway reportó `Current version ...: 14`, aplicó V15–V18 y confirmó `Successfully applied 4 migrations ... now at version v18` en PostgreSQL 17.11, sin error de migración. Con `psql` se confirmaron las tres tablas, tipos, FKs e invariantes; score 1.5 y dimensión 0 fueron rechazados por sus CHECK, inserciones válidas de mentor y embedding se aceptaron y se revirtieron. El conteo final de batches de prueba fue 0. El primer arranque se detuvo por una clave JWT temporal menor de 32 caracteres; tras usar una clave temporal válida, Flyway completó, pero Spring Boot terminó después con `No default constructor found` para `LiveKitProperties` (ajeno a V18). `docker compose config -q` también había pasado. No se modificó V18 durante esta validación.
+
 ## [2026-11-11] Plan y guías de la épica "Notificaciones por correo" (microservicio NestJS + Resend + RabbitMQ)
 - **Agente:** Claude Code (Claude Opus 5.5), solicitado por Dylan (líder de la épica)
 - **Objetivo:** Analizar el repositorio y planificar un microservicio NestJS (`notification-service`) que envíe correos con Resend cuando cambie el estado de la cuenta de un usuario o administrador. Repartir el trabajo entre 3 personas con guías paso a paso que incluyan código listo para copiar y su explicación. **Sólo documentación**: no se modificó código fuente ni se hicieron commits, por decisión del usuario.
