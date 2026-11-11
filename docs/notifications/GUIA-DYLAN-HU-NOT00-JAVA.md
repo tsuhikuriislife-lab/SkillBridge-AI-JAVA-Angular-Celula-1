@@ -1,9 +1,10 @@
-# Guía Persona A: Productor de eventos en Java (Spring Boot)
+# Guía Dylan: HU-NOT00, publicación de eventos desde el backend Java + correcciones de seguridad
 
-> **Responsable:** Dylan (líder de la épica)
+> **Jira:** [KAN-59](https://skillbridgec3.atlassian.net/browse/KAN-59) (épica [KAN-49](https://skillbridgec3.atlassian.net/browse/KAN-49))
+> **Responsable:** Dylan Suarez (líder de la épica)
 > **Rama:** `feature/notificaciones-java` (sale de `feature/notificaciones`)
-> **Tiempo estimado:** 4,5 h (Bloques 1 y 2 del [PLAN](./PLAN.md), incluye las correcciones de seguridad del Paso 13)
-> **Antes de empezar lee:** [CONTRACT.md](./CONTRACT.md)
+> **Tiempo estimado:** 4,5 h (ver el cronograma en [PLAN](./PLAN.md); incluye las correcciones de seguridad del Paso 13)
+> **Antes de empezar lee:** [CONTRACT.md](./CONTRACT.md). **Orden:** primero sube la base del microservicio ([KAN-56, Bloque 0](./GUIA-DYLAN-HU-NOT01-KAN-56.md)) para desbloquear a Kevin y Leonardo; después haz esta guía.
 
 ## Qué vas a construir
 
@@ -16,7 +17,9 @@ application/service/UserEventEmitter← arma el evento y decide si se publica
 infrastructure/adapter/out/messaging← adaptador RabbitMQ: convierte el evento a JSON y lo envía
 ```
 
-Los servicios existentes (`AuthService`, `AdminUserService`, `UserAccountService`) sólo llaman a `UserEventEmitter` después de guardar en BD.
+Los servicios existentes (`AuthService`, `AdminUserService`, `UserAccountService` y `ServiceEnrollmentService`) sólo llaman a `UserEventEmitter` después de guardar en BD.
+
+**Eventos que publica el backend (6):** `user.registered`, `user.created`, `user.status.changed`, `user.role.changed`, `user.deleted` y `enrollment.created` (confirmación de reserva).
 
 > **Decisión importante:** si RabbitMQ está caído, **el caso de uso NO falla**. El usuario igual queda registrado; sólo se pierde ese correo y queda un `WARN` en el log. Para garantizar entrega 100 % haría falta el patrón *Transactional Outbox*, que queda como mejora futura (ver [ADR 0005](../adr/0005-notification-microservice-nestjs-resend.md)).
 
@@ -25,17 +28,13 @@ Los servicios existentes (`AuthService`, `AdminUserService`, `UserAccountService
 ## Paso 0: Preparar la rama
 
 ```bash
-# 1. Ubícate en la raíz del repo y trae lo último de develop
+# La rama de integración feature/notificaciones ya la creaste en el Paso 0 de la guía KAN-56.
 cd ~/Projects/SkillBridge-AI-JAVA-Angular-Celula-1
-git checkout develop
-git pull origin develop
+git fetch origin
+git checkout feature/notificaciones
+git pull origin feature/notificaciones
 
-# 2. (Sólo Dylan, una vez) crea la rama de integración de la épica y súbela.
-#    Los 3 integrantes sacan sus ramas de aquí y abren sus PR hacia aquí.
-git checkout -b feature/notificaciones
-git push -u origin feature/notificaciones
-
-# 3. Crea tu rama de trabajo
+# Rama de trabajo para el backend
 git checkout -b feature/notificaciones-java
 ```
 
@@ -52,14 +51,15 @@ package com.riwi.skillbridge.domain.event;
 
 /**
  * Tipos de eventos del ciclo de vida de una cuenta de usuario.
- * Cada tipo conoce su routing key (contrato con notification-service).
+ * Cada tipo conoce su routing key (contrato con notifications-service).
  */
 public enum UserEventType {
     USER_REGISTERED("user.registered"),
     USER_CREATED("user.created"),
     USER_STATUS_CHANGED("user.status.changed"),
     USER_ROLE_CHANGED("user.role.changed"),
-    USER_DELETED("user.deleted");
+    USER_DELETED("user.deleted"),
+    ENROLLMENT_CREATED("enrollment.created");
 
     private final String routingKey;
 
@@ -76,7 +76,7 @@ public enum UserEventType {
 **Explicación:**
 - Es un `enum` de dominio puro: no importa nada de Spring ni de RabbitMQ, como exige `AGENTS.md`.
 - El texto `user.status.changed` es la **routing key** y además el `eventType` del JSON. Tenerlo en un solo lugar evita errores de tipeo entre el productor y el consumidor.
-- Para agregar eventos nuevos más adelante (por ejemplo, inscripciones) basta con sumar un valor aquí y actualizar el `CONTRACT.md`.
+- `ENROLLMENT_CREATED` es la confirmación de reserva (KAN-56 pide esa plantilla). Para agregar eventos nuevos más adelante basta con sumar un valor aquí y actualizar el `CONTRACT.md`.
 
 ---
 
@@ -178,6 +178,9 @@ import com.riwi.skillbridge.domain.event.UserAccountEvent.Actor;
 import com.riwi.skillbridge.domain.event.UserAccountEvent.AdminRecipient;
 import com.riwi.skillbridge.domain.event.UserAccountEvent.Subject;
 import com.riwi.skillbridge.domain.event.UserEventType;
+import com.riwi.skillbridge.domain.model.Offering;
+import com.riwi.skillbridge.domain.model.ServiceEnrollment;
+import com.riwi.skillbridge.domain.model.ServiceSchedule;
 import com.riwi.skillbridge.domain.model.UserAccount;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,6 +188,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -236,6 +240,31 @@ public class UserEventEmitter {
         publish(UserEventType.USER_DELETED, deletedUser, actorEmail, Map.of());
     }
 
+    /** Confirmación de reserva: el cliente se inscribió en un servicio. */
+    public void enrollmentCreated(UserAccount customer, Offering service, ServiceEnrollment enrollment,
+                                  ServiceSchedule schedule) {
+        try {
+            Map<String, String> data = new HashMap<>();
+            data.put("serviceId", service.id().toString());
+            data.put("serviceName", service.name());
+            data.put("serviceCode", service.code() == null ? "" : service.code());
+            data.put("startDate", enrollment.startDate() == null ? "" : enrollment.startDate().toString());
+            data.put("endDate", enrollment.endDate() == null ? "" : enrollment.endDate().toString());
+            data.put("startTime", schedule.startTime() == null ? "" : schedule.startTime().toString());
+            data.put("sessions", String.valueOf(enrollment.remainingSessions()));
+            if (service.createdBy() != null) {
+                users.findById(service.createdBy()).ifPresent(provider -> {
+                    data.put("providerName", provider.name());
+                    data.put("providerEmail", provider.email());
+                });
+            }
+            publish(UserEventType.ENROLLMENT_CREATED, customer, customer.email(), data);
+        } catch (RuntimeException ex) {
+            log.warn("No se pudo preparar el evento enrollment.created del usuario {}: {}",
+                customer.id(), ex.getMessage());
+        }
+    }
+
     private void publish(UserEventType type, UserAccount subject, String actorEmail, Map<String, String> data) {
         try {
             UserAccountEvent event = new UserAccountEvent(
@@ -280,7 +309,8 @@ public class UserEventEmitter {
    - `OffsetDateTime.now(ZoneOffset.UTC)` fija la fecha en UTC, como pide el contrato.
    - El `try/catch (RuntimeException)` es **intencional**: un fallo de RabbitMQ no debe tumbar el registro ni el cambio de rol.
 4. **`resolveActor`:** el controller sólo conoce el email del JWT (`authentication.getName()`). Aquí lo convertimos en un `Actor` con id y rol. Si no existe en BD, se envía igual con `id=null` y `role=null`.
-5. **`resolveAdmins`:** usa `UserRepositoryPort.findByRole`, que **ya existe** en el proyecto, y filtra a los admins activos. Nest no tiene BD, por eso Java le manda la lista.
+5. **`resolveAdmins`:** usa `UserRepositoryPort.findByRole`, que **ya existe** en el proyecto, y filtra a los admins activos. Nest no tiene acceso a la BD del backend, por eso Java le manda la lista.
+6. **`enrollmentCreated`:** arma los datos de la reserva (servicio, fechas, hora, sesiones) y busca al **proveedor** (`Offering.createdBy`) para que Nest también le avise. Todos los valores van como `String` (contrato), con `""` cuando faltan, porque `Map.copyOf` no acepta `null`. Tiene su propio `try/catch`: buscar al proveedor también podría fallar y no debe romper la inscripción.
 
 ---
 
@@ -291,7 +321,7 @@ public class UserEventEmitter {
 Agrega **la constante** debajo de las constantes existentes:
 
 ```java
-    /** Exchange de eventos de dominio consumidos por notification-service. Contrato: docs/notifications/CONTRACT.md */
+    /** Exchange de eventos de dominio consumidos por notifications-service. Contrato: docs/notifications/CONTRACT.md */
     public static final String EVENTS_EXCHANGE = "skillbridge.events";
 ```
 
@@ -618,6 +648,65 @@ public interface DeleteUserAccountUseCase {
 
 ---
 
+## Paso 10B: Publicar la confirmación de reserva (`ServiceEnrollmentService`)
+
+📝 **Modificar** `backend/src/main/java/com/riwi/skillbridge/application/service/ServiceEnrollmentService.java`
+
+**10B.1 Import:**
+
+```java
+import com.riwi.skillbridge.domain.model.UserAccount;
+```
+
+**10B.2 Campos y constructor:**
+
+```java
+    private final ServiceEnrollmentPort enrollmentPort;
+    private final OfferingPort offeringPort;
+    private final ServiceSchedulePort schedulePort;
+    private final UserAccountPort userAccountPort;
+    private final BookingHistoryPort historyPort;
+    private final UserEventEmitter events;
+
+    public ServiceEnrollmentService(ServiceEnrollmentPort enrollmentPort, OfferingPort offeringPort,
+                                    ServiceSchedulePort schedulePort, UserAccountPort userAccountPort,
+                                    BookingHistoryPort historyPort, UserEventEmitter events) {
+        this.enrollmentPort = enrollmentPort;
+        this.offeringPort = offeringPort;
+        this.schedulePort = schedulePort;
+        this.userAccountPort = userAccountPort;
+        this.historyPort = historyPort;
+        this.events = events;
+    }
+```
+
+**10B.3 En `enroll`:** cambia la primera instrucción para **guardar** al usuario en una variable:
+
+```java
+        UserAccount customer = userAccountPort.findById(request.userId())
+                .orElseThrow(() -> new BusinessRuleException("El usuario no existe"));
+```
+
+y al final del método reemplaza:
+
+```java
+        recordHistory(saved, EnrollmentStatus.ACTIVE);
+        return saved;
+```
+
+por:
+
+```java
+        recordHistory(saved, EnrollmentStatus.ACTIVE);
+        events.enrollmentCreated(customer, service, saved, schedule);
+        return saved;
+```
+
+**Explicación:**
+- Antes, `enroll` validaba que el usuario existiera y **descartaba** el resultado. Ahora lo guardamos en `customer` porque el correo necesita su nombre y su email.
+- El evento se emite **después** de `save` y `recordHistory`: sólo se confirma una reserva que realmente quedó guardada.
+- `schedule` ya estaba cargado en el método (fecha de inicio, hora y sesiones), así que no se hace ninguna consulta extra.
+
 ## Paso 11: Controller `UserAccountController`
 
 📝 **Modificar** `backend/src/main/java/com/riwi/skillbridge/infrastructure/adapter/in/rest/UserAccountController.java`
@@ -674,6 +763,12 @@ import org.springframework.security.core.Authentication;
   - `service.changeStatus(id, true)` → `service.changeStatus(id, true, "ana@x.com")`
   - `service.deleteUserAccount(id)` → `service.deleteUserAccount(id, "ana@x.com")` (2 lugares)
 
+📝 `backend/src/test/java/com/riwi/skillbridge/ServiceEnrollmentServiceTest.java`
+- Debajo de los demás `@Mock` agrega (sin él, `@InjectMocks` pasa `null` y `enroll` lanza `NullPointerException`):
+  ```java
+  @Mock com.riwi.skillbridge.application.service.UserEventEmitter events;
+  ```
+
 📝 `backend/src/test/java/com/riwi/skillbridge/application/service/AdminUserServiceTest.java`
 - Agrega el mock:
   ```java
@@ -699,7 +794,12 @@ import com.riwi.skillbridge.application.port.out.UserRepositoryPort;
 import com.riwi.skillbridge.domain.enums.Role;
 import com.riwi.skillbridge.domain.enums.Status;
 import com.riwi.skillbridge.domain.event.UserAccountEvent;
+import com.riwi.skillbridge.domain.enums.EnrollmentStatus;
+import com.riwi.skillbridge.domain.enums.ServiceStatus;
 import com.riwi.skillbridge.domain.event.UserEventType;
+import com.riwi.skillbridge.domain.model.Offering;
+import com.riwi.skillbridge.domain.model.ServiceEnrollment;
+import com.riwi.skillbridge.domain.model.ServiceSchedule;
 import com.riwi.skillbridge.domain.model.UserAccount;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -709,6 +809,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -789,6 +893,32 @@ class UserEventEmitterTest {
         doThrow(new RuntimeException("RabbitMQ caído")).when(publisher).publish(any());
         assertDoesNotThrow(() -> emitter.registered(user("ana@test.com", Role.CUSTOMER, Status.ACTIVE)));
     }
+
+    @Test
+    void enrollmentCreated_includesServiceScheduleAndProvider() {
+        UserAccount customer = user("ana@test.com", Role.CUSTOMER, Status.ACTIVE);
+        UserAccount provider = user("prov@test.com", Role.PROVIDER, Status.ACTIVE);
+        Offering service = new Offering(UUID.randomUUID(), "Mentoría Spring", null, BigDecimal.TEN, null,
+                null, null, null, 10, "SRV-1", ServiceStatus.ACTIVE, provider.id(),
+                OffsetDateTime.now(), OffsetDateTime.now());
+        ServiceSchedule schedule = new ServiceSchedule(UUID.randomUUID(), service.id(), DayOfWeek.MONDAY, 60,
+                null, 5, LocalDate.of(2026, 11, 20), LocalTime.of(18, 0), LocalTime.of(19, 0));
+        ServiceEnrollment enrollment = new ServiceEnrollment(customer.id(), service.id(),
+                EnrollmentStatus.ACTIVE, 5, LocalDate.of(2026, 11, 20), LocalDate.of(2026, 12, 18));
+        when(users.findById(provider.id())).thenReturn(Optional.of(provider));
+        when(users.findByEmail("ana@test.com")).thenReturn(Optional.of(customer));
+
+        emitter.enrollmentCreated(customer, service, enrollment, schedule);
+
+        verify(publisher).publish(captor.capture());
+        UserAccountEvent event = captor.getValue();
+        assertEquals(UserEventType.ENROLLMENT_CREATED, event.type());
+        assertEquals("Mentoría Spring", event.data().get("serviceName"));
+        assertEquals("2026-11-20", event.data().get("startDate"));
+        assertEquals("18:00", event.data().get("startTime"));
+        assertEquals("5", event.data().get("sessions"));
+        assertEquals("prov@test.com", event.data().get("providerEmail"));
+    }
 }
 ```
 
@@ -797,6 +927,7 @@ class UserEventEmitterTest {
 2. y 3. **Sin cambio real, no hay evento.** Esto evita correos basura.
 4. **Auto-registro:** `actor` es `null` y no se incluyen admins inactivos.
 5. **Resiliencia:** si RabbitMQ falla, el caso de uso sigue funcionando.
+6. **Reserva:** el evento lleva el servicio, la fecha (`2026-11-20`), la hora (`18:00`), las sesiones y el correo del proveedor, todo como texto.
 
 ### 12.3 Prueba nueva: el adaptador respeta el contrato
 
@@ -906,7 +1037,7 @@ class RabbitUserEventPublisherTest {
 mvn -f backend/pom.xml -B clean verify
 
 # Sólo las pruebas nuevas y las modificadas (más rápido mientras desarrollas)
-mvn -f backend/pom.xml test -Dtest='UserEventEmitterTest,RabbitUserEventPublisherTest,UserAccountServiceTest,AdminUserServiceTest,AuthSessionSecurityTest'
+mvn -f backend/pom.xml test -Dtest='UserEventEmitterTest,RabbitUserEventPublisherTest,UserAccountServiceTest,AdminUserServiceTest,AuthServiceTest,ServiceEnrollmentServiceTest,AuthSessionSecurityTest'
 ```
 
 ---
@@ -1283,7 +1414,8 @@ curl -s -X POST http://localhost:8081/api/auth/register \
   -d '{"name":"Prueba Notif","email":"delivered@resend.dev","password":"Clave123*"}'
 ```
 
-4. Abre `http://localhost:15672` (`guest` / `guest`) → **Exchanges**. Debe existir `skillbridge.events`. Antes de que Nest exista, los mensajes se pierden porque no hay cola enlazada. Es normal: para verlos, crea una cola temporal y enlázala con `user.#`.
+4. Abre `http://localhost:15672` (`guest` / `guest`) → **Exchanges**. Debe existir `skillbridge.events`. Si el consumidor de Kevin todavía no está mergeado, los mensajes se pierden porque no hay cola enlazada. Es normal: para verlos, crea una cola temporal y enlázala con `user.#` y `enrollment.#`.
+5. Inscríbete en un servicio desde el frontend → `Evento publicado: type=enrollment.created`.
 
 ---
 
@@ -1301,6 +1433,7 @@ git add backend/src/main/java/com/riwi/skillbridge/domain/event \
         backend/src/main/java/com/riwi/skillbridge/application/service/UserAccountService.java \
         backend/src/main/java/com/riwi/skillbridge/application/service/AdminUserService.java \
         backend/src/main/java/com/riwi/skillbridge/application/service/AuthService.java \
+        backend/src/main/java/com/riwi/skillbridge/application/service/ServiceEnrollmentService.java \
         backend/src/main/java/com/riwi/skillbridge/application/port/in/useraccount \
         backend/src/main/java/com/riwi/skillbridge/infrastructure/adapter/out/messaging \
         backend/src/main/java/com/riwi/skillbridge/infrastructure/config/RabbitConfiguration.java \
@@ -1310,7 +1443,7 @@ git add backend/src/main/java/com/riwi/skillbridge/domain/event \
         backend/src/test
 
 # Commit (Conventional Commits en español, como el resto del repo)
-git commit -m "feat(notificaciones): publicar eventos de cuenta de usuario en RabbitMQ (skillbridge.events)
+git commit -m "feat(notificaciones): publicar eventos de cuenta y de reserva en RabbitMQ (skillbridge.events) (KAN-59)
 
 - fix(seguridad): solo ADMIN o el propio usuario pueden cambiar estado o eliminar la cuenta (403)
 - fix(seguridad): no se puede desactivar al administrador
@@ -1322,15 +1455,15 @@ git push -u origin feature/notificaciones-java
 # Abrir el PR hacia la rama de integración (requiere GitHub CLI autenticado: gh auth login)
 gh pr create --base feature/notificaciones --head feature/notificaciones-java \
   --title "feat(notificaciones): productor de eventos de usuario (Java)" \
-  --body "Publica user.registered, user.created, user.status.changed, user.role.changed y user.deleted en el exchange skillbridge.events según docs/notifications/CONTRACT.md. Incluye pruebas unitarias y de contrato."
+  --body "HU-NOT00 (KAN-59): publica user.registered, user.created, user.status.changed, user.role.changed, user.deleted y enrollment.created en skillbridge.events según docs/notifications/CONTRACT.md. Incluye correcciones de seguridad (403, ADMIN no desactivable, login INACTIVE) y pruebas."
 ```
 
 ---
 
-## Definition of Done (Persona A)
+## Definition of Done (HU-NOT00 / KAN-59)
 
 - [ ] `mvn -B clean verify` en verde.
-- [ ] Los 5 eventos se publican **sólo** cuando hay un cambio real.
+- [ ] Los 6 eventos se publican **sólo** cuando hay un cambio real (incluye `enrollment.created` al inscribirse).
 - [ ] El JSON coincide con el contrato (pasa `message_hasSameJsonShapeAsContractFixture`).
 - [ ] Con RabbitMQ apagado, registro, cambio de rol y borrado **siguen funcionando** (sólo aparece un WARN).
 - [ ] Ningún log imprime emails ni contraseñas.
@@ -1351,7 +1484,7 @@ la tarea en MEMORIA.md. NO hagas git commit ni push.
 
 Tarea: publicar eventos de cuenta de usuario en RabbitMQ (exchange topic "skillbridge.events") para que
 un microservicio NestJS envíe correos. El contrato está en docs/notifications/CONTRACT.md y los ejemplos en
-docs/notifications/contract/*.json. Sigo la guía docs/notifications/GUIA-PERSONA-A-JAVA.md.
+docs/notifications/contract/*.json. Sigo la guía docs/notifications/GUIA-DYLAN-HU-NOT00-JAVA.md.
 Estoy en el Paso <N> y tengo este problema: <pega el error / código>.
 Explícame la causa y dame el bloque de código corregido con una explicación de cada parte.
 ```

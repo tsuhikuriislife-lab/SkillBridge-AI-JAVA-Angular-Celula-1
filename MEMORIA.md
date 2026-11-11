@@ -42,7 +42,26 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
     - Nuevo `AuthServiceTest`.
   - Se confirmó que `DatabaseUserDetailsService` ya invalida al instante las sesiones de usuarios INACTIVE.
   - Pendiente fuera de la épica: botón de activar/desactivar en el panel admin de Angular.
-- **Próximos pasos:** ejecutar las guías A, B y C en paralelo, integrar en `feature/notificaciones` y abrir el PR a `develop`. Conectar Jira para mapear las subtareas.
+- **Actualización 2 (mismo día), alineación con Jira (épica KAN-49):**
+  - Se leyeron KAN-56/57/58 y se reestructuró el reparto: Dylan (KAN-59 Java + KAN-56), Kevin (KAN-57) y Leonardo (KAN-58).
+  - Se creó **KAN-59** (HU-NOT00, lado Java + seguridad).
+  - Se ajustaron los CA de KAN-56/57/58 y se comentó la guía de cada uno.
+  - Decisiones del equipo:
+    - eventos de cuenta + `enrollment.created` (confirmación de reserva); el recordatorio de sesión queda en el backlog;
+    - idempotencia en Redis (base 1, `SET NX`);
+    - `NotificationLog` en una BD propia `notifications` (TypeORM);
+    - webhooks de Resend verificados con Svix;
+    - Terminus, Swagger y Handlebars;
+    - reintentos exponenciales 5 s/30 s/2 min → `dlq.notifications`;
+    - el microservicio se renombra a `notifications-service`.
+  - Archivos nuevos o reescritos:
+    - `GUIA-DYLAN-HU-NOT00-JAVA.md` (antes Guía A; se agrega `enrollment.created`);
+    - `GUIA-DYLAN-HU-NOT01-KAN-56.md`, `GUIA-KEVIN-HU-NOT02-KAN-57.md` y `GUIA-LEONARDO-HU-NOT03-KAN-58.md` (reemplazan a las guías B y C);
+    - `contract/enrollment.created.json`;
+    - `PLAN.md`, `CONTRACT.md`, `CONFIGURACION-DOMINIO-Y-SECRETOS.md` (Redis, BD y §9 webhooks), `JIRA.md` y ADR-0005.
+  - **Validación:** las guías se **generaron a partir del código verificado** y se aplicaron en orden (Dylan → Kevin → Leonardo) sobre un proyecto NestJS vacío: el `src` resultante es idéntico al verificado; `tsc`, ESLint y `nest build` limpios, **70/70 pruebas Jest**, y las plantillas `.hbs` se copian a `dist`.
+  - **Sin verificar:** el Java (no hay Maven ni JDK 21) y la ejecución con RabbitMQ, Redis y Postgres reales (sin acceso a Docker). Una prueba de humo del arranque llegó a los intentos de conexión sin errores de inyección.
+- **Próximos pasos:** Dylan sube la base (KAN-56, Bloque 0) para desbloquear a Kevin y Leonardo; integración en `feature/notificaciones` y checklist E2E (`PLAN.md` §6).
 
 ## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`
 - **Agente:** Antigravity (Senior Fullstack Architect)

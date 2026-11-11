@@ -1,60 +1,34 @@
-# Conectar Jira a Claude Code y mapear la épica
+# Jira: épica KAN-49 (tablero `skillbridgec3.atlassian.net`, proyecto KAN)
 
-## 1. Conectar Jira (Atlassian) a Claude Code
+## Historias de la épica
 
-En esta sesión ya hay disponible un conector de **Atlassian**, pero falta autenticarlo. Elige una opción:
+| Clave | Historia | Responsable | Guía |
+|---|---|---|---|
+| [KAN-49](https://skillbridgec3.atlassian.net/browse/KAN-49) | **Épica:** Microservicio de notificaciones por email con NestJS y Resend | Dylan | [PLAN.md](./PLAN.md) |
+| [KAN-59](https://skillbridgec3.atlassian.net/browse/KAN-59) | HU-NOT00: Publicación de eventos desde el backend Java + seguridad *(creada el 2026-11-11)* | Dylan | [GUIA-DYLAN-HU-NOT00-JAVA.md](./GUIA-DYLAN-HU-NOT00-JAVA.md) |
+| [KAN-56](https://skillbridgec3.atlassian.net/browse/KAN-56) | HU-NOT01: Scaffolding NestJS, SDK de Resend y motor de plantillas | Dylan | [GUIA-DYLAN-HU-NOT01-KAN-56.md](./GUIA-DYLAN-HU-NOT01-KAN-56.md) |
+| [KAN-57](https://skillbridgec3.atlassian.net/browse/KAN-57) | HU-NOT02: Consumidor RabbitMQ, idempotencia y reintentos (DLQ) | Kevin Mercado | [GUIA-KEVIN-HU-NOT02-KAN-57.md](./GUIA-KEVIN-HU-NOT02-KAN-57.md) |
+| [KAN-58](https://skillbridgec3.atlassian.net/browse/KAN-58) | HU-NOT03: Webhooks de Resend, auditoría y salud | Leonardo Ayala | [GUIA-LEONARDO-HU-NOT03-KAN-58.md](./GUIA-LEONARDO-HU-NOT03-KAN-58.md) |
 
-### Opción A: desde la terminal de Claude Code (recomendada)
-1. En el prompt de Claude Code escribe:
-   ```
-   /mcp
-   ```
-2. En la lista, selecciona el servidor **atlassian** (puede aparecer como `plugin:design:atlassian`).
-3. Elige **Authenticate**. Se abre el navegador con el login de Atlassian.
-4. Inicia sesión con la cuenta que tiene acceso al tablero, elige el **sitio** (`tu-equipo.atlassian.net`) y acepta los permisos.
-5. Vuelve a la terminal. El servidor debe quedar como **connected**.
+## Cambios hechos en Jira el 2026-11-11 (aprobados por Dylan)
 
-### Opción B: desde claude.ai
-1. Entra a <https://claude.ai> → **Settings → Connectors**.
-2. Busca **Atlassian (Jira & Confluence)** → **Connect** y autoriza el sitio.
-3. Reinicia la sesión de Claude Code (`/exit` y `claude` de nuevo) para que tome el conector.
+- **Se creó KAN-59**, porque ninguna historia cubría la publicación de eventos desde Java. Incluye las correcciones de seguridad.
+- **Criterios de aceptación ajustados** (marcados "actualizado 2026-11-11" en cada historia):
+  - **KAN-56, CA 1.3:** motor Handlebars; plantillas de bienvenida, **confirmación de reserva** y avisos de cuenta. El **recordatorio de sesión en vivo** pasa a una 2ª iteración.
+  - **KAN-57, CA 2.1:** exchange `skillbridge.events`, cola `notifications.events`, routing keys `user.#` y `enrollment.#`. La tarea 1 usa `@golevelup/nestjs-rabbitmq` en lugar de `@nestjs/microservices` (incompatible con el JSON plano de Spring).
+  - **KAN-58, CA 3.3:** `NotificationLog` en una **base de datos propia `notifications`** con migraciones TypeORM. **CA 3.4** suma PostgreSQL a `/health`.
+- **Comentario** en KAN-56, 57, 58 y 59 con el enlace a la guía de cada uno.
+- **No se modificaron** responsables, estados ni prioridades.
 
-> Si tu organización de Atlassian exige aprobación de un admin para apps de terceros, pídele a quien administre el sitio que apruebe "Claude" o "Anthropic".
+## Flujo de estados sugerido
 
-## 2. Qué compartir después
+`Por hacer` → `En curso` (al crear la rama) → `En revisión` (al abrir el PR) → `Finalizada` (al mergear en `feature/notificaciones` y pasar el checklist E2E de [PLAN §6](./PLAN.md#6-checklist-de-integración-e2e-los-3-juntos)).
 
-Con Jira conectado, pásame **uno** de estos datos:
-- La **URL del tablero** (por ejemplo, `https://tu-equipo.atlassian.net/jira/software/projects/KAN/boards/1`), o
-- La **clave de la épica** (por ejemplo, `KAN-30`).
+## Reconectar el conector de Atlassian (aviso)
 
-Con eso puedo:
-1. Leer la épica y sus criterios de aceptación y compararlos con este plan.
-2. Proponer las historias y subtareas de abajo. **Sólo las creo si tú lo apruebas.**
-3. Enlazar cada subtarea con su guía (`docs/notifications/GUIA-*.md`).
+Claude Code está conectado al endpoint **V1**, que es obsoleto y se retira el **2027-03-01**:
+- **Conector oficial:** quítalo y vuelve a agregarlo desde el directorio de conectores de Claude.
+- **Conector propio:** actualízalo a `https://mcp.atlassian.com/v2/mcp` y vuelve a autorizarlo.
+- **Conector administrado por tu organización:** pídele el cambio al admin.
 
-> Según `MEMORIA.md`, el proyecto de Jira usa la clave **KAN**.
-
-## 3. Desglose propuesto para la épica
-
-| Tipo | Resumen | Responsable | Estimación | Guía |
-|---|---|---|---|---|
-| Historia | Contrato de eventos de usuario v1 | Equipo | 0,5 h | [CONTRACT](./CONTRACT.md) |
-| Tarea | Comprar dominio en Hostinger + verificar en Resend + API keys | Dylan + C | 0,5 h (+ propagación) | [CONFIGURACIÓN](./CONFIGURACION-DOMINIO-Y-SECRETOS.md) |
-| Historia | Backend publica eventos de cuenta en RabbitMQ | Dylan (A) | 4 h | [Guía A](./GUIA-PERSONA-A-JAVA.md) |
-| ↳ Subtarea | Evento de dominio + puerto + `UserEventEmitter` | A | 1 h | Pasos 1-4 |
-| ↳ Subtarea | Adaptador RabbitMQ + exchange `skillbridge.events` | A | 1 h | Pasos 5-6 |
-| ↳ Subtarea | Publicar en Auth/Admin/UserAccount + actor en controllers | A | 1 h | Pasos 7-11 |
-| ↳ Subtarea | Pruebas unitarias y de contrato | A | 1 h | Paso 12 |
-| Historia | Núcleo de `notification-service` (NestJS) | B | 4,5 h | [Guía B](./GUIA-PERSONA-B-NEST-CORE.md) |
-| ↳ Subtarea | Scaffold, configuración, puertos (base compartida) | B | 0,75 h | Pasos 0-9 |
-| ↳ Subtarea | Política de destinatarios + caso de uso | B | 1 h | Pasos 10-11 |
-| ↳ Subtarea | Consumidor RabbitMQ con retry y DLQ | B | 1,5 h | Pasos 12-13 |
-| ↳ Subtarea | Métricas, health y pruebas | B | 1,25 h | Pasos 12.4, 14-15 |
-| Historia | Envío con Resend, plantillas y operación | C | 4 h | [Guía C](./GUIA-PERSONA-C-RESEND-OPS.md) |
-| ↳ Subtarea | Adaptador Resend + pruebas | C | 1 h | Pasos 1-2 |
-| ↳ Subtarea | 8 plantillas HTML/texto en español | C | 1,5 h | Paso 3 |
-| ↳ Subtarea | Docker, compose, Makefile y `.env.example` | C | 0,75 h | Pasos 4-5 |
-| ↳ Subtarea | Prometheus y CI | C | 0,75 h | Pasos 6-7 |
-| Tarea | Integración E2E y PR a `develop` | Equipo | 1 h | [PLAN §6](./PLAN.md) |
-| Bug | Autorización en `PATCH/DELETE /api/users/{id}`, ADMIN no desactivable, login de INACTIVE rechazado | A | 0,5 h | Guía A, Paso 13 |
-| Historia (backlog, fuera de la épica) | Botón activar/desactivar usuario en el panel admin de Angular | — | — | — |
+Para autenticar de nuevo en la terminal: `/mcp` → **atlassian** → **Authenticate**.

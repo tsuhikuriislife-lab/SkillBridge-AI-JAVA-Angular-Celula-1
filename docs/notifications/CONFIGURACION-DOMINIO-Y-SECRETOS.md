@@ -1,6 +1,6 @@
 # Configuración: dominio (Hostinger), Resend, API keys y variables por capa
 
-> **Responsables:** Dylan (compra del dominio y dueño de la cuenta de Resend) y Persona C (DNS y verificación).
+> **Responsables:** Dylan (dominio, DNS, cuenta de Resend y API keys; KAN-56) y Leonardo (webhooks, §9; KAN-58).
 > **Hazlo PRIMERO** (Bloque 0): la propagación DNS puede tardar desde minutos hasta algunas horas.
 
 ## Resumen: ¿qué cambia en cada capa?
@@ -9,14 +9,16 @@
 |---|---|---|---|
 | **Dominio / DNS** | ✅ Sí | 3 registros de Resend + 1 DMARC | Hostinger hPanel (§2) |
 | **Resend** | ✅ Sí | Dominio verificado + API key | resend.com (§3) |
-| **`.env` raíz (local, NO se sube)** | ✅ Sí | `EMAIL_DRIVER`, `RESEND_API_KEY`, `MAIL_FROM`, `MAIL_REPLY_TO`, `MAIL_REDIRECT_TO`, `FRONTEND_URL` | §4 |
-| **`.env.example` raíz (sí se sube)** | ✅ Sí | Las mismas variables **sin valores secretos** | Guía C, Paso 5 |
-| **`docker-compose.yml`** | ✅ Sí | Servicio `notifications` | Guía C, Paso 5 |
+| **`.env` raíz (local, NO se sube)** | ✅ Sí | `EMAIL_DRIVER`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `MAIL_FROM`, `MAIL_REPLY_TO`, `MAIL_REDIRECT_TO`, `FRONTEND_URL` | §4 |
+| **`.env.example` raíz (sí se sube)** | ✅ Sí | Las mismas variables **sin valores secretos** | KAN-56, Paso 11 |
+| **`docker-compose.yml`** | ✅ Sí | Servicio `notifications` (KAN-56, Paso 11) + volumen de init en `postgres` (KAN-58, Paso 1) | — |
+| **Redis** | ✅ Sí (sin cambios de config) | El microservicio usa la **base 1** (`redis://redis:6379/1`); el backend sigue en la 0 | KAN-57 |
+| **PostgreSQL** | ✅ Sí | **Base de datos nueva `notifications`** en el mismo contenedor, con migraciones TypeORM propias (§6) | KAN-58 |
 | **Backend (`application.yml`)** | ❌ No | Reutiliza `RABBITMQ_URL`, que ya existe. El nombre del exchange es una constante del contrato. **No hay secretos nuevos.** | — |
-| **Backend (código)** | ✅ Sí | Publicación de eventos | Guía A |
-| **Base de datos** | ❌ No (v1) | No hay tablas nuevas → **no hay migración Flyway** (§6) | — |
+| **Backend (código)** | ✅ Sí | Publicación de eventos + seguridad | KAN-59 |
+| **Backend (Flyway)** | ❌ No | La base del backend (`skillbridge`) no cambia → **no hay `V16`** | — |
 | **Frontend (Angular)** | ❌ No | El frontend **nunca** habla con Resend ni conoce la API key | §7 |
-| **GitHub Actions** | ❌ Sin secretos | Las pruebas usan clientes falsos; sólo se agrega un job (Guía C, Paso 7) | — |
+| **GitHub Actions** | ❌ Sin secretos | Las pruebas usan clientes falsos; sólo se agrega un job (KAN-58, Paso 8) | — |
 | **Producción / nube** | ✅ Sí | Variables del servicio `notifications` en el proveedor | §8 |
 
 ---
@@ -106,11 +108,11 @@ En la configuración del dominio en Resend, **desactiva Click tracking y Open tr
 | Nombre | Permiso | Dominio | Quién la usa |
 |---|---|---|---|
 | `skillbridge-dev-dylan` | **Sending access** | `mail.tudominio.com` | Dylan (local) |
-| `skillbridge-dev-persona-b` | Sending access | `mail.tudominio.com` | Persona B (local) |
-| `skillbridge-dev-persona-c` | Sending access | `mail.tudominio.com` | Persona C (local) |
-| `skillbridge-prod` | Sending access | `mail.tudominio.com` | Despliegue (§8) |
+| `skillbridge-dev-kevin` | Sending access | `mail.tudominio.com` | Kevin (local) |
+| `skillbridge-dev-leonardo` | **Full access** (sólo dev) | — | Leonardo (local: el health check usa `domains.list`, que requiere Full access) |
+| `skillbridge-prod` | **Full access** | — | Despliegue (§8). El `/health` consulta `domains.list` |
 
-3. **Sending access** (no *Full access*): si la llave se filtra, sólo sirve para enviar, no para borrar dominios ni leer datos.
+3. **Sending access** es lo más seguro: si la llave se filtra, sólo sirve para enviar. **Pero** el check de Resend en `/health` (KAN-58) usa `domains.list()`, que necesita **Full access**. Opciones: usar Full access sólo donde corre `/health` con `EMAIL_DRIVER=resend` (producción y la máquina de Leonardo) o aceptar que `/health` marque `resend: down` con llaves de Sending access. Recomendado: Full access en producción, **guardada como secreto** y rotada si hay sospecha de filtración.
 4. La llave (`re_...`) **se muestra una sola vez**. Cópiala directo a tu `.env` (§4).
 5. **Compartirla con el equipo:** usa un canal seguro, como un enlace de un solo uso (Bitwarden Send o <https://onetimesecret.com>). **Nunca** por el chat grupal, Jira, un commit o un screenshot.
 
@@ -131,6 +133,7 @@ Agrega al final de tu `.env` (el que **no** se sube):
 # ---------- Notificaciones ----------
 EMAIL_DRIVER=resend
 RESEND_API_KEY=re_tu_llave_personal
+RESEND_WEBHOOK_SECRET=whsec_del_endpoint_de_webhook   # §9
 MAIL_FROM=SkillBridge AI <notificaciones@mail.tudominio.com>
 MAIL_REPLY_TO=
 # En desarrollo, redirige TODO a tu correo para no escribirle a cuentas de prueba
@@ -142,6 +145,7 @@ FRONTEND_URL=http://localhost:8088
 |---|---|---|
 | `EMAIL_DRIVER` | `log` = no envía (por defecto). `resend` = envío real | `log` / `resend` |
 | `RESEND_API_KEY` | Autenticación con Resend | `re_...` (obligatoria si `resend`) |
+| `RESEND_WEBHOOK_SECRET` | Verificar la firma de los webhooks (§9) | `whsec_...`. Sin él, `/webhooks/resend` responde 503 |
 | `MAIL_FROM` | Remitente visible | `Nombre <direccion@dominio-verificado>` |
 | `MAIL_REPLY_TO` | Dirección a la que llegan las respuestas (opcional) | Por ejemplo, `soporte@tudominio.com` |
 | `MAIL_REDIRECT_TO` | **Sólo desarrollo**: redirige todos los correos | Tu correo, o vacío en producción |
@@ -189,13 +193,14 @@ docker compose exec postgres psql -U skillbridge -d skillbridge \
 
 ---
 
-## 6. Base de datos: ¿por qué NO hay migración en v1?
+## 6. Bases de datos: qué cambia y qué no
 
-- El **backend** no guarda nada nuevo: publica eventos y sigue usando sus tablas actuales.
-- El **microservicio** no tiene base de datos: la idempotencia la resuelven el `eventId` y la `idempotencyKey` de Resend (24 h), y el rastro de fallos queda en la DLQ de RabbitMQ y en el dashboard de Resend.
-- Por eso **no se crea `V16__...sql`**. Regla 3 de `AGENTS.md`: sólo se migra si cambia el esquema.
-
-**Mejora futura (no hoy):** si piden un historial de correos enviados, la opción limpia sería que el microservicio tenga **su propia** base o esquema (por ejemplo, un esquema `notifications` en el mismo Postgres, con su propia herramienta de migraciones). **No** debería escribir en las tablas del backend, porque cada servicio es dueño de sus datos.
+- **Backend (`skillbridge`, Flyway):** **no cambia.** No hay `V16`: el backend sólo publica eventos.
+- **Microservicio (`notifications`, BD NUEVA en el mismo contenedor Postgres):** tabla `notification_log` (KAN-58) creada con una **migración TypeORM** que se aplica sola al arrancar. Cada servicio es dueño de sus datos: el microservicio **nunca** toca las tablas del backend, y viceversa.
+- **Crearla en tu máquina** (una vez): `make db-notifications`. En volúmenes nuevos la crea sola el script `ops/postgres/init/10-notifications-db.sql`.
+- **URL:** `postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/notifications` (ya está en el compose). Si la contraseña tiene `@ : / #`, hay que codificarlos en la URL.
+- **Redis:** el microservicio usa la **base 1** para las llaves de idempotencia (`notifications:idempotency:*`, con expiración de 7 días). No requiere configuración nueva.
+- **Mejora futura:** usar un usuario de Postgres propio para `notifications`, con permisos sólo sobre esa base (mínimo privilegio).
 
 ---
 
@@ -219,9 +224,30 @@ En el proveedor donde corra el compose o los contenedores (ver `docs/DEPLOYMENT-
 | `MAIL_REDIRECT_TO` | **vacío** (si queda con valor, ¡ningún usuario recibe sus correos!) |
 | `FRONTEND_URL` | URL pública del frontend (por ejemplo, `https://skillbridge.vercel.app`) |
 | `RABBITMQ_URL` | La misma del backend. Si es un RabbitMQ administrado (CloudAMQP, etc.), usar `amqps://...` |
+| `REDIS_URL` | Redis administrado, en una base o un prefijo distinto al del backend |
+| `NOTIFICATIONS_DATABASE_URL` | Base `notifications` (puede ser la misma instancia que la del backend) |
+| `RESEND_WEBHOOK_SECRET` | `whsec_` del endpoint de **producción** (§9) |
 
 Checklist de salida a producción:
 - [ ] Dominio **Verified** en Resend.
 - [ ] DMARC publicado.
 - [ ] `MAIL_REDIRECT_TO` vacío.
 - [ ] Prueba real: registrar un usuario con un correo propio y verificar que llega a **Recibidos** (no a Spam).
+- [ ] Webhook de producción configurado con la URL real (`https://<dominio-api>/webhooks/resend`).
+
+---
+
+## 9. Webhooks de Resend (KAN-58)
+
+Resend avisa por HTTP cada cambio de estado de un correo (enviado, entregado, rebotado, queja). El microservicio los recibe en `POST /webhooks/resend` y actualiza `notification_log`.
+
+1. **Resend → Webhooks → Add Endpoint.**
+   - **Endpoint URL:**
+     - en local: la URL del túnel + `/webhooks/resend` (por ejemplo, `https://xxxx.trycloudflare.com/webhooks/resend`; ver la guía de Leonardo, Paso 9);
+     - en producción: `https://<dominio-del-microservicio>/webhooks/resend`.
+   - **Events:** `email.sent`, `email.delivered`, `email.delivery_delayed`, `email.bounced`, `email.complained` y `email.failed`.
+2. Copia el **Signing secret** (`whsec_…`) a `RESEND_WEBHOOK_SECRET` en tu `.env` y reinicia `notifications`.
+3. **Un secreto por endpoint:** el de tu túnel local y el de producción son distintos. Nunca subas ninguno a git.
+4. **Por qué es seguro:** cada webhook trae `svix-id`, `svix-timestamp` y `svix-signature` (HMAC-SHA256 con tu secreto). Si alguien llama a la URL sin firma válida, el servicio responde **401** y no escribe nada.
+5. **Túnel local:** instala `cloudflared` (Arch: `sudo pacman -S cloudflared`) o `ngrok`. La URL de `trycloudflare.com` cambia en cada ejecución: actualízala en Resend.
+6. **Tracking:** `email.opened` y `email.clicked` se ignoran a propósito (el tracking está desactivado, §2.3).
