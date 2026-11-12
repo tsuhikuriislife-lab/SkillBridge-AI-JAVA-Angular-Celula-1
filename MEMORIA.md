@@ -2,6 +2,21 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-12] Revisión del avance de la épica e integración del consumidor de Kevin (KAN-57)
+- **Agente:** Claude Code (Claude Opus 5.5), a pedido de Dylan. Dylan hace el commit, el push y el merge.
+- **Estado al revisar:**
+  - KAN-59 y KAN-56: mergeadas en `feature/notificaciones` (PR #84 y #85), en revisión en Jira.
+  - KAN-58: Bloque 1 mergeado (PR #79 + fix #89). Falta el Bloque 2: `/health` con Terminus, Swagger, Prometheus y el job de CI.
+  - KAN-57: rama `feature/notificaciones-consumer` sin PR. Su base era `develop` más el commit original de la base (`175d717`) y estaba 9 commits atrás.
+- **Integración (rama `feature/notificaciones-consumer-sync`, sobre la de Kevin, que no se modificó):**
+  - Se mergeó `feature/notificaciones`. Hubo 7 conflictos agregar/agregar, todos por la base duplicada:
+    - 6 archivos se resolvieron con la versión integrada (`.gitignore`, `nest-cli.json` y los módulos `email`, `persistence`, `webhooks` y `templates`);
+    - `messaging.module.ts` quedó con la versión de Kevin.
+  - Se borró un `package-lock.json` vacío de la raíz.
+  - El resultado difiere de `feature/notificaciones` sólo en los 18 archivos de Kevin, que coinciden con su guía.
+  - Lint, **70/70 pruebas** y build OK.
+- **Pendientes:** CORS de Render (el preflight sigue en 403), Bloque 2 de Leonardo, E2E con correo real, `PR_AUTOMATION_TOKEN`.
+
 ## [2026-11-11] Verificación E2E de KAN-59/KAN-56, revisión del PR #79 y timeout de RabbitMQ
 - **Agente:** Claude Code (Claude Opus 5.5), a pedido de Dylan. Dylan hace los commits, los push y los merges.
 - **Revisión del PR #79 (Leonardo, KAN-58 parte 1):**
