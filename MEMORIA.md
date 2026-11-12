@@ -1357,3 +1357,35 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - **`LiveKitRestAdapter.java`:** Se adoptó el uso del SDK oficial de LiveKit (`io.livekit.server.AccessToken`), asignando TTL configurable y otorgando grants de publicación y moderación (`CanPublish`, `RoomAdmin`) tanto a `MeetingRole.PROVIDER` como a `MeetingRole.ADMIN`.
   - **`docker-compose.yml`:** Se mantuvieron las variables de entorno WebRTC locales (`LIVEKIT_RTC_NODE_IP`, `LIVEKIT_RTC_ADVERTISE_INTERNAL_IP`, `LIVEKIT_RTC_USE_ICE_LITE`, etc.) y la dependencia con el contenedor de estado efímero `redis-livekit`, asegurando la estabilidad de la conexión WebRTC.
   - **`MEMORIA.md`:** Se unificaron sin pérdidas todas las bitácoras técnicas de ambas ramas (69 secciones únicas preservadas).
+
+## [2026-11-11] Implementación del Pipeline ETL de Extracción, Limpieza y Normalización del Catálogo (HU-PS02)
+- **Rol:** Data Engineer
+- **Contexto:** Desarrollo del pipeline de procesamiento de datos por lotes (Batch ETL) utilizando Apache Spark y PySpark para extraer, desinfectar y consolidar la información de servicios, categorías y mentores desde PostgreSQL hacia un almacenamiento columnar analítico optimizado (Parquet).
+
+- **Criterios de Aceptación Cubiertos:**
+  - **CA 2.1: Extracción particionada vía JDBC:** 
+    - Extracción paralela y balanceada desde PostgreSQL de las tablas `services`, `catalog_items` (categorías) y `app_users` (mentores).
+    - Implementación de particionamiento numérico en Spark JDBC mediante la función hash nativa de PostgreSQL (`abs(hashtext(id::text)) % num_partitions`), permitiendo lecturas concurrentes sin cuellos de botella ni bloqueos de tablas.
+  - **CA 2.2: Normalización y Limpieza de Texto Nativa:** 
+    - Eliminación de etiquetas HTML y entidades codificadas (`&nbsp;`, `&amp;`, etc.).
+    - Sanitización de formato Markdown (encabezados, negritas, cursivas, enlaces, código en línea y viñetas).
+    - Remoción de caracteres de control ASCII (`[\x00-\x1F\x7F-\x9F]`).
+    - Normalización Unicode de espacios múltiples y manejo estricto de nulos/cadenas vacías con valores por defecto contextuales.
+    - Implementación 100% nativa con `pyspark.sql.functions` para garantizar la ejecución directa en JVM/C++ sin degradación por Python UDFs.
+  - **CA 2.3: Exportación en Parquet con Esquema Estricto:** 
+    - Definición y validación programática del esquema canónico `CATALOG_CLEAN_SCHEMA` (`StructType`) antes de la persistencia.
+    - Almacenamiento columnar en `/data/processed/catalog_clean.parquet` particionado por `category_name` y comprimido con codec Snappy.
+
+- **Componentes Técnicos Desarrollados:**
+  - **`analytics-service/jobs/cleaning_transforms.py`:** Módulo de transformaciones puras y funciones de limpieza (`clean_text_column`, `remove_html_tags`, `remove_markdown`, `normalize_unicode_and_spaces`, `validate_schema`).
+  - **`analytics-service/jobs/extract_and_clean_catalog.py`:** Script ETL orquestador que gestiona la sesión distribuida de Spark, la extracción JDBC particionada, consolidación mediante JOINs, transformaciones, validación y escritura en Parquet.
+  - **`analytics-service/tests/conftest.py`:** Fixture PyTest para levantar una `SparkSession` local (`local[2]`) optimizada para entornos de pruebas.
+  - **`analytics-service/tests/test_cleaning_transforms.py`:** Suite de pruebas unitarias que valida remoción de HTML, Markdown, caracteres de control, nulos y verificación de fallos de esquema.
+  - **`analytics-service/requirements.txt`:** Incorporación de `pytest==8.2.0` para la suite de testing.
+  - **`docker-compose.yml`:** Persistencia bidireccional del volumen `./analytics-service/data:/data` en los servicios de Spark.
+
+- **Validación y Ejecución:**
+  - Ejecución de pruebas unitarias de transformaciones con `pytest` completadas al 100%.
+  - Pipeline ETL ejecutado exitosamente en el clúster Spark mediante `spark-submit`.
+  - Verificación de esquema `[OK] Esquema validado correctamente.`
+  - Generación confirmada de las particiones físicas en disco (`category_name=Backend`, `category_name=Frontend`, `category_name=Cloud`) con archivos binarios `.snappy.parquet` y manifest `_SUCCESS`.
