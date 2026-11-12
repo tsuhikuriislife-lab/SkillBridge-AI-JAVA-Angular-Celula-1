@@ -43,11 +43,11 @@ Siguiendo el patrón de booking, se define:
 
 - Exchange topic: `feature-store.events`
 - Routing key: `features.updated`
-- Cola durable: `features.updated.queue`
-- DLX y DLQ: cola de errores vinculada a un exchange de dead letter, con clave de enrutamiento propia.
-- Reintentos: misma configuración de booking (intervalo inicial de 2 segundos, hasta 3 intentos y rechazo sin reencolado por defecto).
+- El loader de analytics declara únicamente el exchange topic durable. El backend declara la cola durable `features.updated.queue`, su DLX/DLQ y el binding de `features.updated.queue` a `feature-store.events` con la routing key `features.updated`. No declarar la cola ni el binding en el loader; ambos lados deben conservar estos nombres y parámetros.
+- La publicación usa `RABBITMQ_URL`, mensaje persistente (`delivery_mode=2`), `content_type=application/json`, `message_id=batch_id` y publisher confirms. La publicación es obligatoria: el loader solo considera confirmado el mensaje cuando el broker confirma su recepción y la ruta existe.
+- Se realizan hasta 3 intentos de publicación, con espera creciente (2 y 4 segundos entre intentos). Si todos fallan, se registra el error y el proceso termina con código 3; los datos en Redis y el estado PostgreSQL `COMPLETED` se conservan. Es una falla de notificación, no de carga, por lo que no se revierte ni se marca `FAILED`; el batch puede volver a ejecutarse y el consumidor debe tolerar entregas repetidas por `batch_id`.
 
-El payload JSON contiene `batch_id`, cantidad de registros de mentores, cantidad de registros de embeddings, `started_at` y `finished_at`. El evento se publica solo después de escribir todos los lotes y actualizar `featurestore:last_batch`. El consumidor del backend debe ser idempotente por `batch_id` para tolerar entregas repetidas.
+El payload JSON contiene `batch_id`, `mentores_cargados`, `embeddings_cargados`, `embeddings_rechazados`, `started_at` y `finished_at`. Las fechas son ISO-8601 en UTC. El evento se publica únicamente después de escribir todos los lotes, actualizar `featurestore:last_batch` y cambiar `feature_batches` a `COMPLETED`; nunca se publica para un batch `FAILED`. El consumidor del backend debe ser idempotente por `batch_id` para tolerar entregas repetidas.
 
 ## 7. Lectura en el backend
 

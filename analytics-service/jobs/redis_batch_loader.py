@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import random
@@ -8,6 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
+import pika
 import redis
 from pyspark.sql import SparkSession
 
@@ -19,6 +21,10 @@ DEFAULT_BATCH_PAUSE_MS = 50
 DEFAULT_TTL_SECONDS = 259200
 DEFAULT_EMBEDDING_DIMENSION = 384
 MAX_REDIS_ATTEMPTS = 3
+MAX_RABBITMQ_ATTEMPTS = 3
+RABBITMQ_RETRY_INITIAL_SECONDS = 2
+RABBITMQ_EXCHANGE = "feature-store.events"
+RABBITMQ_ROUTING_KEY = "features.updated"
 
 
 def _positive_int(name, default):
@@ -84,7 +90,7 @@ def _update_batch(connection, batch_id, state, mentor_count=0, embedding_count=0
             )
         else:
             finished_sql = (
-                f"'{finished_at.isoformat()}'::timestamptz"
+                f"'{_iso_utc(finished_at)}'::timestamptz"
                 if finished_at is not None
                 else "NOW()"
             )
@@ -102,24 +108,37 @@ def _update_batch(connection, batch_id, state, mentor_count=0, embedding_count=0
         statement.close()
 
 
+def _iso_utc(value):
+    if isinstance(value, datetime):
+        return value.astimezone(timezone.utc).isoformat(timespec="microseconds").replace(
+            "+00:00", "Z"
+        )
+    return str(value)
+
+
 def _select_batch(connection, requested_batch_id):
     statement = connection.createStatement()
     try:
+        selected_columns = (
+            "SELECT batch_id::text, "
+            "to_char(started_at AT TIME ZONE 'UTC', "
+            "'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') "
+            "FROM feature_batches "
+        )
         if requested_batch_id:
             query = (
-                "SELECT batch_id::text FROM feature_batches "
-                f"WHERE batch_id = '{requested_batch_id}'::uuid"
+                selected_columns + f"WHERE batch_id = '{requested_batch_id}'::uuid"
             )
         else:
             query = (
-                "SELECT batch_id::text FROM feature_batches "
-                "WHERE estado = 'RUNNING' ORDER BY started_at DESC LIMIT 1"
+                selected_columns
+                + "WHERE estado = 'RUNNING' ORDER BY started_at DESC LIMIT 1"
             )
         result = statement.executeQuery(query)
         try:
             if not result.next():
                 return None
-            return str(result.getString(1))
+            return str(result.getString(1)), str(result.getString(2))
         finally:
             result.close()
     finally:
@@ -189,6 +208,67 @@ def _redis_target(url):
         return f"{parsed.scheme}://{formatted_host}{port}"
     except ValueError:
         return "<REDIS_URL inválida>"
+
+
+def _publish_completion_event(rabbitmq_url, event):
+    payload = json.dumps(event, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    for attempt in range(1, MAX_RABBITMQ_ATTEMPTS + 1):
+        connection = None
+        try:
+            if not rabbitmq_url:
+                raise ValueError("RABBITMQ_URL no está configurada")
+            connection = pika.BlockingConnection(pika.URLParameters(rabbitmq_url))
+            channel = connection.channel()
+            channel.exchange_declare(
+                exchange=RABBITMQ_EXCHANGE,
+                exchange_type="topic",
+                durable=True,
+            )
+            channel.confirm_delivery()
+            channel.basic_publish(
+                exchange=RABBITMQ_EXCHANGE,
+                routing_key=RABBITMQ_ROUTING_KEY,
+                body=payload,
+                properties=pika.BasicProperties(
+                    content_type="application/json",
+                    delivery_mode=2,
+                    message_id=event["batch_id"],
+                    timestamp=int(datetime.now(timezone.utc).timestamp()),
+                ),
+                mandatory=True,
+            )
+            LOGGER.info(
+                "Evento confirmado por RabbitMQ: batch_id=%s exchange=%s routing_key=%s",
+                event["batch_id"],
+                RABBITMQ_EXCHANGE,
+                RABBITMQ_ROUTING_KEY,
+            )
+            return
+        except Exception as exc:
+            if attempt == MAX_RABBITMQ_ATTEMPTS:
+                LOGGER.error(
+                    "No se pudo publicar el evento de batch_id=%s tras %s intentos: %r",
+                    event["batch_id"],
+                    MAX_RABBITMQ_ATTEMPTS,
+                    exc,
+                )
+                raise
+            delay_seconds = RABBITMQ_RETRY_INITIAL_SECONDS * (2 ** (attempt - 1))
+            LOGGER.warning(
+                "Fallo de publicación RabbitMQ batch_id=%s intento=%s/%s: %r",
+                event["batch_id"],
+                attempt,
+                MAX_RABBITMQ_ATTEMPTS,
+                exc,
+            )
+            LOGGER.info("Reintentando publicación en %s s", delay_seconds)
+            time.sleep(delay_seconds)
+        finally:
+            if connection is not None and connection.is_open:
+                try:
+                    connection.close()
+                except Exception as close_exc:
+                    LOGGER.warning("Error al cerrar la conexión RabbitMQ: %r", close_exc)
 
 
 def _write_mentor_rows(client, rows, ttl_seconds, label):
@@ -350,6 +430,7 @@ def main():
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    logging.getLogger("pika").setLevel(logging.WARNING)
     args = _parse_args()
 
     try:
@@ -379,13 +460,14 @@ def main():
 
     try:
         connection = _jdbc_connection(spark, jdbc_url, db_user, db_password)
-        batch_id = _select_batch(connection, args.batch_id)
-        if batch_id is None:
+        batch = _select_batch(connection, args.batch_id)
+        if batch is None:
             if args.batch_id:
                 raise RuntimeError(f"No existe feature_batches para batch_id={args.batch_id}")
             raise RuntimeError(
                 "No hay batches en estado RUNNING en feature_batches; no hay nada para cargar."
             )
+        batch_id, started_at = batch
 
         _update_batch(connection, batch_id, "RUNNING")
         redis_client = redis.Redis.from_url(redis_url, decode_responses=False)
@@ -449,7 +531,7 @@ def main():
                 "featurestore:last_batch",
                 mapping={
                     "batch_id": batch_id,
-                    "finished_at": finished_at.isoformat(),
+                    "finished_at": _iso_utc(finished_at),
                 },
             )
             pipeline.expire("featurestore:last_batch", _jittered_ttl(ttl))
@@ -478,6 +560,23 @@ def main():
             rejected_embeddings,
             time.monotonic() - started,
         )
+        completion_event = {
+            "batch_id": batch_id,
+            "mentores_cargados": mentors_loaded,
+            "embeddings_cargados": embeddings_loaded,
+            "embeddings_rechazados": rejected_embeddings,
+            "started_at": _iso_utc(started_at),
+            "finished_at": _iso_utc(finished_at),
+        }
+        try:
+            _publish_completion_event(os.getenv("RABBITMQ_URL", ""), completion_event)
+        except Exception:
+            LOGGER.error(
+                "Batch %s permanece COMPLETED con los datos cargados; "
+                "la notificación no fue confirmada.",
+                batch_id,
+            )
+            return 3
         return 0
     except Exception as exc:
         mentors_loaded = stats["mentors_loaded"]

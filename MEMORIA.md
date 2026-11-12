@@ -2,6 +2,25 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-11] Publicación del evento de fin de batch (HU-PS06 / KAN-55)
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Implementar CA 6.2 en el loader de analytics. No modificar backend ni crear commits.
+- **Cambios realizados:**
+  - `analytics-service/jobs/redis_batch_loader.py` declara el exchange durable topic `feature-store.events` y publica `features.updated` solo después de escribir `featurestore:last_batch` y actualizar `feature_batches` a `COMPLETED`.
+  - El evento JSON incluye `batch_id`, `mentores_cargados`, `embeddings_cargados`, `embeddings_rechazados`, `started_at` y `finished_at` en ISO-8601 UTC. Usa mensaje persistente, `content_type=application/json`, `message_id=batch_id`, `mandatory` y publisher confirms de pika.
+  - Se realizan hasta 3 intentos con pausas de 2 y 4 segundos. Si la publicación no se confirma, el proceso sale con código 3; no revierte las claves ni cambia el estado COMPLETED. Un fallo de carga Redis sigue marcando FAILED y no publica evento.
+  - `docs/FEATURE-STORE.md` aclara que solo el loader declara el exchange; el backend debe declarar `features.updated.queue`, su DLX/DLQ y el binding. También documenta payload y semántica de reintento/notificación.
+- **Validación real:**
+  - Docker: PostgreSQL, Redis, RabbitMQ y Spark master healthy; Spark worker iniciado y registrado. Sintaxis validada con `python3 -m py_compile /app/jobs/redis_batch_loader.py`.
+  - La base activa disponible no tenía las tablas V18. Para no alterar su esquema, se creó una base temporal con los IDs de prueba existentes (4 `app_users`, 1 `PROVIDER`, 3 `services`) y se aplicó allí V18. Base eliminada tras las pruebas.
+  - Se creó una cola temporal durable enlazada a `feature-store.events`/`features.updated`. La carga terminó `COMPLETED` con 1 mentor y 3 embeddings; publisher confirmó la entrega. El mensaje real recibido por la API de gestión fue:
+    `{"batch_id":"f9ede60b-8946-4227-8963-afa6701d221e","mentores_cargados":1,"embeddings_cargados":3,"embeddings_rechazados":0,"started_at":"2026-11-12T04:36:28.936742Z","finished_at":"2026-11-12T04:38:24.410549Z"}`
+    Propiedades verificadas: exchange `feature-store.events`, routing key `features.updated`, `message_id` igual al batch, `content_type=application/json`, `delivery_mode=2`. Los conteos coincidieron con `feature_batches` (COMPLETED, 1, 3) y con las filas fuente (1 mentor, 3 embeddings).
+  - Reejecución del mismo `batch_id`: otro mensaje confirmado y leído, con el mismo `message_id`/`batch_id`.
+  - Redis inválido: el batch quedó FAILED y la cola no recibió ningún evento.
+  - `RABBITMQ_URL` apuntando a `127.0.0.1:5679`: la carga Redis quedó COMPLETED (1 mentor, 3 embeddings), conservó las claves y `featurestore:last_batch`, hizo 3 intentos con pausas crecientes y terminó con código 3; la cola no recibió un mensaje.
+  - Limpieza confirmada: datos de batches sintéticos y claves Redis eliminados, cola temporal eliminada, base temporal eliminada. Redis quedó con 0 claves `mentor:feat:*`, 0 `service:emb:*` y sin `featurestore:last_batch`. No se publicó a una cola del backend ni se modificó backend.
+
 ## [2026-11-11] Carga masiva del Feature Store (HU-PS06 / KAN-55)
 - **Agente:** AI assistant using Copilot SDK in VS Code
 - **Contexto:** Implementar el loader Spark/PostgreSQL→Redis y el generador de datos sintéticos, sin modificar backend ni publicar el evento de RabbitMQ.
