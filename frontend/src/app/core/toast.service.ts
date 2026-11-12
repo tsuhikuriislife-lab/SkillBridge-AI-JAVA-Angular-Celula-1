@@ -19,6 +19,18 @@ export class ToastService {
     this.toast.set({ message, actions });
   }
 
+  info(message: string) {
+    this.show(message, [{ label: 'Cerrar', primary: true, action: () => this.clear() }]);
+  }
+
+  error(message: string) {
+    this.show(message, [{ label: 'Entendido', primary: true, action: () => this.clear() }]);
+  }
+
+  success(message: string) {
+    this.show(message, [{ label: 'OK', primary: true, action: () => this.clear() }]);
+  }
+
   clear() {
     this.toast.set(null);
   }

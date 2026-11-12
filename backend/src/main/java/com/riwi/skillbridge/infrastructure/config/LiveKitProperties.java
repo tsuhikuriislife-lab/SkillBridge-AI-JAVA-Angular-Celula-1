@@ -1,5 +1,6 @@
 package com.riwi.skillbridge.infrastructure.config;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -24,7 +25,8 @@ public class LiveKitProperties {
 
     /** Tiempo de expiración configurable de los tokens de LiveKit en minutos. */
     private final long tokenTtlMinutes;
-
+    
+    @Autowired
     public LiveKitProperties(
         @Value("${app.livekit.url:}") String url,
         @Value("${app.livekit.api-key:}") String apiKey,
@@ -38,6 +40,10 @@ public class LiveKitProperties {
         this.apiSecret = apiSecret;
         this.roomEmptyTimeoutSeconds = roomEmptyTimeoutSeconds;
         this.tokenTtlMinutes = tokenTtlMinutes;
+    }
+
+    public LiveKitProperties(String url, String apiKey, String apiSecret, int roomEmptyTimeoutSeconds) {
+        this(url, apiKey, apiSecret, roomEmptyTimeoutSeconds, 120L);
     }
 
     public String getUrl() { return url; }

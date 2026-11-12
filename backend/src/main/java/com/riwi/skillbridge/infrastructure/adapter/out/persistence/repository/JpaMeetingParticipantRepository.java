@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public interface JpaMeetingParticipantRepository extends JpaRepository<MeetingParticipantEntity, UUID> {
 
-    Optional<MeetingParticipantEntity> findByMeetingIdAndUserId(UUID meetingId, UUID userId);
+    Optional<MeetingParticipantEntity> findFirstByMeetingIdAndUserIdOrderByCreatedAtDesc(UUID meetingId, UUID userId);
 
     List<MeetingParticipantEntity> findByMeetingId(UUID meetingId);
 
