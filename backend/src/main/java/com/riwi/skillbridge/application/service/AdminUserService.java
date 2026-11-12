@@ -20,12 +20,14 @@ public class AdminUserService implements AdminManageUsersUseCase {
     private final UserRepositoryPort userRepository;
     private final PasswordHasherPort passwordHasher;
     private final AdminActivityUseCase adminActivity;
+    private final UserEventEmitter events;
 
     public AdminUserService(UserRepositoryPort userRepository, PasswordHasherPort passwordHasher,
-                            AdminActivityUseCase adminActivity) {
+                            AdminActivityUseCase adminActivity, UserEventEmitter events) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
         this.adminActivity = adminActivity;
+        this.events = events;
     }
 
     @Override
@@ -65,6 +67,7 @@ public class AdminUserService implements AdminManageUsersUseCase {
                 Rol         : %s
             """.formatted(saved.id(), saved.name(), saved.email(), saved.role());
         adminActivity.record(actorEmail, "USUARIO CREADO", "USER", saved.id(), message);
+        events.createdByAdmin(saved, actorEmail);
         return saved;
     }
 
@@ -106,6 +109,7 @@ public class AdminUserService implements AdminManageUsersUseCase {
                 """.formatted(saved.id(), saved.email(), current.role(), saved.role())
             : "Se actualizó " + saved.email() + "; rol: " + current.role() + " -> " + saved.role() + ".";
         adminActivity.record(actorEmail, action, "USER", saved.id(), message);
+        events.roleChanged(current, saved, actorEmail);
         return saved;
     }
 
@@ -118,6 +122,7 @@ public class AdminUserService implements AdminManageUsersUseCase {
         userRepository.deleteById(id);
         adminActivity.record(actorEmail, "USER_DELETED", "USER", user.id(),
             "Se eliminó el usuario " + user.name() + " (" + user.email() + ").");
+        events.deleted(user, actorEmail);
     }
 
     private void ensureAdminRoleAvailable(Role role, UUID currentUserId) {

@@ -30,6 +30,7 @@ class ServiceEnrollmentServiceTest {
     @Mock ServiceSchedulePort schedulePort;
     @Mock UserAccountPort userAccountPort;
     @Mock BookingHistoryPort historyPort;
+    @Mock com.riwi.skillbridge.application.service.UserEventEmitter events;
     @InjectMocks ServiceEnrollmentService service;
 
     private final UUID userId = UUID.randomUUID();

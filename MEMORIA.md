@@ -2,6 +2,28 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-11] KAN-59 (eventos Java + seguridad) y KAN-56 Bloque 1 (Resend + plantillas + Docker)
+- **Agente:** Claude Code (Claude Opus 5.5), a pedido de Dylan ("haz todo lo que me falta"). El agente escribió el código; Dylan hace los commits.
+- **KAN-59 (rama `feature/notificaciones-java`):**
+  - Dylan hizo los Pasos 1 a 12 de `GUIA-DYLAN-HU-NOT00-JAVA.md`.
+  - El agente restauró `toOut` en `UserAccountController` (se borró por error) y corrigió una llamada a `deleteUserAccount` en `UserAccountServiceTest`.
+  - El agente aplicó el Paso 13:
+    - `AccountAccessDeniedException` → 403;
+    - `ensureCanManage` (sólo ADMIN o el dueño de la cuenta);
+    - no se puede desactivar al ADMIN;
+    - login de una cuenta INACTIVE → 401;
+    - `AuthServiceTest`.
+  - `mvn -B clean verify` con JDK 21 (Temurin vía `mise`): 123 pruebas, 0 fallos, 2 omitidas (LiveKit).
+- **KAN-56 Bloque 1 (rama `feature/notificaciones-resend-templates`, worktree `../SkillBridge-kan56-resend`):**
+  - Archivos: `ResendEmailAdapter` + prueba, `EmailModule` con selección de driver, 10 plantillas Handlebars + renderer + pruebas, `nest-cli.json` (copia los `.hbs`), `Dockerfile`, `.dockerignore`, servicio `notifications` en `docker-compose.yml` y bloque en `.env.example`.
+  - Lint, 16 pruebas y build OK. Archivos idénticos a la versión verificada de la guía.
+- **Guía Java corregida:** el Paso 11 aclara que no se borra `toOut`; el Paso 12.4 se ejecuta desde `backend/` (por `mise`).
+- **Frontend en el dominio:**
+  - DNS de Vercel aplicado en Hostinger por Dylan: A `@` → `216.198.79.1`, CNAME `www` y TXT `_vercel`.
+  - `https://skillbridgeai.online` y `/api` responden desde fuera.
+  - **Pendiente:** `CORS_ALLOWED_ORIGINS` en Render (el preflight responde 403).
+- **Sin verificar aquí (no hay permiso sobre Docker):** `docker build`, `make up` y la prueba E2E (Paso 14 de la guía Java).
+
 ## [2026-11-11] Plan y guías de la épica "Notificaciones por correo" (microservicio NestJS + Resend + RabbitMQ)
 - **Agente:** Claude Code (Claude Opus 5.5), solicitado por Dylan (líder de la épica)
 - **Objetivo:** Analizar el repositorio y planificar un microservicio NestJS (`notification-service`) que envíe correos con Resend cuando cambie el estado de la cuenta de un usuario o administrador. Repartir el trabajo entre 3 personas con guías paso a paso que incluyan código listo para copiar y su explicación. **Sólo documentación**: no se modificó código fuente ni se hicieron commits, por decisión del usuario.

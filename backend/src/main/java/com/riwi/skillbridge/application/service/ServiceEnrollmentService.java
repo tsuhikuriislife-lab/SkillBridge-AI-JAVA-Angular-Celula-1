@@ -20,6 +20,7 @@ import com.riwi.skillbridge.domain.model.Offering;
 import com.riwi.skillbridge.domain.model.PageResult;
 import com.riwi.skillbridge.domain.model.ServiceEnrollment;
 import com.riwi.skillbridge.domain.model.ServiceSchedule;
+import com.riwi.skillbridge.domain.model.UserAccount;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -39,20 +40,22 @@ public class ServiceEnrollmentService implements EnrollUserUseCase, RetrieveEnro
     private final ServiceSchedulePort schedulePort;
     private final UserAccountPort userAccountPort;
     private final BookingHistoryPort historyPort;
+    private final UserEventEmitter events;
 
     public ServiceEnrollmentService(ServiceEnrollmentPort enrollmentPort, OfferingPort offeringPort,
                                     ServiceSchedulePort schedulePort, UserAccountPort userAccountPort,
-                                    BookingHistoryPort historyPort) {
+                                    BookingHistoryPort historyPort, UserEventEmitter events) {
         this.enrollmentPort = enrollmentPort;
         this.offeringPort = offeringPort;
         this.schedulePort = schedulePort;
         this.userAccountPort = userAccountPort;
         this.historyPort = historyPort;
+        this.events = events;
     }
 
     @Override
     public ServiceEnrollment enroll(ServiceEnrollment request) {
-        userAccountPort.findById(request.userId())
+        UserAccount customer = userAccountPort.findById(request.userId())
                 .orElseThrow(() -> new BusinessRuleException("El usuario no existe"));
         Offering service = offeringPort.findById(request.serviceId())
                 .orElseThrow(() -> new BusinessRuleException("El servicio no existe"));
@@ -79,6 +82,7 @@ public class ServiceEnrollmentService implements EnrollUserUseCase, RetrieveEnro
                 ServiceScheduleService.calculateEndDate(schedule));
         ServiceEnrollment saved = enrollmentPort.save(enrollment);
         recordHistory(saved, EnrollmentStatus.ACTIVE);
+        events.enrollmentCreated(customer, service, saved, schedule);
         return saved;
     }
 
