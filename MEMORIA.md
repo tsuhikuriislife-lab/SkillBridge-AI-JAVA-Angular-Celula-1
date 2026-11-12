@@ -2,6 +2,28 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-11] KAN-59 (eventos Java + seguridad) y KAN-56 Bloque 1 (Resend + plantillas + Docker)
+- **Agente:** Claude Code (Claude Opus 5.5), a pedido de Dylan ("haz todo lo que me falta"). El agente escribió el código; Dylan hace los commits.
+- **KAN-59 (rama `feature/notificaciones-java`):**
+  - Dylan hizo los Pasos 1 a 12 de `GUIA-DYLAN-HU-NOT00-JAVA.md`.
+  - El agente restauró `toOut` en `UserAccountController` (se borró por error) y corrigió una llamada a `deleteUserAccount` en `UserAccountServiceTest`.
+  - El agente aplicó el Paso 13:
+    - `AccountAccessDeniedException` → 403;
+    - `ensureCanManage` (sólo ADMIN o el dueño de la cuenta);
+    - no se puede desactivar al ADMIN;
+    - login de una cuenta INACTIVE → 401;
+    - `AuthServiceTest`.
+  - `mvn -B clean verify` con JDK 21 (Temurin vía `mise`): 123 pruebas, 0 fallos, 2 omitidas (LiveKit).
+- **KAN-56 Bloque 1 (rama `feature/notificaciones-resend-templates`, worktree `../SkillBridge-kan56-resend`):**
+  - Archivos: `ResendEmailAdapter` + prueba, `EmailModule` con selección de driver, 10 plantillas Handlebars + renderer + pruebas, `nest-cli.json` (copia los `.hbs`), `Dockerfile`, `.dockerignore`, servicio `notifications` en `docker-compose.yml` y bloque en `.env.example`.
+  - Lint, 16 pruebas y build OK. Archivos idénticos a la versión verificada de la guía.
+- **Guía Java corregida:** el Paso 11 aclara que no se borra `toOut`; el Paso 12.4 se ejecuta desde `backend/` (por `mise`).
+- **Frontend en el dominio:**
+  - DNS de Vercel aplicado en Hostinger por Dylan: A `@` → `216.198.79.1`, CNAME `www` y TXT `_vercel`.
+  - `https://skillbridgeai.online` y `/api` responden desde fuera.
+  - **Pendiente:** `CORS_ALLOWED_ORIGINS` en Render (el preflight responde 403).
+- **Sin verificar aquí (no hay permiso sobre Docker):** `docker build`, `make up` y la prueba E2E (Paso 14 de la guía Java).
+
 ## [2026-11-11] Plan y guías de la épica "Notificaciones por correo" (microservicio NestJS + Resend + RabbitMQ)
 - **Agente:** Claude Code (Claude Opus 5.5), solicitado por Dylan (líder de la épica)
 - **Objetivo:** Analizar el repositorio y planificar un microservicio NestJS (`notification-service`) que envíe correos con Resend cuando cambie el estado de la cuenta de un usuario o administrador. Repartir el trabajo entre 3 personas con guías paso a paso que incluyan código listo para copiar y su explicación. **Sólo documentación**: no se modificó código fuente ni se hicieron commits, por decisión del usuario.
@@ -68,6 +90,11 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - Se revisó el DNS con el conector de Hostinger (sólo lectura, sin cambios): la raíz ya tiene MX, SPF y DKIM del correo de Hostinger y un `_dmarc p=none`. Por eso Resend se configura en el subdominio `mail.skillbridgeai.online` y no se crea DMARC nuevo.
   - Se actualizaron `CONFIGURACION-DOMINIO-Y-SECRETOS.md`, la guía de KAN-56 (`MAIL_FROM` y `MAIL_REPLY_TO`) y `PLAN.md`.
   - Pendiente: los registros MX, SPF y DKIM que genere la cuenta Resend de Mateo.
+- **Actualización 4 (mismo día), DNS de Resend y base del microservicio:**
+  - Base de `notifications-service` (KAN-56, Bloque 0) revisada: archivos idénticos a la guía; build, lint y arranque (`/health/live` 200) OK. PR #75 hacia `feature/notificaciones`.
+  - Con el conector de Hostinger (`overwrite: false`, sin tocar la raíz) se crearon los registros que generó Resend para `mail.skillbridgeai.online`: TXT `resend._domainkey.mail` (DKIM) y CNAME `send.mail` → `send.forge.rmta.net` y `rsend.mail` → `rsend-sae1.forge.rmta.net` (SPF / return-path). Los 3 se ven en el DNS público.
+  - Resend ya no pide MX + TXT con `amazonses.com`, sino CNAMEs. Se actualizó `CONFIGURACION-DOMINIO-Y-SECRETOS.md` §2. "Enable receiving" se apaga (no se crea el MX en `mail`).
+  - Pendiente: Mateo pulsa **Verify** y crea las API keys.
 - **Próximos pasos:** Dylan sube la base (KAN-56, Bloque 0) para desbloquear a Kevin y Leonardo; integración en `feature/notificaciones` y checklist E2E (`PLAN.md` §6).
 
 ## [2026-11-10] Creación de `backend/README.md`, `frontend/README.md` y Modernización Visual de `README.md`

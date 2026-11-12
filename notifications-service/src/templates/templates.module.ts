@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TemplateRendererPort } from '../application/ports/template-renderer.port';
-import { BasicTemplateRenderer } from './basic-template.renderer';
+import { HandlebarsTemplateRenderer } from './handlebars-template.renderer';
 
-/** BASE: renderer básico. En el Bloque 1 Dylan lo cambia por HandlebarsTemplateRenderer. */
 @Module({
   providers: [
-    { provide: TemplateRendererPort, useClass: BasicTemplateRenderer },
+    { provide: TemplateRendererPort, useClass: HandlebarsTemplateRenderer },
   ],
   exports: [TemplateRendererPort],
 })
