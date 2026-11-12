@@ -2,6 +2,128 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-12] Preparación del PR HU-PS06 hacia develop
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Actualizar la rama publicada frente a `origin/develop`, revisar alcance/secretos, validar backend y Compose, y dejar explícitas las limitaciones de CA 6.3. Sin commit ni push.
+- **Cambios realizados:**
+  - `git fetch origin` no encontró commits entrantes; `origin/develop` ya era ancestro de la rama. `git merge origin/develop` terminó `Already up to date`, sin conflictos.
+  - Se ajustó `docs/FEATURE-STORE.md` para indicar que la fase A pudo estar fría, que el resultado solo permite concluir “sin degradación medible” en la ruta PostgreSQL medida, que no hay captura Grafana y que el objetivo <20 ms del flujo Feature Store queda pendiente de integrarlo con `AiRecommendationService`. `maxmemory 512mb`/`volatile-lru` queda como recomendación por decidir por el equipo.
+- **Validación:**
+  - `mvn -f backend/pom.xml test`: `BUILD SUCCESS`; 120 pruebas, 0 fallos, 0 errores y 4 omitidas. `RedisFeatureStoreComposeIntegrationTest` se omitió porque faltaba `FEATURE_STORE_TEST_MENTOR_ID`; `FeatureStoreFallbackComposeIntegrationTest`, porque faltaba `FEATURE_STORE_TEST_FALLBACK`; dos pruebas de `LiveKitRoomIntegrationTest`, porque Testcontainers no pudo validar Docker en Windows (Npipe respondió HTTP 400). La verificación real con Compose se había ejecutado separadamente.
+  - `docker compose config -q`: aprobado. `git diff --check`: aprobado.
+  - `origin/develop` contiene migraciones hasta V17; la rama conserva V18. No había migraciones entrantes ni choque de numeración.
+  - El diff frente a develop comprende 35 archivos de HU-PS06 (incluye `.env.example`, documentación, memoria, analytics, backend y Compose); `.env` está ignorado/no versionado. No se encontraron secretos, datos de prueba, logs ni temporales entre los paths versionados.
+
+## [2026-11-12] Verificación de disponibilidad durante carga Feature Store (HU-PS06 / KAN-55)
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Validar CA 6.3 con seed volumétrico y mediciones comparables antes/durante/después del loader, usando solo la base local. Sin commit ni cambios a `docker-compose.yml`.
+- **Cambios realizados:**
+  - `analytics-service/jobs/seed_feature_data.py`: añadido `--load-test N`; inserta N proveedores sintéticos con correo `.invalid`, N servicios `INACTIVE`, scores aleatorios y embeddings float32 little-endian de 384 dimensiones en un batch `RUNNING`. El cleanup elimina registros ligados al UUID completo del batch y sus claves Redis; conserva el comportamiento anterior del seed.
+  - `docs/FEATURE-STORE.md`: documentada la configuración, resultados por fase, memoria Redis, PromQL y limitaciones observadas.
+- **Validación real:**
+  - Base inicial: 4 usuarios, 1 proveedor y 3 servicios. Seed con N=10.000: 10.000 usuarios y servicios sintéticos; loader al tamaño/pausa por defecto (500 y 50 ms), tres ejecuciones idempotentes de 24,88 s, 24,98 s y 24,37 s, con aproximadamente 1,0 s entre ejecuciones. No se ajustó el tamaño/pausa.
+  - k6 mantuvo 40 req/s total (20 `GET /api/services` + 20 `GET /actuator/health`) por fase, durante 60 s; cada endpoint recibió 1.201 solicitudes por fase, sin errores ni iteraciones descartadas. Catálogo p50/p95/p99: base 9,38/14,53/21,59 ms; durante 6,52/12,46/20,96 ms; después 8,18/10,19/16,27 ms. Health p50/p95/p99: base 4,17/8,01/14,12 ms; durante 3,50/7,52/11,66 ms; después 4,05/5,37/8,04 ms. El límite p95 calculado fue 19,53 ms y se cumplió.
+  - Fase B: 25 muestras de `docker stats`, CPU backend media 27,53% y pico 71,84%; memoria media 697,6 MiB y pico 713,6 MiB. `redis-cli --latency-history -i 1`: min 0,158 ms, max 0,725 ms, promedio 0,282 ms en los primeros 60 segundos de medición.
+  - Redis `used_memory`: 1,59 MiB antes, 25,05 MiB durante (pico 25,63 MiB), 1,79 MiB después. `MEMORY USAGE` representativo: mentor 286 B; embedding 1.869 B y metadatos 151 B; bytes del embedding 1.536. Propuesta, no aplicada: `maxmemory 512mb`, política `volatile-lru`.
+  - Desajuste de API documentado: `/api/offerings` no es una ruta pública disponible; `/api/services` devolvió 200. La ruta de catálogo actual no implementa Cache-Aside ni consulta Redis, así que la prueba confirma la disponibilidad bajo escritura concurrente a Redis, no el impacto sobre lecturas de un caché de catálogo.
+  - `/actuator/prometheus` no expuso buckets `http_server_requests_seconds_bucket` y Prometheus/Grafana opcionales no estaban levantados; se dejó la PromQL y ventanas horarias en el contrato, anotando que no se pudo generar una gráfica p95 en Grafana.
+  - Cleanup ejecutado: 10.000 usuarios, 10.000 servicios, 10.000 mentor_features, 10.000 embeddings, un batch y 30.001 claves Redis eliminadas. Conteos restaurados a 4/1/3; cero filas de batch/features de prueba, cero claves feature-store, `featurestore:last_batch` ausente y colas RabbitMQ vacías. Backend permaneció healthy. Tras fijar el marcador de servicio para incluir el UUID completo, un seed de humo `--load-test 1` y su cleanup eliminaron correctamente un par y su batch.
+
+## [2026-11-12] Verificación real de lectura y eventos del Feature Store (HU-PS06 / KAN-55)
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Completar la validación Docker Compose de la lectura Redis/PostgreSQL y del consumidor `features.updated`, incluyendo duplicados, DLQ, compatibilidad del embedding, fallback con Redis detenido y limpieza.
+- **Cambios realizados:**
+  - Se ajustó el test de integración de fallback para usar `@DataJpaTest` y construir el adaptador Redis directamente. Así prueba los repositorios PostgreSQL y las métricas de fallback sin levantar Rabbit ni la autoconfiguración Gemini; no se modificó código de producción.
+- **Validación real:**
+  - Docker Compose quedó activo con PostgreSQL, Redis, RabbitMQ y backend healthy; Spark master y worker de verificación también estaban activos. El worker se ejecutó sin publicar la UI para evitar el conflicto de puerto 8081. `GET /actuator/health` respondió `{"status":"UP","groups":["liveness","readiness"]}`.
+  - RabbitMQ confirmó los exchanges durables `feature-store.events` (topic) y `feature-store.dlx` (direct). Existían `features.updated.queue` y `features.updated.dlq` con sus bindings (`features.updated` y `features.updated.failed`).
+  - Seed real: `app_users=4`, `mentores(PROVIDER)=1`, `services=3`; batch `4809fe07-dab2-42a4-9e67-85622f02fc12`. El loader Python completó 1 mentor y 3 embeddings. Backend registró `features.updated received: batch_id=4809fe07-dab2-42a4-9e67-85622f02fc12 mentors=1 embeddings=3 rejected=0`; la segunda ejecución registró `Duplicate features.updated ignored: batch_id=4809fe07-dab2-42a4-9e67-85622f02fc12`.
+  - Mensaje malformado `{invalid json`, publicado con routing key `features.updated`, agotó los reintentos y se rechazó sin reencolar; se enrutó a `features.updated.dlq`. El log incluyó `Retries exhausted for message` y `AmqpRejectAndDontRequeueException`; el backend permaneció healthy.
+  - `RedisFeatureStoreComposeIntegrationTest`: 1 prueba, 0 fallos, 0 errores, 0 omitidas. Leyó las claves escritas por el loader real y decodificó dimensión 384 (1536 bytes) con valores float32 finitos y coherentes con el rango sintético [-1, 1].
+  - Con Redis detenido, `FeatureStoreFallbackComposeIntegrationTest`: 1 prueba, 0 fallos, 0 errores, 0 omitidas; recuperó mentor y embedding desde PostgreSQL y verificó en el `SimpleMeterRegistry` contadores positivos de errores Redis y fallback para ambas lecturas. Los logs reportaron `Unable to connect to Redis` y el fallback a PostgreSQL. Redis se inició de nuevo y quedó healthy (`PONG`).
+  - Limpieza con `seed_feature_data.py --cleanup --batch-id 4809fe07-dab2-42a4-9e67-85622f02fc12`: eliminó 1 mentor, 3 embeddings, 1 batch y 8 claves Redis. `SCAN` no encontró claves `mentor:feat:*` ni `service:emb:*`; `featurestore:last_batch` quedó ausente. Las colas durables quedaron en 0 mensajes ready y 0 unacked; se conservó la topología declarada por el backend.
+
+## [2026-11-12] Lectura del Feature Store y consumidor `features.updated` (HU-PS06 / KAN-55)
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Agregar lectura Redis/PostgreSQL del Feature Store y consumo idempotente del evento de fin de batch, respetando arquitectura hexagonal, sin modificar `AiRecommendationService`, Gemini ni el esquema V18.
+- **Cambios realizados:**
+  - Añadidos modelos de aplicación para features de mentor, embedding de servicio y evento; puertos separados para Redis, PostgreSQL, métricas y manejo de eventos.
+  - El servicio de aplicación intenta Redis primero y recurre a PostgreSQL ante miss o excepción Redis. El backend no escribe claves del Feature Store. El adaptador binario usa serializers byte-array y decodifica float32 little-endian, coherente con los bytes que el loader conserva y el seed genera con `struct.pack("<...f")`.
+  - Añadidas entidades Hibernate inmutables y repositorios Spring Data de solo lectura para `mentor_features` y `service_embeddings`, sin cambiar V18 ni crear migraciones.
+  - Implementados contadores/timer/gauges Micrometer en un adaptador de infraestructura.
+  - Rabbit declara exchange topic durable `feature-store.events`, cola `features.updated.queue`, exchange DLX durable `feature-store.dlx`, DLQ durable `features.updated.dlq` y bindings. El listener convierte el JSON snake_case a un record de aplicación; mensajes inválidos se rechazan con `AmqpRejectAndDontRequeueException`. El caso de uso ignora batch IDs repetidos durante la vida del proceso y registra los eventos/duplicados y métricas de antigüedad.
+  - Se documentaron el endianness, topology DLQ, política de retry existente (3 intentos; intervalo inicial 2 s) y métricas/lectura en `docs/FEATURE-STORE.md`.
+- **Validación:**
+  - `mvn -f backend/pom.xml test`: `BUILD SUCCESS`; 119 pruebas, 0 fallos, 0 errores y 3 omitidas (la prueba Redis condicional y 2 pruebas existentes que requieren Testcontainers/Docker).
+  - Las pruebas nuevas cubren hit, miss, Redis error con fallback PostgreSQL, fuentes vacías, métricas, bytes float32 little-endian, idempotencia, payload válido/duplicado/malformado y bindings DLQ.
+  - `git diff --check`: sin errores de whitespace.
+  - Verificación Docker solicitada no ejecutable: `docker compose up -d postgres redis rabbitmq backend spark-master spark-worker` terminó con exit 1 y `Docker Desktop is unable to start`; `docker info` reportó el mismo problema. Por tanto no se pudo ejecutar seed/loader, comprobar en tiempo real la cola/DLQ ni observar los logs del evento. Este paso no creó datos sintéticos, así que no hubo datos de esta tarea que limpiar. La prueba de integración Redis quedó omitida automáticamente.
+  - No se modificó `AiRecommendationService`, el flujo Gemini ni el esquema V18.
+
+## [2026-11-12] Integración de `origin/develop` en HU-PS06 (KAN-55)
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Diagnosticar el fallo de arranque `No default constructor found` de `LiveKitProperties`, integrar los cambios recientes de `origin/develop` en la rama publicada `feature/hu-ps06-feature-store` y validar backend, Flyway y pruebas. Sin push.
+- **Cambios realizados:**
+  - Integrados los 18 commits que `origin/develop` tenía por delante, incluido `274f3c4` (`fix(config): add @Autowired annotation to LiveKitProperties constructor`), que restaura la selección del constructor de cinco parámetros.
+  - El único conflicto fue `analytics-service/requirements.txt`: se conservaron `redis==5.2.1` y `pika==1.3.2` de HU-PS06 junto con `pytest==8.2.0` de develop; `pyspark==3.5.1` se mantuvo.
+  - `MEMORIA.md` y `docker-compose.yml` se fusionaron automáticamente, sin conflicto manual ni eliminación intencional de contenido de ninguno de los lados.
+  - `origin/develop` contiene migraciones hasta V17; no hay migración V18 o superior en conflicto con `V18__feature_store.sql`. La base local `skillbridge` ya estaba en V18 y no se borró ni reinicializó.
+- **Validación:**
+  - `docker compose config -q`: aprobado.
+  - `mvn -f backend/pom.xml test`: `BUILD SUCCESS`; 106 pruebas, 0 fallos, 0 errores y 2 omitidas. Las omitidas requieren Testcontainers; en esta ejecución Testcontainers no reconoció un entorno Docker válido por respuesta HTTP 400 del proveedor Npipe, aunque Docker Compose funcionó.
+  - `docker compose up -d --build backend`: imagen construida y contenedor healthy. Spring inició sin `No default constructor found`; Flyway reportó versión actual 18 y la consulta a `skillbridge.flyway_schema_history` confirmó V18.
+  - `curl.exe --fail --silent --show-error --include http://127.0.0.1:8081/actuator/health`: HTTP 200, `{"status":"UP","groups":["liveness","readiness"]}`. Los logs de arranque no reportaron el error de `LiveKitProperties`; permanece la advertencia no fatal de `commons-logging`.
+
+## [2026-11-11] Publicación del evento de fin de batch (HU-PS06 / KAN-55)
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Implementar CA 6.2 en el loader de analytics. No modificar backend ni crear commits.
+- **Cambios realizados:**
+  - `analytics-service/jobs/redis_batch_loader.py` declara el exchange durable topic `feature-store.events` y publica `features.updated` solo después de escribir `featurestore:last_batch` y actualizar `feature_batches` a `COMPLETED`.
+  - El evento JSON incluye `batch_id`, `mentores_cargados`, `embeddings_cargados`, `embeddings_rechazados`, `started_at` y `finished_at` en ISO-8601 UTC. Usa mensaje persistente, `content_type=application/json`, `message_id=batch_id`, `mandatory` y publisher confirms de pika.
+  - Se realizan hasta 3 intentos con pausas de 2 y 4 segundos. Si la publicación no se confirma, el proceso sale con código 3; no revierte las claves ni cambia el estado COMPLETED. Un fallo de carga Redis sigue marcando FAILED y no publica evento.
+  - `docs/FEATURE-STORE.md` aclara que solo el loader declara el exchange; el backend debe declarar `features.updated.queue`, su DLX/DLQ y el binding. También documenta payload y semántica de reintento/notificación.
+- **Validación real:**
+  - Docker: PostgreSQL, Redis, RabbitMQ y Spark master healthy; Spark worker iniciado y registrado. Sintaxis validada con `python3 -m py_compile /app/jobs/redis_batch_loader.py`.
+  - La base activa disponible no tenía las tablas V18. Para no alterar su esquema, se creó una base temporal con los IDs de prueba existentes (4 `app_users`, 1 `PROVIDER`, 3 `services`) y se aplicó allí V18. Base eliminada tras las pruebas.
+  - Se creó una cola temporal durable enlazada a `feature-store.events`/`features.updated`. La carga terminó `COMPLETED` con 1 mentor y 3 embeddings; publisher confirmó la entrega. El mensaje real recibido por la API de gestión fue:
+    `{"batch_id":"f9ede60b-8946-4227-8963-afa6701d221e","mentores_cargados":1,"embeddings_cargados":3,"embeddings_rechazados":0,"started_at":"2026-11-12T04:36:28.936742Z","finished_at":"2026-11-12T04:38:24.410549Z"}`
+    Propiedades verificadas: exchange `feature-store.events`, routing key `features.updated`, `message_id` igual al batch, `content_type=application/json`, `delivery_mode=2`. Los conteos coincidieron con `feature_batches` (COMPLETED, 1, 3) y con las filas fuente (1 mentor, 3 embeddings).
+  - Reejecución del mismo `batch_id`: otro mensaje confirmado y leído, con el mismo `message_id`/`batch_id`.
+  - Redis inválido: el batch quedó FAILED y la cola no recibió ningún evento.
+  - `RABBITMQ_URL` apuntando a `127.0.0.1:5679`: la carga Redis quedó COMPLETED (1 mentor, 3 embeddings), conservó las claves y `featurestore:last_batch`, hizo 3 intentos con pausas crecientes y terminó con código 3; la cola no recibió un mensaje.
+  - Limpieza confirmada: datos de batches sintéticos y claves Redis eliminados, cola temporal eliminada, base temporal eliminada. Redis quedó con 0 claves `mentor:feat:*`, 0 `service:emb:*` y sin `featurestore:last_batch`. No se publicó a una cola del backend ni se modificó backend.
+
+## [2026-11-11] Carga masiva del Feature Store (HU-PS06 / KAN-55)
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Implementar el loader Spark/PostgreSQL→Redis y el generador de datos sintéticos, sin modificar backend ni publicar el evento de RabbitMQ.
+- **Cambios realizados:**
+  - Creado `analytics-service/jobs/redis_batch_loader.py`: selección explícita o del batch RUNNING más reciente, lectura JDBC paginada por UUID y limitada a `FEATURE_STORE_BATCH_SIZE`, pipeline Redis con reintentos, TTL con jitter, validación de float32/dimensión, contadores y estados `COMPLETED`/`FAILED`. Solo escribe `featurestore:last_batch` al cerrar con éxito.
+  - Creado `analytics-service/jobs/seed_feature_data.py`: inserta features para usuarios `PROVIDER` y embeddings para servicios existentes, crea batch RUNNING, soporta `--include-invalid-dimension` y limpieza limitada por `--batch-id`, incluyendo claves Redis que sigan perteneciendo al batch.
+  - Se usó exclusivamente el Redis compartido `redis`; no se publicó ningún evento ni se modificó código backend.
+- **Validación real:**
+  - `docker compose build spark-master spark-worker`: completado correctamente.
+  - `docker compose up -d postgres redis rabbitmq spark-master spark-worker`: PostgreSQL, Redis, RabbitMQ y Spark master healthy/started. La publicación del worker Compose falló porque `127.0.0.1:8081` ya estaba ocupado por `skillbridge-ai-backend-1`. Sin detener ni modificar ese contenedor, se ejecutó el worker sin publicar su UI (`docker compose run -d --no-deps --name skillbridge-spark-worker-task spark-worker`); se registró correctamente y la UI del master mostró 1 worker.
+  - `python3 -m py_compile /app/jobs/redis_batch_loader.py /app/jobs/seed_feature_data.py` en `skillbridge-spark-master`: aprobado. El intérprete Python del host no estaba instalado.
+  - La base activa `skillbridge` estaba en Flyway V14 y no tenía `feature_batches`, en contra del contexto recibido. No se modificó esa base: para los ejercicios se creó una base temporal, se copiaron los IDs existentes (4 `app_users`, 1 `PROVIDER` y 3 `services`) y se aplicó allí el SQL V18 del repositorio. La base temporal se eliminó al terminar.
+  - Seed y carga normal: batch `7b6d94f1-b91f-4af5-889d-3fd01080f700`, 1 mentor y 3 embeddings; estado COMPLETED y `featurestore:last_batch` presente. Con `SCAN`: 1 clave `mentor:feat:*`, 6 `service:emb:*` (3 binarios y 3 hashes `:meta`). TTL observado entre 237124 y 271976 segundos, con 8 valores distintos; `STRLEN` de un embedding: 1536 bytes.
+  - Reejecución del mismo batch: exit 0; conteos invariantes (mentor 1→1, claves `service:emb:*` 6→6).
+  - Prueba de dimensión incorrecta: `--include-invalid-dimension` creó un embedding de dimensión 385; el loader emitió WARN para `11111111-1111-1111-1111-111111111111`, rechazó 1 fila, cargó los otros 2 embeddings y completó. La clave del servicio rechazado no se escribió.
+  - Configuración `EMBEDDING_DIMENSION=0`: falló antes de leer/cargar datos con exit 2.
+  - Redis no disponible (`REDIS_URL=redis://127.0.0.1:6399`): se observaron 3 intentos y esperas de 1 y 2 segundos; exit 1, batch FAILED, ninguna clave Redis y sin `featurestore:last_batch`.
+  - Sin batch RUNNING: mensaje claro y exit 1.
+  - Limpieza: cada lote sintético fue borrado; el último cleanup eliminó 8 claves. Verificación final con `SCAN`: 0 claves `mentor:feat:*`, 0 `service:emb:*`, marcador ausente y tablas temporales vacías. La base temporal también se eliminó.
+
+## [2026-11-11] Preparación del contrato técnico HU-PS06 Feature Store
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** KAN-55; crear V18 para persistir batches, features numéricas de mentores y embeddings de servicios, y preparar la configuración del sincronizador de analytics.
+- **Cambios realizados:**
+  - Creación de `backend/src/main/resources/db/migration/V18__feature_store.sql` con estados y contadores de batch, cuatro scores normalizados, embeddings float32 en `bytea`, claves foráneas válidas e índices por `batch_id`.
+  - Actualización de `docs/FEATURE-STORE.md` con los scores tipados, dimensión provisional 384, validación de filas/configuración y defaults del contrato.
+  - Fijación de `redis==5.2.1` y `pika==1.3.2` en `analytics-service/requirements.txt`.
+  - Configuración de Redis, RabbitMQ y variables del Feature Store en `spark-master` y `spark-worker`; ambos esperan los healthchecks existentes de Redis y RabbitMQ.
+  - Documentación de las variables sin secretos reales en `.env.example`. No se modificaron límites o política de evicción de Redis.
+- **Validación:** PostgreSQL quedó healthy. Al arrancar el backend, Flyway reportó `Current version ...: 14`, aplicó V15–V18 y confirmó `Successfully applied 4 migrations ... now at version v18` en PostgreSQL 17.11, sin error de migración. Con `psql` se confirmaron las tres tablas, tipos, FKs e invariantes; score 1.5 y dimensión 0 fueron rechazados por sus CHECK, inserciones válidas de mentor y embedding se aceptaron y se revirtieron. El conteo final de batches de prueba fue 0. El primer arranque se detuvo por una clave JWT temporal menor de 32 caracteres; tras usar una clave temporal válida, Flyway completó, pero Spring Boot terminó después con `No default constructor found` para `LiveKitProperties` (ajeno a V18). `docker compose config -q` también había pasado. No se modificó V18 durante esta validación.
+
 ## [2026-11-11] Plan y guías de la épica "Notificaciones por correo" (microservicio NestJS + Resend + RabbitMQ)
 - **Agente:** Claude Code (Claude Opus 5.5), solicitado por Dylan (líder de la épica)
 - **Objetivo:** Analizar el repositorio y planificar un microservicio NestJS (`notification-service`) que envíe correos con Resend cuando cambie el estado de la cuenta de un usuario o administrador. Repartir el trabajo entre 3 personas con guías paso a paso que incluyan código listo para copiar y su explicación. **Sólo documentación**: no se modificó código fuente ni se hicieron commits, por decisión del usuario.
@@ -1015,6 +1137,173 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - Se añadió una prueba PromQL y se documentó la métrica y su consulta en `docs/LIVEKIT-MONITORING.md`.
   - La serie representa el tag de imagen configurado cuando el target está UP; no es una métrica nativa ni una lectura dinámica de la versión interna de LiveKit.
 - **Validación:**
+- **Cambios realizados:**
+  - **Infraestructura LiveKit (`ops/livekit/livekit.yaml`):**
+    - Configurado el bloque `webhook:` con la URL `http://backend:8080/api/webhooks/livekit` y `api_key: devkey`.
+  - **Arquitectura Hexagonal (Puertos de Aplicación):**
+    - Creada la interfaz de puerto de entrada `ProcessLiveKitWebhookUseCase` en `application/port/in/meeting/` con métodos para:
+      - `handleRoomStarted(UUID meetingId, OffsetDateTime timestamp)`
+      - `handleRoomFinished(UUID meetingId, OffsetDateTime timestamp)`
+      - `handleParticipantJoined(UUID meetingId, UUID userId, OffsetDateTime timestamp)`
+      - `handleParticipantLeft(UUID meetingId, UUID userId, OffsetDateTime timestamp)`
+    - Implementación de `ProcessLiveKitWebhookUseCase` en `MeetingService.java`:
+      - Transición de sala a `EN_CURSO` y persistencia de `actualStart` y evento en auditoría `MeetingHistory`.
+      - Transición de sala a `FINALIZADA`, persistencia de `actualEnd` y cierre ordenado de asistencias de participantes a `SALIDA_REGISTRADA` con su respectiva marca temporal.
+      - Idempotencia garantizada ante reintentos de LiveKit o cierres forzados con `deleteRoom`.
+  - **Adaptador Inbound REST (`LiveKitWebhookController.java`):**
+    - Inyección desacoplada del puerto `ProcessLiveKitWebhookUseCase` y `ObjectMapper`.
+    - Recepción del cuerpo crudo (`byte[] rawBody`) para validación de integridad.
+    - Validación criptográfica (CA 3.1): Soporta tanto tokens directos como con prefijo `Bearer `, verificación de firma HMAC-SHA256 con la clave compartida (`apiSecret`), validación de emisor (`issuer == apiKey`), y verificación del hash SHA-256 del cuerpo contra el claim `sha256` en Base64 o Hex. Peticiones no firmadas o con firma/hash alterado son rechazadas con `401 Unauthorized`.
+    - Despacho y parseo de eventos para salas y participantes (CA 3.2 y CA 3.3).
+  - **Testing Unitario y de Integración (JUnit 5 + MockMvc):**
+    - Creado `LiveKitWebhookControllerTest.java` con 11 pruebas unitarias cubriendo rechazo 401 por cabecera ausente, firma inválida, emisor incorrecto, payload manipulado, y respuestas exitosas 200 OK con despacho a dominio para los 4 eventos y casos límite.
+    - Ampliado `MeetingServiceTest.java` con 4 pruebas específicas para los métodos del webhook.
+- **Validación:**
+  - Ejecución de `mvn -Dtest=MeetingServiceTest,LiveKitWebhookControllerTest test`: 22 de 22 pruebas aprobadas (100% de éxito).
+  - Ejecución de la suite completa de backend `mvn test`: 99 de 99 pruebas aprobadas sin regresiones.
+
+## [2026-10-21] HU-29.11 -- Interfaz de Usuario y Sala de Videoconferencias en Vivo con LiveKit (Frontend / Angular)
+- **Rol:** Frontend / WebRTC
+- **Contexto:** Desarrollo de la interfaz de usuario en Angular 20 para permitir a mentores y estudiantes conectarse a sesiones de videollamada interactivas de ultra baja latencia utilizando LiveKit Client.
+- **Acciones Realizadas:**
+  - **Dependencia WebRTC (`frontend/package.json`):**
+    - Instalada la librería oficial `livekit-client` (^2.23.0).
+    - Ajustado `tsconfig.json` con `"skipLibCheck": true` para optimizar la compilación de tipos de dependencias WebRTC.
+  - **Capa de Servicios (`MeetingService.ts`):**
+    - Creado `MeetingService` en `frontend/src/app/core/meeting.service.ts` con integración a los endpoints protegidos del backend: `startMeeting`, `joinMeeting`, `finishMeeting`, `getMeeting` y `getByService`.
+    - Ampliado `ToastService` (`toast.service.ts`) con utilidades de notificación (`info`, `error`, `success`).
+  - **Componente de Sala Virtual (`MeetingRoomComponent`):**
+    - Creado `frontend/src/app/features/meeting-room/` (`meeting-room.component.ts`, `.html`, `.css`).
+    - Gestión del ciclo de vida de la sala (`Room`): conexión WebRTC mediante JWT dinámico, adaptación automática de URL en entornos locales/docker (`resolveLiveKitUrl`), y liberación ordenada de recursos en `ngOnDestroy`.
+    - Rol `PROVIDER`: publicación y captura de cámara y micrófono local, visualización en miniatura flotante con soporte de espejo.
+    - Rol `PARTICIPANT`: suscripción dinámica a tracks remotos y estado de espera mientras el mentor inicia transmisión.
+    - Barra de controles multimedia: mutear/desmutear micrófono, prender/apagar cámara, compartir pantalla y colgar/finalizar clase.
+  - **Enrutamiento y Navegación:**
+    - Registrada la ruta protegida `/meeting/:id` en `app.routes.ts` con `canActivate: [authGuard]`.
+    - Añadido botón "🎥 Iniciar clase" en el panel de proveedor (`my-offerings.component.ts`).
+    - Añadido botón "🎥 Entrar a la clase en vivo" en la tabla de reservas de estudiantes (`display-bookings.ts` y `.html`).
+- **Validación:**
+  - Compilación exitosa del bundle de producción de Angular (`npm run build`) generando `chunk-GOVFZMYG.js` con lazy-loading sin errores ni advertencias de tipo.
+
+## [2026-10-21] Habilitación de Sala de Pruebas de LiveKit para Administradores
+- **Rol:** Fullstack / Testing & Observabilidad
+- **Contexto:** Se implementó una funcionalidad que permite a los usuarios con rol `ADMIN` iniciar inmediatamente una sala de reunión virtual de prueba sobre cualquier servicio, omitiendo las restricciones de calendario y ventana horaria de 48 horas de anticipación.
+- **Acciones Realizadas:**
+  - **Base de Datos & Flyway:**
+    - Creada migración `V16__admin_test_meeting.sql` que amplía el check de `meeting_participants` para admitir `role IN ('PROVIDER', 'PARTICIPANT', 'ADMIN')` y elimina la restricción única `uq_meeting_per_session` para permitir múltiples sesiones de prueba en el mismo día.
+  - **Backend (Spring Boot):**
+    - En `MeetingRole.java`, se incorporó el valor `ADMIN`.
+    - En `LiveKitRestAdapter.java`, se corrigió la autenticación hacia la API Twirp de LiveKit (`RoomService/CreateRoom` y `DeleteRoom`) sustituyendo la autenticación Basic por tokens JWT firmados con el `apiSecret` y cabecera `Authorization: Bearer <token>` con permisos administrativos (`roomCreate`, `roomAdmin`, `roomList`). Asimismo, se otorgaron permisos completos de publicación (`canPublish: true`), suscripción y actualización de metadatos para el rol `ADMIN`.
+    - En `MeetingService.java`, se implementó `createTestMeeting(adminUserId, serviceId)` para iniciar la reunión en estado `EN_CURSO` por 2 horas, crear la sala en LiveKit y registrar al administrador. Además, en `join()` y `finishMeeting()`, se autoriza al `ADMIN` con control total y a los usuarios con inscripción activa (`ServiceEnrollment`) para unirse como participantes.
+    - En `MeetingController.java`, se expuso el endpoint seguro `POST /api/meetings/admin/test-room` restringido a administradores.
+    - En `SecurityConfiguration.java`, se habilitó el acceso del rol `ADMIN` sobre `/api/meetings/**`.
+  - **Frontend (Angular 20):**
+    - En `MeetingService` (`meeting.service.ts`), se añadió el método `createTestRoom(serviceId)` y se tipó el rol `ADMIN`.
+    - En `AdminDashboardComponent` (`admin-dashboard.component.ts` y `.html`), se añadió el botón de acción con ícono de cámara `🎥` en la tabla de servicios y el botón "🎥 Iniciar Sala de Testeo LiveKit" en el modal de detalles del servicio.
+    - En `MeetingRoomComponent` (`meeting-room.component.ts` y `.html`), se integró el rol `ADMIN` con permisos de publicación de cámara y micrófono, etiqueta `👑 Tú (Admin)` y botón para finalizar la sala para todos.
+- **Validación:**
+  - Migración Flyway `v16` aplicada con éxito en PostgreSQL.
+  - Pruebas unitarias de backend pasando al 100% (25 de 25 tests en `MeetingServiceTest` y `LiveKitWebhookControllerTest`, sumando pruebas específicas de creación, reutilización y control de acceso de salas de prueba).
+  - Compilación de Angular (`npm run build`) exitosa sin errores de tipado estricto.
+  - Contenedores Docker de `backend` y `frontend` reconstruidos y corriendo en estado Healthy.
+  - Verificación End-to-End validada en caliente:
+    1. Creación de sala de prueba por Admin (`POST /api/meetings/admin/test-room`) -> 200 OK con token LiveKit de rol `ADMIN`.
+    2. Ingreso de estudiante inscrito (`POST /api/meetings/{id}/join`) -> 200 OK con token LiveKit de rol `PARTICIPANT`.
+    3. Finalización de la sala por Admin (`POST /api/meetings/{id}/finish`) -> 200 OK con transición a estado `FINALIZADA`.
+
+## [2026-10-21] Estabilización de WebRTC en LiveKit: ICE Lite, Retransmisión de Pantalla y CSRF de Webhooks
+- **Rol:** Fullstack & WebRTC Bugfix
+- **Contexto:** Se diagnosticaron y solucionaron los errores de conexión de PeerConnection WebRTC (`ConnectionError: could not establish pc connection`), bucles de renegociación al compartir pantalla, congelamiento periódico de video y rechazos 403 en webhooks de LiveKit.
+- **Causas Raíz Detectadas:**
+  1. **Fallo de Chequeo de ICE en LiveKit Server (Full ICE vs NAT Loopback):** LiveKit operaba en modo Full-ICE intentando enviar paquetes STUN de conectividad hacia las direcciones públicas reflejadas (`srflx`) del cliente. Dado que los routers residenciales descartan paquetes loopback UDP hacia su propia IP WAN, los 8 intentos de LiveKit no recibían respuesta (`requestsSent: 8, responsesReceived: 0`), provocando el timeout de 15 segundos y el fallo de PeerConnection.
+  2. **Bucle de Renegociación en Screen Sharing:** La habilitación de screen share por defecto solicitaba simulcast multinivel. LiveKit y el navegador generaban renegociaciones simultáneas concurrentes sin mutex, provocando `negotiation timed out` y desconexión/reconexión continua.
+  3. **Pérdida de Video cada 3-10 segundos en el Cliente:** `adaptiveStream: true` y `dynacast: true` pausaban capas de video ante variaciones mínimas de visibilidad en el DOM, sin re-adjuntar los tracks automáticamente al reanudarse.
+  4. **Bloqueo de Audio por Autoplay Policy:** El navegador bloqueaba el AudioContext generado en background arrojando advertencias de permisos de reproducción de audio.
+  5. **Rechazo 403 en Webhooks de LiveKit:** Spring Security interceptaba las peticiones POST de `LiveKitWebhookController` (`/api/webhooks/livekit`) por validación de tokens CSRF requeridos a SPAs de navegador.
+- **Acciones Realizadas:**
+  - **LiveKit Server (Docker & YAML):**
+    - Actualización de imagen a `livekit/livekit-server:latest` (v1.13.10) para alineación completa con el protocolo 17 de `livekit-client` v2.23.0.
+    - Configuración de `rtc.use_ice_lite: true` y `rtc.allow_tcp_fallback: true` en `ops/livekit/livekit.yaml` y `docker-compose.yml`. Como agente ICE-Lite, el servidor responde directamente a los sondeos entrantes de los clientes en los puertos 7882 (UDP) y 7881 (TCP) sin depender de NAT hairpinning.
+  - **Backend (Spring Boot):**
+    - En `SecurityConfiguration.java`, se añadió `.ignoringRequestMatchers("/api/webhooks/livekit")` al filtro de CSRF, permitiendo la comunicación criptográfica directa servidor-a-servidor mediante firmas HMAC-SHA256 en la cabecera `Authorization`.
+    - 102/102 pruebas unitarias pasando con éxito.
+  - **Frontend (Angular 20):**
+    - En `meeting-room.component.ts`:
+      - Screen Share optimizado con `{ simulcast: false }`, bloqueo por mutex `isScreenShareToggling` y escucha del evento nativo `MediaStreamTrack.ended`.
+      - Desactivación de `adaptiveStream` y `dynacast` en `RoomOptions` para flujo de video continuo y estable.
+      - Adición de `webAudioMix: false`, llamada a `room.startAudio()` tras conectar y `@HostListener('click')` / `@HostListener('keydown')` para desbloqueo transparente de audio con el primer clic del usuario.
+      - Desconexión explícita de cualquier sesión o sala previa (`await this.room.disconnect()`) al inicio de `initMeetingSession()`, previniendo bucles de reconexión fantasma (`reconnect attempt cancelled`, `CONNECTION_TIMEOUT`, `leave-reconnect disconnected`).
+      - Manejo robusto de `RoomEvent.TrackMuted` / `TrackUnmuted` y reutilización de elementos `<video>` existentes sin recrear el nodo DOM.
+    - En `meeting-room.component.html`: Botón "Reintentar" integrado ante eventuales cortes de red.
+  - **Resolución Multi-Navegador (Firefox / Chrome):**
+    - Configurado `rtc.advertise_internal_ip: true` en `livekit.yaml` y `docker-compose.yml`, permitiendo a LiveKit publicar la dirección de red privada del contenedor (`172.18.0.x`) junto con la IP local. Esto soluciona la restricción de Firefox donde los candidatos loopback (`127.0.0.1`) son descartados por defecto por su política de seguridad WebRTC (`media.peerconnection.ice.loopback = false`).
+    - Purga de estados residuales de sesiones previas en `redis-livekit`.
+- **Validación:**
+  - Suite de 102 pruebas de backend ejecutadas (`mvn test`) con 0 fallos.
+  - Compilación de Angular (`npm run build`) limpia y sincronizada con el contenedor Nginx.
+  - Contenedores Docker (`livekit`, `backend`, `frontend`, `postgres`, `redis`, `redis-livekit`) reiniciados y activos.
+
+- **Contexto:** Se resolvió el error de cierre de sesión forzoso (`401 Unauthorized` / sesión expirada) al intentar ingresar o recrear una sala, y se corrigió la renderización de la información del participante/sala en la interfaz de Angular.
+- **Causas Raíz Detectadas:**
+  1. **Registros Duplicados en `meeting_participants`:** `registerParticipant()` generaba siempre una nueva fila con `UUID.randomUUID()`. Ante múltiples accesos o creaciones sobre la misma reunión, se acumulaban filas para `(meeting_id, user_id)`. Como `JpaMeetingParticipantRepository.findByMeetingIdAndUserId` retornaba `Optional<...>`, Hibernate lanzaba `NonUniqueResultException` (500/401), provocando que `auth.interceptor.ts` forzara un logout inmediato (`triggerSessionExpired`).
+  2. **Resolución de Nombre en Tokens LiveKit:** El nombre del participante se emitía con el UUID crudo del usuario (`00000000-...`) en lugar del nombre real de la cuenta.
+  3. **Reutilización de Tokens en Frontend:** Al crear la sala de prueba desde el dashboard de administración, el token recibido se descartaba y el componente `MeetingRoomComponent` ejecutaba una segunda petición HTTP innecesaria a `/join`.
+  4. **Condicionales de Visualización en UI:** `meeting-room.component.html` solo renderizaba el video local propio y el botón de finalizar clase cuando `role === 'PROVIDER'`, omitiendo al `ADMIN`.
+  5. **Comportamiento del Fallback `/rtc/v1/validate` en LiveKit Client:** `livekit-client` v2 intenta conectarse por defecto a la ruta `/rtc/v1`. LiveKit Server v1.8 responde con 404, disparando un sondeo de clasificación a `/rtc/v1/validate` (404), tras lo cual conmuta de forma segura al protocolo estándar `/rtc` (`useV0Path = true`). La información de la sala (`roomID`, `participantID`) queda vacía únicamente durante el estado transitorio `connecting` y se pobla inmediatamente tras la negociación WebRTC.
+- **Acciones Realizadas:**
+  - **Migración Flyway `V17__meeting_participants_unique.sql`:**
+    - Limpieza de duplicados residuales conservando el registro más reciente.
+    - Creación de la restricción `uq_participant_per_meeting UNIQUE (meeting_id, user_id)`.
+  - **Backend (Spring Boot):**
+    - En `MeetingService.java`, se volvió idempotente `registerParticipant()` buscando primero el participante existente antes de crear uno nuevo.
+    - En `MeetingService.java`, `participantName()` ahora consulta `UserAccountPort` para resolver el nombre legible del usuario.
+    - En `JpaMeetingParticipantRepository.java` y `MeetingParticipantPersistenceAdapter.java`, se utilizó `findFirstByMeetingIdAndUserIdOrderByCreatedAtDesc` para proteger contra posibles inconsistencias de registros múltiples.
+  - **Frontend (Angular 20):**
+    - En `MeetingService` (`meeting.service.ts`), se implementó una caché en memoria (`setCachedToken` / `consumeCachedToken`) para evitar llamadas duplicadas a `/join` tras la creación desde el dashboard de admin.
+    - En `meeting-room.component.ts` y `.html`, se habilitó la activación de cámara/micrófono para `ADMIN`, la etiqueta `👑 Tú (Admin)`, la redirección a `/admin` al colgar o terminar la sala, y los controles completos.
+- **Validación:**
+  - Migración Flyway `v17` ejecutada y verificada en base de datos.
+  - 25 pruebas unitarias de backend pasando al 100%.
+  - Frontend Angular compilado exitosamente (`npm run build`).
+  - Creación repetida de salas de prueba verificada con 1 único registro por participante y respuestas 200 OK constantes.
+
+## [2026-10-19] Integración del SDK de LiveKit y Configuración de Secretos (Arquitectura Hexagonal)
+- **Autor / Implementación:** Juan Vargas
+- **Contexto:** Habilitar el soporte en el backend para la generación de tokens de acceso y comunicación con el servidor de videollamadas LiveKit respetando las reglas de arquitectura hexagonal y seguridad de credenciales.
+- **Cambios realizados:**
+  - **Gestión de Secretos y Variables de Entorno (`.env.example`, `docker-compose.yml`):**
+    - Se definieron y documentaron las variables `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` y `LIVEKIT_URL`.
+    - Se configuró la inyección de estas variables de entorno en el contenedor del servicio `backend` en Docker Compose con fallback seguro para desarrollo local (`http://livekit:7880`).
+    - Se ajustaron las credenciales en el servicio `livekit` (`LIVEKIT_KEYS`) evitando exponer variables innecesarias al contenedor del servidor WebRTC.
+  - **Mapeo de Configuración Spring Boot (`application.yml` y `application.yml` de test):**
+    - Se incorporó el bloque `app.livekit` con propiedades para URL, API Key y Secret en el archivo principal y en el de pruebas.
+  - **Dependencias Maven (`backend/pom.xml`):**
+    - Inclusión del SDK oficial `io.livekit:livekit-server:0.13.0` para la generación criptográfica de tokens y gestión de salas.
+  - **Arquitectura Hexagonal (Backend Java):**
+    - **Configuración (`infrastructure/config/LiveKitConfiguration.java`):** Clase `@Configuration` para inyectar las propiedades desde Spring y exponer el bean `RoomServiceClient` para administración de salas.
+    - **Puerto de Salida (`application/port/out/LiveKitVideoPort.java`):** Definición de la interfaz del contrato para abstraer la generación de tokens JWT de sala (`generateAccessToken`), aislando la lógica de negocio del proveedor de WebRTC.
+    - **Adaptador de Salida (`infrastructure/adapter/out/livekit/LiveKitVideoAdapter.java`):** Implementación técnica del puerto usando el SDK de LiveKit (`AccessToken`, `RoomJoin`, `RoomName`), firmando los tokens con HMAC-SHA256 usando el secreto inyectado sin exponerlo al cliente.
+# Historial de Cambios (Memoria de Agentes)
+
+Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
+
+## [2026-10-20] Corrección de inicio de Prometheus para HU de métricas LiveKit
+- **Contexto:** Prometheus no iniciaba al cargar el archivo de pruebas de `promtool` como si fuera un archivo de reglas de producción.
+- **Cambios realizados:**
+  - En `ops/prometheus/prometheus.yml`, se reemplazó el patrón `/etc/prometheus/rules/*.yml` por la ruta explícita `/etc/prometheus/rules/livekit-rules.yml`, evitando incluir `livekit-rules.test.yml` en la configuración de producción.
+- **Validación:**
+  - `promtool check config /etc/prometheus/prometheus.yml` pasó: configuración válida y 12 reglas cargadas.
+  - Prometheus inició y `http://localhost:9090/-/ready` respondió `200 OK`.
+  - El target `livekit:6789` apareció con estado `up`, sin errores de scrape; `up{job="livekit"}` devolvió `1`.
+  - Consultas PromQL confirmaron ingesta de `livekit_room_total`, `livekit_participant_total` y `livekit_packet_total`.
+
+## [2026-10-20] Métrica consultable de build LiveKit
+- **Contexto:** El endpoint de LiveKit no exponía `livekit_server_build_info`; se solicitó habilitar únicamente esa métrica adicional para consulta.
+- **Cambios realizados:**
+  - Se añadió en `ops/prometheus/rules/livekit-rules.yml` una recording rule llamada `livekit_server_build_info`, basada en `up{job="livekit"} == 1` y con `version="v1.8"`, el tag de imagen configurado en `docker-compose.yml`.
+  - Se añadió una prueba PromQL y se documentó la métrica y su consulta en `docs/LIVEKIT-MONITORING.md`.
+  - La serie representa el tag de imagen configurado cuando el target está UP; no es una métrica nativa ni una lectura dinámica de la versión interna de LiveKit.
+- **Validación:**
   - `promtool check rules` pasó con 13 reglas; la prueba enfocada del primer grupo en `livekit-rules.test.yml` pasó.
   - La suite completa de pruebas aún reporta un fallo en la prueba preexistente `job:livekit_packet_rate:sum` (esperaba 5, no obtuvo muestra); no corresponde a la prueba de build info.
   - Tras reiniciar Prometheus, la consulta `livekit_server_build_info{job="livekit"}` devolvió una serie con `instance="livekit:6789"`, `version="v1.8"` y valor `1`; `up{job="livekit"}` también devolvió `1`.
@@ -1051,6 +1340,15 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
 - **Validación:**
   - Ejecución de pruebas específicas: `mvn -f backend/pom.xml test -Dtest="LiveKitTokenSecurityTest,LiveKitRoomIntegrationTest"` aprobada al 100%.
   - Suite completa del backend: `mvn -f backend/pom.xml test` finalizada con `BUILD SUCCESS` (88 pruebas exitosas sin regresiones).
+
+## [2026-11-11] Entorno reproducible de datos con PySpark
+- **Objetivo:** Proveer un contenedor aislado para procesar DataFrames, conectar con PostgreSQL por JDBC y usar almacenamiento local/Parquet.
+- **Cambios realizados:** Se agregó `data-engine/Dockerfile.pyspark` con Python 3.11, Java 17, PySpark 3.5.6 y driver PostgreSQL JDBC 42.7.7; dependencias fijadas para PyArrow, pandas y psycopg2-binary. Se añadió el servicio `pyspark` bajo el perfil Compose `data`, en la red interna de PostgreSQL, con singleton `SparkSessionFactory`, modo `local[*]`, heap/driver de 2 GiB y límite de contenedor de 3 GiB. El smoke test realiza una lectura JDBC de solo lectura y no depende de tablas de negocio. Se documentaron los comandos, variables y rutas Parquet en `README.md` y `data-engine/README.md`.
+- **Cambios realizados:** Se agregó `data-engine/Dockerfile.pyspark` con Python 3.11, Java 17, PySpark 3.5.6 y driver PostgreSQL JDBC 42.7.7; dependencias fijadas para PyArrow, pandas y psycopg2-binary. Se añadió el servicio `pyspark` bajo el perfil Compose `data`, en la red interna de PostgreSQL, con singleton `SparkSessionFactory`, modo `local[*]`, heap/driver de 2 GiB y límite de contenedor de 3 GiB. El smoke test realiza una lectura JDBC de solo lectura y no depende de tablas de negocio. Se documentaron los comandos, variables y rutas Parquet en `README.md` y `data-engine/README.md`, y se agregó `make test-data` como atajo.
+- **Ajuste por validación:** Spark 3.5 rechaza `-Xmx` en `spark.driver.extraJavaOptions`; se usa `spark.driver.memory=2g`, que es el mecanismo soportado para fijar el heap.
+- **Compatibilidad:** Java 17 se limita al contenedor de Spark; el backend conserva Java 21.
+- **Validación:** `docker compose --profile data build pyspark` completó correctamente y `docker compose --profile data run --rm pyspark` aprobó el smoke test, confirmando Spark 3.5.6 y conexión JDBC a la base `skillbridge`. Durante la validación se corrigió el import del módulo y el parámetro de heap. El test es de solo lectura.
+
 
 ## [2026-10-22] Resolución de Conflictos y Sincronización con Develop (HU-29.11 y LiveKit SDK)
 - **Rol:** Fullstack Developer

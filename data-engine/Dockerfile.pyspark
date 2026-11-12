@@ -1,0 +1,23 @@
+FROM python:3.11-slim-bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
+    PATH="/usr/lib/jvm/java-17-openjdk-amd64/bin:${PATH}" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openjdk-17-jre-headless ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && mkdir -p /opt/spark-jars \
+    && curl --fail --location --silent --show-error \
+       https://repo.maven.apache.org/maven2/org/postgresql/postgresql/42.7.7/postgresql-42.7.7.jar \
+       --output /opt/spark-jars/postgresql-42.7.7.jar
+
+ENV POSTGRES_JDBC_JAR=/opt/spark-jars/postgresql-42.7.7.jar
+
+CMD ["python", "scripts/test_spark_connection.py"]
