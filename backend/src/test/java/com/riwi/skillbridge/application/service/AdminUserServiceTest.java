@@ -35,11 +35,14 @@ class AdminUserServiceTest {
     @Mock
     private AdminActivityUseCase adminActivity;
 
+    @Mock
+    private UserEventEmitter events;
+
     private AdminUserService adminUserService;
 
     @BeforeEach
     void setUp() {
-        adminUserService = new AdminUserService(userRepository, passwordHasher, adminActivity);
+        adminUserService = new AdminUserService(userRepository, passwordHasher, adminActivity, events);
     }
 
     @Test
