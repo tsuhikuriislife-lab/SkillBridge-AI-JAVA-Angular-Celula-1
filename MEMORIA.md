@@ -2,6 +2,29 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-11] Verificación E2E de KAN-59/KAN-56, revisión del PR #79 y timeout de RabbitMQ
+- **Agente:** Claude Code (Claude Opus 5.5), a pedido de Dylan. Dylan hace los commits, los push y los merges.
+- **Revisión del PR #79 (Leonardo, KAN-58 parte 1):**
+  - Se probó mezclado con `feature/notificaciones`: lint, 31 pruebas y build OK.
+  - Con PostgreSQL 17 temporal: el init crea la BD `notifications` y la migración crea `notification_log`.
+  - Webhooks con firma Svix real: `updated`, `stale` e `ignored`; firma falsa → 401; sin cabeceras → 400.
+  - Se encontró que `canTransition` permitía pasar entre estados finales (`bounced → complained`). Se corrigió en la guía (PR #87).
+- **Sincronización con `develop` (PR #86):**
+  - El backend no arrancaba por `LiveKitProperties` (dos constructores sin `@Autowired`), algo ya corregido en `develop`.
+  - Conflictos en `.gitignore` y `docker-compose.yml`, resueltos conservando ambos lados (`notifications` + `pyspark`).
+- **Verificación E2E (Paso 14 de la guía Java):**
+  - `notifications` queda *healthy* sin API key.
+  - El registro publica `user.registered` con el JSON del contrato (`message_id`, `delivery_mode = 2`, `x-event-version = 1`), y los logs no imprimen correos.
+  - El `curl` de la guía necesitaba el token CSRF. Se corrigió en el PR #87.
+- **Fix `fix/notificaciones-rabbit-timeout`:**
+  - Con RabbitMQ caído, cada registro tardaba **39 s** (el cliente esperaba al sistema operativo).
+  - Se agregó `spring.rabbitmq.connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:3s}`.
+  - Medido: 201 en 3,07 s con RabbitMQ caído, y 0,1 s al volver (se reconecta solo).
+  - `mvn -B clean verify` (contenedor Maven, JDK 21): 123 pruebas, 0 fallos, 2 omitidas.
+- **Pendientes:**
+  - E2E de correo real (necesita el consumidor de Kevin, KAN-57).
+  - Renovar el secreto `PR_AUTOMATION_TOKEN`: el auto-merge responde 401.
+
 ## [2026-11-11] KAN-59 (eventos Java + seguridad) y KAN-56 Bloque 1 (Resend + plantillas + Docker)
 - **Agente:** Claude Code (Claude Opus 5.5), a pedido de Dylan ("haz todo lo que me falta"). El agente escribió el código; Dylan hace los commits.
 - **KAN-59 (rama `feature/notificaciones-java`):**
