@@ -2,6 +2,21 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-12] Verificación de disponibilidad durante carga Feature Store (HU-PS06 / KAN-55)
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Validar CA 6.3 con seed volumétrico y mediciones comparables antes/durante/después del loader, usando solo la base local. Sin commit ni cambios a `docker-compose.yml`.
+- **Cambios realizados:**
+  - `analytics-service/jobs/seed_feature_data.py`: añadido `--load-test N`; inserta N proveedores sintéticos con correo `.invalid`, N servicios `INACTIVE`, scores aleatorios y embeddings float32 little-endian de 384 dimensiones en un batch `RUNNING`. El cleanup elimina registros ligados al UUID completo del batch y sus claves Redis; conserva el comportamiento anterior del seed.
+  - `docs/FEATURE-STORE.md`: documentada la configuración, resultados por fase, memoria Redis, PromQL y limitaciones observadas.
+- **Validación real:**
+  - Base inicial: 4 usuarios, 1 proveedor y 3 servicios. Seed con N=10.000: 10.000 usuarios y servicios sintéticos; loader al tamaño/pausa por defecto (500 y 50 ms), tres ejecuciones idempotentes de 24,88 s, 24,98 s y 24,37 s, con aproximadamente 1,0 s entre ejecuciones. No se ajustó el tamaño/pausa.
+  - k6 mantuvo 40 req/s total (20 `GET /api/services` + 20 `GET /actuator/health`) por fase, durante 60 s; cada endpoint recibió 1.201 solicitudes por fase, sin errores ni iteraciones descartadas. Catálogo p50/p95/p99: base 9,38/14,53/21,59 ms; durante 6,52/12,46/20,96 ms; después 8,18/10,19/16,27 ms. Health p50/p95/p99: base 4,17/8,01/14,12 ms; durante 3,50/7,52/11,66 ms; después 4,05/5,37/8,04 ms. El límite p95 calculado fue 19,53 ms y se cumplió.
+  - Fase B: 25 muestras de `docker stats`, CPU backend media 27,53% y pico 71,84%; memoria media 697,6 MiB y pico 713,6 MiB. `redis-cli --latency-history -i 1`: min 0,158 ms, max 0,725 ms, promedio 0,282 ms en los primeros 60 segundos de medición.
+  - Redis `used_memory`: 1,59 MiB antes, 25,05 MiB durante (pico 25,63 MiB), 1,79 MiB después. `MEMORY USAGE` representativo: mentor 286 B; embedding 1.869 B y metadatos 151 B; bytes del embedding 1.536. Propuesta, no aplicada: `maxmemory 512mb`, política `volatile-lru`.
+  - Desajuste de API documentado: `/api/offerings` no es una ruta pública disponible; `/api/services` devolvió 200. La ruta de catálogo actual no implementa Cache-Aside ni consulta Redis, así que la prueba confirma la disponibilidad bajo escritura concurrente a Redis, no el impacto sobre lecturas de un caché de catálogo.
+  - `/actuator/prometheus` no expuso buckets `http_server_requests_seconds_bucket` y Prometheus/Grafana opcionales no estaban levantados; se dejó la PromQL y ventanas horarias en el contrato, anotando que no se pudo generar una gráfica p95 en Grafana.
+  - Cleanup ejecutado: 10.000 usuarios, 10.000 servicios, 10.000 mentor_features, 10.000 embeddings, un batch y 30.001 claves Redis eliminadas. Conteos restaurados a 4/1/3; cero filas de batch/features de prueba, cero claves feature-store, `featurestore:last_batch` ausente y colas RabbitMQ vacías. Backend permaneció healthy. Tras fijar el marcador de servicio para incluir el UUID completo, un seed de humo `--load-test 1` y su cleanup eliminaron correctamente un par y su batch.
+
 ## [2026-11-12] Verificación real de lectura y eventos del Feature Store (HU-PS06 / KAN-55)
 - **Agente:** AI assistant using Copilot SDK in VS Code
 - **Contexto:** Completar la validación Docker Compose de la lectura Redis/PostgreSQL y del consumidor `features.updated`, incluyendo duplicados, DLQ, compatibilidad del embedding, fallback con Redis detenido y limpieza.

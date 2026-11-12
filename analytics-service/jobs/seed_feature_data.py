@@ -170,6 +170,107 @@ def _insert_batch(connection, batch_id, batch_size, embedding_dimension, include
         create_batch.close()
 
 
+def _insert_load_test_batch(connection, batch_id, count, batch_size, embedding_dimension):
+    batch_hex = batch_id.replace("-", "")
+    batch_statement = connection.createStatement()
+    category_statement = connection.createStatement()
+    user_statement = connection.prepareStatement(
+        "INSERT INTO app_users (id, name, email, password, role, status) "
+        "VALUES (?::uuid, ?, ?, ?, 'PROVIDER', 'INACTIVE')"
+    )
+    service_statement = connection.prepareStatement(
+        "INSERT INTO services "
+        "(id, name, category_id, price, detail, short_description, capacity, code, status, created_by) "
+        "VALUES (?::uuid, ? , ?::uuid, 1, 'Synthetic load-test row', "
+        "'Synthetic load-test row', 1, ?, 'INACTIVE', ?::uuid)"
+    )
+    mentor_statement = connection.prepareStatement(
+        "INSERT INTO mentor_features "
+        "(mentor_id, compatibility_score, expertise_score, availability_score, "
+        "popularity_score, batch_id) VALUES (?::uuid, ?, ?, ?, ?, ?::uuid)"
+    )
+    embedding_statement = connection.prepareStatement(
+        "INSERT INTO service_embeddings (service_id, embedding, dimension, batch_id) "
+        "VALUES (?::uuid, decode(?, 'hex'), ?, ?::uuid)"
+    )
+    random_source = random.Random()
+    inserted = 0
+
+    try:
+        batch_statement.executeUpdate(
+            "INSERT INTO feature_batches (batch_id, estado) "
+            f"VALUES ('{batch_id}'::uuid, 'RUNNING')"
+        )
+        category_result = category_statement.executeQuery(
+            "SELECT category_id::text FROM services ORDER BY id LIMIT 1"
+        )
+        try:
+            if not category_result.next():
+                raise RuntimeError("No existe una categoría de servicio para el seed de carga.")
+            category_id = category_result.getString(1)
+        finally:
+            category_result.close()
+
+        connection.setAutoCommit(False)
+        for index in range(count):
+            user_id = str(uuid.uuid4())
+            service_id = str(uuid.uuid4())
+            marker = f"{batch_hex}-{index:08d}"
+
+            user_statement.setString(1, user_id)
+            user_statement.setString(2, f"loadtest-{marker}")
+            user_statement.setString(3, f"loadtest-{marker}@users.invalid")
+            user_statement.setString(4, "$2a$10$synthetic-load-test-password-hash-not-for-login")
+            user_statement.addBatch()
+
+            service_statement.setString(1, service_id)
+            service_statement.setString(2, f"loadtest-{marker}")
+            service_statement.setString(3, category_id)
+            service_statement.setString(4, f"LT{batch_hex}-{index:08d}")
+            service_statement.setString(5, user_id)
+            service_statement.addBatch()
+
+            mentor_statement.setString(1, user_id)
+            for parameter in range(2, 6):
+                mentor_statement.setDouble(parameter, random_source.random())
+            mentor_statement.setString(6, batch_id)
+            mentor_statement.addBatch()
+
+            values = [random_source.uniform(-1.0, 1.0) for _ in range(embedding_dimension)]
+            embedding_statement.setString(1, service_id)
+            embedding_statement.setString(
+                2, struct.pack(f"<{embedding_dimension}f", *values).hex()
+            )
+            embedding_statement.setInt(3, embedding_dimension)
+            embedding_statement.setString(4, batch_id)
+            embedding_statement.addBatch()
+            inserted += 1
+
+            if inserted % batch_size == 0:
+                user_statement.executeBatch()
+                service_statement.executeBatch()
+                mentor_statement.executeBatch()
+                embedding_statement.executeBatch()
+
+        if inserted % batch_size:
+            user_statement.executeBatch()
+            service_statement.executeBatch()
+            mentor_statement.executeBatch()
+            embedding_statement.executeBatch()
+        connection.commit()
+        return inserted, inserted
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        embedding_statement.close()
+        mentor_statement.close()
+        service_statement.close()
+        user_statement.close()
+        category_statement.close()
+        batch_statement.close()
+
+
 def _redis_delete_for_batch(client, connection, batch_id, batch_size):
     deleted_keys = 0
     mentor_query = connection.createStatement()
@@ -232,19 +333,43 @@ def _cleanup_batch(connection, client, batch_id, batch_size):
     deleted_keys = _redis_delete_for_batch(client, connection, batch_id, batch_size)
     statement = connection.createStatement()
     try:
+        batch_hex = batch_id.replace("-", "")
+        user_marker = f"loadtest-{batch_hex}-%@users.invalid"
+        service_marker = f"LT{batch_hex}-%"
         mentors = statement.executeUpdate(
             "DELETE FROM mentor_features "
-            f"WHERE batch_id = '{batch_id}'::uuid"
+            "WHERE batch_id = "
+            f"'{batch_id}'::uuid OR mentor_id IN "
+            f"(SELECT id FROM app_users WHERE email LIKE '{user_marker}')"
         )
         embeddings = statement.executeUpdate(
             "DELETE FROM service_embeddings "
-            f"WHERE batch_id = '{batch_id}'::uuid"
+            "WHERE batch_id = "
+            f"'{batch_id}'::uuid OR service_id IN "
+            f"(SELECT id FROM services WHERE code LIKE '{service_marker}')"
+        )
+        schedules = statement.executeUpdate(
+            "DELETE FROM service_schedules "
+            f"WHERE service_id IN (SELECT id FROM services WHERE code LIKE '{service_marker}')"
+        )
+        enrollments = statement.executeUpdate(
+            "DELETE FROM user_services "
+            f"WHERE service_id IN (SELECT id FROM services WHERE code LIKE '{service_marker}') "
+            f"OR user_id IN (SELECT id FROM app_users WHERE email LIKE '{user_marker}')"
+        )
+        services = statement.executeUpdate(
+            "DELETE FROM services "
+            f"WHERE code LIKE '{service_marker}'"
+        )
+        users = statement.executeUpdate(
+            "DELETE FROM app_users "
+            f"WHERE email LIKE '{user_marker}'"
         )
         batches = statement.executeUpdate(
             "DELETE FROM feature_batches "
             f"WHERE batch_id = '{batch_id}'::uuid"
         )
-        return mentors, embeddings, batches, deleted_keys
+        return mentors, embeddings, batches, deleted_keys, users, services, schedules, enrollments
     finally:
         statement.close()
 
@@ -264,6 +389,12 @@ def _parse_args():
         action="store_true",
         help="Borra los registros y claves Redis pertenecientes al batch indicado.",
     )
+    parser.add_argument(
+        "--load-test",
+        type=int,
+        metavar="N",
+        help="Crea N mentores y N servicios sintéticos INACTIVE para una prueba de carga.",
+    )
     args = parser.parse_args()
     if args.batch_id:
         try:
@@ -274,6 +405,10 @@ def _parse_args():
         parser.error("--cleanup requiere --batch-id para limitar la limpieza a un batch.")
     if args.cleanup and args.include_invalid_dimension:
         parser.error("--include-invalid-dimension no se combina con --cleanup.")
+    if args.load_test is not None and args.load_test <= 0:
+        parser.error("--load-test debe ser un entero mayor que cero.")
+    if args.load_test is not None and (args.cleanup or args.include_invalid_dimension):
+        parser.error("--load-test no se combina con --cleanup ni --include-invalid-dimension.")
     return args
 
 
@@ -308,17 +443,39 @@ def main():
             redis_client = redis.Redis.from_url(redis_url, decode_responses=False)
             redis_client.ping()
             write_connection.setAutoCommit(False)
-            mentors, embeddings, batches, keys = _cleanup_batch(
+            mentors, embeddings, batches, keys, users, services, schedules, enrollments = _cleanup_batch(
                 write_connection, redis_client, args.batch_id, batch_size
             )
             write_connection.commit()
             print(
                 f"Limpieza batch_id={args.batch_id}: mentores={mentors}, "
-                f"embeddings={embeddings}, batches={batches}, claves_redis={keys}"
+                f"embeddings={embeddings}, batches={batches}, claves_redis={keys}, "
+                f"usuarios_loadtest={users}, servicios_loadtest={services}, "
+                f"horarios={schedules}, inscripciones={enrollments}"
             )
             return 0
 
         batch_id = args.batch_id or str(uuid.uuid4())
+        if args.load_test is not None:
+            print(
+                f"Load-test seed iniciado batch_id={batch_id} N={args.load_test}; "
+                f"cleanup: --cleanup --batch-id {batch_id}",
+                flush=True,
+            )
+            write_connection.setAutoCommit(False)
+            mentors_created, embeddings_created = _insert_load_test_batch(
+                write_connection,
+                batch_id,
+                args.load_test,
+                batch_size,
+                embedding_dimension,
+            )
+            print(
+                f"Load-test seed creado batch_id={batch_id} estado=RUNNING "
+                f"mentores={mentors_created} embeddings={embeddings_created}"
+            )
+            return 0
+
         write_connection.setAutoCommit(False)
         mentors_created, embeddings_created = _insert_batch(
             write_connection,

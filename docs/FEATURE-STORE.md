@@ -76,4 +76,73 @@ Para el Redis compartido se recomienda configurar posteriormente `maxmemory` con
 
 - **CA 6.1 — Idempotencia, TTL y tamaño:** cargar el mismo conjunto sintético dos veces; comprobar que las claves y valores finales no se duplican, que el TTL se aplica y se renueva (incluido el jitter), y comparar el tamaño almacenado de embeddings binarios float32 frente a su representación JSON para confirmar la reducción aproximada de 4×. Verificar además que una dimensión no entera/no positiva en configuración o una fila con dimensión distinta a `EMBEDDING_DIMENSION` falla explícitamente antes de escribir datos.
 - **CA 6.2 — Evento:** completar una carga y verificar que el consumidor recibe el evento con los campos y conteos esperados. Reprocesar el mismo `batch_id` y confirmar que el consumidor no duplica efectos.
-- **CA 6.3 — Latencia:** medir en Grafana el p95 del endpoint de recomendaciones bajo la misma carga y condiciones antes, durante y después de la sincronización. Comparar las mediciones para verificar que el batch no causa una degradación significativa y que la petición no ejecuta cómputo pesado.
+- **CA 6.3 — Latencia:** medir el p95 de una ruta pública representativa bajo la misma carga y condiciones antes, durante y después de la sincronización. Comparar las mediciones para verificar que el batch no causa una degradación significativa y que la petición no ejecuta cómputo pesado.
+
+## 10. Verificación de CA 6.3
+
+### Método y alcance
+
+- Base local de desarrollo `skillbridge`, con conteos iniciales de 4 `app_users`, 1 `PROVIDER` y 3 `services`.
+- `seed_feature_data.py --load-test 10000` creó 10.000 usuarios `PROVIDER` y 10.000 servicios, cada uno vinculado por FK. Los emails usan `@users.invalid`, y tanto usuarios como servicios quedaron `INACTIVE`. Cada usuario recibió cuatro scores aleatorios y cada servicio un embedding float32 little-endian de 384 dimensiones. La categoría se tomó de un servicio existente y la contraseña es un hash ficticio no apto para autenticación.
+- El batch fue `42228152-53bf-4b51-bba7-fea6fbf5f30c`. El loader se ejecutó tres veces sobre el mismo batch, idempotentemente, con duraciones de 24,88 s, 24,98 s y 24,37 s; así cubrió la ventana de carga, con aproximadamente 1,0 s entre ejecuciones. No se cambiaron `FEATURE_STORE_BATCH_SIZE` ni la pausa porque se cumplió el criterio.
+- k6 usó tasa constante durante 60 s: 20 solicitudes/s a cada ruta (40/s total), sin VUs descartados. La ruta real pública del catálogo es `GET /api/services`; el repositorio no expone `GET /api/offerings` (esa ruta respondió 401 por la política de seguridad). También se midió `GET /actuator/health`.
+- El código actual del catálogo consulta PostgreSQL directamente: no encontré Cache-Aside ni uso de Redis en esa ruta. Por eso esta prueba mide el impacto de escribir en el Redis compartido sobre la disponibilidad/latencia del backend, no el camino de lectura de un caché del catálogo.
+
+### Resultados k6
+
+Hora local de Windows (UTC-05:00). Las cifras de latencia son milisegundos; cada celda de error muestra tasa y solicitudes fallidas/total.
+
+| Fase | Ventana local | Ruta | p50 | p95 | p99 | Errores | Solicitudes |
+|---|---|---|---:|---:|---:|---:|---:|
+| A — base | 01:20:14.287–01:21:15.558 | `/api/services` | 9,38 | 14,53 | 21,59 | 0% (0/1201) | 1201 |
+| A — base | 01:20:14.287–01:21:15.558 | `/actuator/health` | 4,17 | 8,01 | 14,12 | 0% (0/1201) | 1201 |
+| B — loader | 01:22:08.849–01:23:10.097 | `/api/services` | 6,52 | 12,46 | 20,96 | 0% (0/1201) | 1201 |
+| B — loader | 01:22:08.849–01:23:10.097 | `/actuator/health` | 3,50 | 7,52 | 11,66 | 0% (0/1201) | 1201 |
+| C — posterior | 01:25:22.715–01:26:24.270 | `/api/services` | 8,18 | 10,19 | 16,27 | 0% (0/1201) | 1201 |
+| C — posterior | 01:25:22.715–01:26:24.270 | `/actuator/health` | 4,05 | 5,37 | 8,04 | 0% (0/1201) | 1201 |
+
+Para el catálogo, el límite de aceptación de p95 fue `max(14,53 ms × 1,20, 14,53 ms + 5 ms) = 19,53 ms`; la fase B midió 12,46 ms y cero errores. El health también mantuvo cero errores. El backend permaneció healthy.
+
+Durante B, `docker stats` recogió 25 muestras: CPU media 27,53%, máximo 71,84%; memoria del contenedor media 697,6 MiB, máximo 713,6 MiB. `redis-cli --latency-history -i 1` registró en su primera ventana de 60 s mínimo 0,158 ms, máximo 0,725 ms y promedio 0,282 ms.
+
+### Uso de memoria y propuesta operativa
+
+| Estado | `used_memory` de Redis |
+|---|---:|
+| Antes de insertar el Feature Store | 1,59 MiB |
+| Con 10.000 mentores y 10.000 embeddings | 25,05 MiB (pico 25,63 MiB) |
+| Tras cleanup | 1,79 MiB |
+
+En claves representativas, `MEMORY USAGE` midió 286 bytes por HASH de mentor; 1.869 bytes para la clave binaria del servicio y 151 bytes para su HASH `:meta` (1.536 bytes de embedding). Estimación por servicio con metadatos: 2.020 bytes; por pareja mentor+servicio: unos 2.306 bytes, antes del overhead global del proceso. El incremento observado del Redis completo fue aproximadamente 23,5 MiB para 10.000 parejas.
+
+Se propone evaluar `maxmemory 512mb` con política `volatile-lru` para el Redis compartido: el Feature Store tiene TTL y la cifra deja margen respecto a la extrapolación lineal de 10.000 parejas. No se aplicó ningún cambio a `docker-compose.yml`; con `volatile-lru`, las claves sin TTL no serían elegibles para evicción y deben considerarse al fijar el límite final.
+
+### Evidencia Prometheus/Grafana
+
+Ventanas absolutas para seleccionar en Grafana:
+
+- Base: `2026-11-12 01:20:14.287`–`01:21:15.558 -05:00`
+- Carga: `2026-11-12 01:22:08.849`–`01:23:10.097 -05:00`
+- Posterior: `2026-11-12 01:25:22.715`–`01:26:24.270 -05:00`
+
+Consulta PromQL para graficar p95 del catálogo en cada ventana:
+
+```promql
+histogram_quantile(
+  0.95,
+  sum by (le) (
+    rate(http_server_requests_seconds_bucket{
+      application="skillbridge-api",
+      uri="/api/services",
+      method="GET",
+      status="200"
+    }[1m])
+  )
+)
+```
+
+En esta ejecución, `/actuator/prometheus` expuso `_count` y `_sum`, pero no `http_server_requests_seconds_bucket`; por ello esta consulta aún no devuelve p95 en Prometheus. Tampoco estaban levantados los servicios opcionales Prometheus/Grafana. Los percentiles reportados arriba proceden de k6 y sí son mediciones reales. La primera fase k6 imprimió su resumen estándar válido (incluidos contadores y percentiles), aunque el formateador JSON opcional falló al consultar un contador de iteraciones descartadas que no se emitió; las fases B y C produjeron el resumen JSON. Para capturar la gráfica con la consulta anterior hay que habilitar el histograma de `http.server.requests` y arrancar el perfil `observability`; esos cambios no se hicieron en esta etapa.
+
+### Limpieza y veredicto
+
+`--cleanup --batch-id 42228152-53bf-4b51-bba7-fea6fbf5f30c` eliminó 10.000 usuarios, 10.000 servicios, 10.000 features de mentores, 10.000 embeddings, un batch y 30.001 claves Redis. Después se verificaron de nuevo los conteos originales (4 usuarios, 1 proveedor y 3 servicios), cero filas de features/batches de prueba, cero claves `mentor:feat:*`/`service:emb:*`, ausencia de `featurestore:last_batch` y colas RabbitMQ vacías. CA 6.3 cumple en la carga medida; la limitación es que el endpoint de catálogo actual no usa Cache-Aside y los histogramas Prometheus no están habilitados.
