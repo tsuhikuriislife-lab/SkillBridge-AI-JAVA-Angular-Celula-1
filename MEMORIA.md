@@ -2,6 +2,18 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-12] Preparación del PR HU-PS06 hacia develop
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Actualizar la rama publicada frente a `origin/develop`, revisar alcance/secretos, validar backend y Compose, y dejar explícitas las limitaciones de CA 6.3. Sin commit ni push.
+- **Cambios realizados:**
+  - `git fetch origin` no encontró commits entrantes; `origin/develop` ya era ancestro de la rama. `git merge origin/develop` terminó `Already up to date`, sin conflictos.
+  - Se ajustó `docs/FEATURE-STORE.md` para indicar que la fase A pudo estar fría, que el resultado solo permite concluir “sin degradación medible” en la ruta PostgreSQL medida, que no hay captura Grafana y que el objetivo <20 ms del flujo Feature Store queda pendiente de integrarlo con `AiRecommendationService`. `maxmemory 512mb`/`volatile-lru` queda como recomendación por decidir por el equipo.
+- **Validación:**
+  - `mvn -f backend/pom.xml test`: `BUILD SUCCESS`; 120 pruebas, 0 fallos, 0 errores y 4 omitidas. `RedisFeatureStoreComposeIntegrationTest` se omitió porque faltaba `FEATURE_STORE_TEST_MENTOR_ID`; `FeatureStoreFallbackComposeIntegrationTest`, porque faltaba `FEATURE_STORE_TEST_FALLBACK`; dos pruebas de `LiveKitRoomIntegrationTest`, porque Testcontainers no pudo validar Docker en Windows (Npipe respondió HTTP 400). La verificación real con Compose se había ejecutado separadamente.
+  - `docker compose config -q`: aprobado. `git diff --check`: aprobado.
+  - `origin/develop` contiene migraciones hasta V17; la rama conserva V18. No había migraciones entrantes ni choque de numeración.
+  - El diff frente a develop comprende 35 archivos de HU-PS06 (incluye `.env.example`, documentación, memoria, analytics, backend y Compose); `.env` está ignorado/no versionado. No se encontraron secretos, datos de prueba, logs ni temporales entre los paths versionados.
+
 ## [2026-11-12] Verificación de disponibilidad durante carga Feature Store (HU-PS06 / KAN-55)
 - **Agente:** AI assistant using Copilot SDK in VS Code
 - **Contexto:** Validar CA 6.3 con seed volumétrico y mediciones comparables antes/durante/después del loader, usando solo la base local. Sin commit ni cambios a `docker-compose.yml`.
