@@ -140,6 +140,31 @@ services:
     restart: unless-stopped
     networks: [ skillbridge ]
 
+  pyspark:
+    build:
+      context: ./data-engine
+      dockerfile: Dockerfile.pyspark
+    profiles: [ "data" ]
+    environment:
+      SPARK_MASTER: ${SPARK_MASTER:-local[*]}
+      SPARK_DRIVER_MEMORY: ${SPARK_DRIVER_MEMORY:-2g}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-skillbridge}
+      POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
+      POSTGRES_JDBC_DRIVER: org.postgresql.Driver
+      SPARK_LOCAL_DIR: /tmp/spark-temp
+    volumes:
+      - ./data-engine:/workspace
+    working_dir: /workspace
+    command: [ "python", "scripts/test_spark_connection.py" ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 3g
+    networks: [ skillbridge ]
+
   prometheus:
     image: prom/prometheus:v3.5.0
     profiles: [ "observability" ]
@@ -211,6 +236,7 @@ services:
       - "7077:7077"
     volumes:
       - ./analytics-service/jobs:/app/jobs
+      - ./analytics-service/data:/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -240,6 +266,7 @@ services:
       - "4040:4040"
     volumes:
       - ./analytics-service/jobs:/app/jobs
+      - ./analytics-service/data:/data 
     depends_on:
       spark-master:
         condition: service_started
