@@ -1,4 +1,4 @@
-.PHONY: up down reset logs ps observability test-back test-back-unit test-front test-livekit test-livekit-stream build
+.PHONY: up down reset logs ps observability test-back test-back-unit test-front test-livekit test-livekit-stream test-data build
 
 up:
 	docker compose up --build -d
@@ -41,6 +41,9 @@ test-livekit-stream:
 		cd scripts/livekit-stream-test && npm ci; \
 	fi
 	cd scripts/livekit-stream-test && timeout 60s node stream-test.js
+
+test-data:
+	docker compose --profile data run --rm pyspark
 
 build:
 	docker compose build
