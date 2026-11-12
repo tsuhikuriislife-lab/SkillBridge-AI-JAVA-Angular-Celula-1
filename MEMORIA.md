@@ -15,16 +15,7 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - Se borró un `package-lock.json` vacío de la raíz.
   - El resultado difiere de `feature/notificaciones` sólo en los 18 archivos de Kevin, que coinciden con su guía.
   - Lint, **70/70 pruebas** y build OK.
-- **KAN-58 Bloque 2 (Leonardo no estaba; lo hizo el agente a pedido de Dylan; rama `feature/notificaciones-health-ops`, worktree `../SkillBridge-kan58-health`):**
-  - Pasos 6 a 8 de la guía de Leonardo:
-    - `GET /health` con Terminus: RabbitMQ, Redis, PostgreSQL y Resend (este último cacheado 60 s, sin llamadas con `EMAIL_DRIVER=log`), más su prueba;
-    - Swagger en `/docs`;
-    - job `notifications-service` en Prometheus;
-    - job `notifications` en el CI (lint, pruebas y build); el job `docker` construye la imagen y el auto-merge espera al nuevo job.
-  - Depende de este PR (usa `AmqpConnection` y `REDIS_CLIENT`, que exporta `MessagingModule`), así que se mergea **después**.
-  - Probado junto con este PR: Prettier, lint, **73/73 pruebas** y build OK.
-  - Sin infraestructura, el arranque se detiene en la conexión a PostgreSQL. Falta el arranque real con Docker (`/health` y `/docs`).
-- **Pendientes:** CORS de Render (el preflight sigue en 403), E2E con correo real, prueba del webhook con túnel (Paso 9 de Leonardo), `PR_AUTOMATION_TOKEN`.
+- **Pendientes:** CORS de Render (el preflight sigue en 403), Bloque 2 de Leonardo, E2E con correo real, `PR_AUTOMATION_TOKEN`.
 
 ## [2026-11-11] Verificación E2E de KAN-59/KAN-56, revisión del PR #79 y timeout de RabbitMQ
 - **Agente:** Claude Code (Claude Opus 5.5), a pedido de Dylan. Dylan hace los commits, los push y los merges.
