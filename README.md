@@ -416,6 +416,19 @@ docker compose ps
 
 Todos los servicios principales deberían estar `running`/`healthy`.
 
+### Entorno de procesamiento PySpark
+
+El entorno de datos usa Python 3.11, Java 17 y PySpark 3.5.x en un servicio aislado. Para construirlo y ejecutar la lectura JDBC de comprobación contra PostgreSQL:
+
+```bash
+docker compose --profile data build pyspark
+docker compose --profile data run --rm pyspark
+```
+
+O con Make: `make test-data`.
+
+La configuración, variables y ejemplo de lectura/escritura Parquet están en [`data-engine/README.md`](data-engine/README.md). El backend continúa usando Java 21.
+
 ## URLs locales
 
 | Servicio | URL |

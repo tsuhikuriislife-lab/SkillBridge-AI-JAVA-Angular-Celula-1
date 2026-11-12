@@ -33,3 +33,7 @@ frontend/.env
 
 # Diseños
 diseños/
+
+*__pycache__/
+.pytest_cache/
+*.pyc
