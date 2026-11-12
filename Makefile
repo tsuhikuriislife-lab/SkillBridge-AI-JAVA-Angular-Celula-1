@@ -42,6 +42,9 @@ test-livekit-stream:
 	fi
 	cd scripts/livekit-stream-test && timeout 60s node stream-test.js
 
+test-data:
+	docker compose --profile data run --rm pyspark
+
 build:
 	docker compose build
 
