@@ -21,7 +21,7 @@ La dimensión se configura mediante `EMBEDDING_DIMENSION`, con valor predetermin
 Se usará el servicio compartido `redis` del Compose (`REDIS_URL`), **nunca** `redis-livekit`.
 
 - `mentor:feat:{id}`: HASH con `compatibility_score`, `expertise_score`, `availability_score`, `popularity_score` y `batch_id`.
-- `service:emb:{id}`: valor binario con los componentes float32 del embedding. Se prefiere binario sobre JSON porque ocupa aproximadamente cuatro veces menos que representar cada float como texto, lo que satisface la compresión indicada en CA 6.1. La dimensión y el `batch_id` se guardan en la clave auxiliar HASH `service:emb:{id}:meta`, con campos `dimension` y `batch_id`. La codificación float32 debe ser consistente entre productor y consumidor.
+- `service:emb:{id}`: valor binario con los componentes float32 del embedding. Se prefiere binario sobre JSON porque ocupa aproximadamente cuatro veces menos que representar cada float como texto, lo que satisface la compresión indicada en CA 6.1. La dimensión y el `batch_id` se guardan en la clave auxiliar HASH `service:emb:{id}:meta`, con campos `dimension` y `batch_id`. Los bytes son little-endian: el loader conserva los bytes de PostgreSQL, que el generador Python produce con `struct.pack("<...f")`; los consumidores deben decodificar cada float32 en ese orden.
 - `featurestore:last_batch`: HASH con `batch_id` y fecha de finalización del último batch cargado con éxito. Se escribe **solo al final**, después de completar todos los lotes.
 
 ## 4. Reglas de carga (CA 6.1 y 6.3)
@@ -43,17 +43,18 @@ Siguiendo el patrón de booking, se define:
 
 - Exchange topic: `feature-store.events`
 - Routing key: `features.updated`
-- El loader de analytics declara únicamente el exchange topic durable. El backend declara la cola durable `features.updated.queue`, su DLX/DLQ y el binding de `features.updated.queue` a `feature-store.events` con la routing key `features.updated`. No declarar la cola ni el binding en el loader; ambos lados deben conservar estos nombres y parámetros.
+- El loader de analytics declara únicamente el exchange topic durable (`durable=true`, `auto_delete=false`). El backend declara la cola durable `features.updated.queue`, el exchange DLX durable `feature-store.dlx`, la DLQ durable `features.updated.dlq` y el binding de la cola a `feature-store.events` con la routing key `features.updated`. La cola principal enruta mensajes rechazados al DLX con la clave `features.updated.failed`, enlazada a la DLQ. No declarar la cola ni el binding en el loader; ambos lados deben conservar estos nombres y parámetros.
 - La publicación usa `RABBITMQ_URL`, mensaje persistente (`delivery_mode=2`), `content_type=application/json`, `message_id=batch_id` y publisher confirms. La publicación es obligatoria: el loader solo considera confirmado el mensaje cuando el broker confirma su recepción y la ruta existe.
+- El listener del backend aplica la configuración existente `spring.rabbitmq.listener.simple.retry`: hasta 3 intentos con intervalo inicial de 2 segundos y `default-requeue-rejected=false`. Los mensajes malformados o inválidos se rechazan sin reencolar y llegan directamente a la DLQ; otros errores agotarán los reintentos y se enviarán allí.
 - Se realizan hasta 3 intentos de publicación, con espera creciente (2 y 4 segundos entre intentos). Si todos fallan, se registra el error y el proceso termina con código 3; los datos en Redis y el estado PostgreSQL `COMPLETED` se conservan. Es una falla de notificación, no de carga, por lo que no se revierte ni se marca `FAILED`; el batch puede volver a ejecutarse y el consumidor debe tolerar entregas repetidas por `batch_id`.
 
 El payload JSON contiene `batch_id`, `mentores_cargados`, `embeddings_cargados`, `embeddings_rechazados`, `started_at` y `finished_at`. Las fechas son ISO-8601 en UTC. El evento se publica únicamente después de escribir todos los lotes, actualizar `featurestore:last_batch` y cambiar `feature_batches` a `COMPLETED`; nunca se publica para un batch `FAILED`. El consumidor del backend debe ser idempotente por `batch_id` para tolerar entregas repetidas.
 
 ## 7. Lectura en el backend
 
-La aplicación define el puerto de salida `FeatureStorePort` en `application/port/out` y su adaptador Redis en `infrastructure/adapter/out/cache`. En una lectura, el adaptador consulta Redis; si la clave no existe, recupera el registro desde PostgreSQL. Para recomendaciones, si no hay resultado precalculado aplicable, se conserva como fallback el flujo actual con Gemini.
+La aplicación define el puerto de salida `FeatureStorePort` en `application/port/out` y su adaptador Redis en `infrastructure/adapter/out/cache`; el puerto `FeatureSourcePort` y su adaptador JPA de solo lectura acceden a las tablas fuente de PostgreSQL. En una lectura, la aplicación consulta Redis primero y, si la clave falta o Redis falla, recupera el registro desde PostgreSQL. El backend no escribe ni renueva las claves del Feature Store; el loader es el único escritor.
 
-Se registran métricas Micrometer de hit/miss y latencia de lectura. La petición HTTP solo consulta resultados existentes: no ejecuta cómputo pesado ni espera a que se ejecute un batch.
+Se registran métricas Micrometer de hit/miss, errores Redis, uso del fallback PostgreSQL y latencia de lectura. El listener convierte el evento a un modelo de aplicación y delega en `HandleFeaturesUpdatedUseCase`; el caso de uso ignora `batch_id` repetidos durante la vida del proceso y registra el último batch recibido y su antigüedad. La petición HTTP solo consulta resultados existentes: no ejecuta cómputo pesado ni espera a que se ejecute un batch.
 
 ## 8. Configuración y operación
 

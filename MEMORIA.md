@@ -2,6 +2,23 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-12] Lectura del Feature Store y consumidor `features.updated` (HU-PS06 / KAN-55)
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Agregar lectura Redis/PostgreSQL del Feature Store y consumo idempotente del evento de fin de batch, respetando arquitectura hexagonal, sin modificar `AiRecommendationService`, Gemini ni el esquema V18.
+- **Cambios realizados:**
+  - Añadidos modelos de aplicación para features de mentor, embedding de servicio y evento; puertos separados para Redis, PostgreSQL, métricas y manejo de eventos.
+  - El servicio de aplicación intenta Redis primero y recurre a PostgreSQL ante miss o excepción Redis. El backend no escribe claves del Feature Store. El adaptador binario usa serializers byte-array y decodifica float32 little-endian, coherente con los bytes que el loader conserva y el seed genera con `struct.pack("<...f")`.
+  - Añadidas entidades Hibernate inmutables y repositorios Spring Data de solo lectura para `mentor_features` y `service_embeddings`, sin cambiar V18 ni crear migraciones.
+  - Implementados contadores/timer/gauges Micrometer en un adaptador de infraestructura.
+  - Rabbit declara exchange topic durable `feature-store.events`, cola `features.updated.queue`, exchange DLX durable `feature-store.dlx`, DLQ durable `features.updated.dlq` y bindings. El listener convierte el JSON snake_case a un record de aplicación; mensajes inválidos se rechazan con `AmqpRejectAndDontRequeueException`. El caso de uso ignora batch IDs repetidos durante la vida del proceso y registra los eventos/duplicados y métricas de antigüedad.
+  - Se documentaron el endianness, topology DLQ, política de retry existente (3 intentos; intervalo inicial 2 s) y métricas/lectura en `docs/FEATURE-STORE.md`.
+- **Validación:**
+  - `mvn -f backend/pom.xml test`: `BUILD SUCCESS`; 119 pruebas, 0 fallos, 0 errores y 3 omitidas (la prueba Redis condicional y 2 pruebas existentes que requieren Testcontainers/Docker).
+  - Las pruebas nuevas cubren hit, miss, Redis error con fallback PostgreSQL, fuentes vacías, métricas, bytes float32 little-endian, idempotencia, payload válido/duplicado/malformado y bindings DLQ.
+  - `git diff --check`: sin errores de whitespace.
+  - Verificación Docker solicitada no ejecutable: `docker compose up -d postgres redis rabbitmq backend spark-master spark-worker` terminó con exit 1 y `Docker Desktop is unable to start`; `docker info` reportó el mismo problema. Por tanto no se pudo ejecutar seed/loader, comprobar en tiempo real la cola/DLQ ni observar los logs del evento. Este paso no creó datos sintéticos, así que no hubo datos de esta tarea que limpiar. La prueba de integración Redis quedó omitida automáticamente.
+  - No se modificó `AiRecommendationService`, el flujo Gemini ni el esquema V18.
+
 ## [2026-11-12] Integración de `origin/develop` en HU-PS06 (KAN-55)
 - **Agente:** AI assistant using Copilot SDK in VS Code
 - **Contexto:** Diagnosticar el fallo de arranque `No default constructor found` de `LiveKitProperties`, integrar los cambios recientes de `origin/develop` en la rama publicada `feature/hu-ps06-feature-store` y validar backend, Flyway y pruebas. Sin push.
