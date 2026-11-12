@@ -1,0 +1,1 @@
+import type {NotificationIntent} from './notification';
