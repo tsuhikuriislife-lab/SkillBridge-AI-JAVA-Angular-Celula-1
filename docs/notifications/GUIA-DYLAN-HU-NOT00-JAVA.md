@@ -711,7 +711,9 @@ por:
 
 📝 **Modificar** `backend/src/main/java/com/riwi/skillbridge/infrastructure/adapter/in/rest/UserAccountController.java`
 
-Reemplaza los métodos `changeStatus` y `delete`:
+Reemplaza **sólo** los métodos `changeStatus` y `delete`, y **agrega** el helper `actorEmail` al final de la clase.
+
+> ⚠️ **No borres `toOut(UserAccount u)`**: lo usan los demás métodos del controller. Si lo borras, aparecen ~28 errores `cannot find symbol: method toOut()`.
 
 ```java
     // PATCH /users/{id}/status — activar/desactivar
@@ -1033,11 +1035,14 @@ class RabbitUserEventPublisherTest {
 ### 12.4 Ejecutar
 
 ```bash
-# Desde la raíz del repo: compila y corre TODAS las pruebas del backend (igual que CI)
-mvn -f backend/pom.xml -B clean verify
+# Desde backend/ (si usas mise, backend/mise.toml sólo se activa dentro de esa carpeta)
+cd backend
+
+# Compila y corre TODAS las pruebas del backend (igual que CI)
+mvn -B clean verify
 
 # Sólo las pruebas nuevas y las modificadas (más rápido mientras desarrollas)
-mvn -f backend/pom.xml test -Dtest='UserEventEmitterTest,RabbitUserEventPublisherTest,UserAccountServiceTest,AdminUserServiceTest,AuthServiceTest,ServiceEnrollmentServiceTest,AuthSessionSecurityTest'
+mvn test -Dtest='UserEventEmitterTest,RabbitUserEventPublisherTest,UserAccountServiceTest,AdminUserServiceTest,AuthServiceTest,ServiceEnrollmentServiceTest,AuthSessionSecurityTest'
 ```
 
 ---
