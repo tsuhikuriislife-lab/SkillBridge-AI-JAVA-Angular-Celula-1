@@ -1052,6 +1052,15 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - Ejecución de pruebas específicas: `mvn -f backend/pom.xml test -Dtest="LiveKitTokenSecurityTest,LiveKitRoomIntegrationTest"` aprobada al 100%.
   - Suite completa del backend: `mvn -f backend/pom.xml test` finalizada con `BUILD SUCCESS` (88 pruebas exitosas sin regresiones).
 
+## [2026-11-11] Entorno reproducible de datos con PySpark
+- **Objetivo:** Proveer un contenedor aislado para procesar DataFrames, conectar con PostgreSQL por JDBC y usar almacenamiento local/Parquet.
+- **Cambios realizados:** Se agregó `data-engine/Dockerfile.pyspark` con Python 3.11, Java 17, PySpark 3.5.6 y driver PostgreSQL JDBC 42.7.7; dependencias fijadas para PyArrow, pandas y psycopg2-binary. Se añadió el servicio `pyspark` bajo el perfil Compose `data`, en la red interna de PostgreSQL, con singleton `SparkSessionFactory`, modo `local[*]`, heap/driver de 2 GiB y límite de contenedor de 3 GiB. El smoke test realiza una lectura JDBC de solo lectura y no depende de tablas de negocio. Se documentaron los comandos, variables y rutas Parquet en `README.md` y `data-engine/README.md`.
+- **Cambios realizados:** Se agregó `data-engine/Dockerfile.pyspark` con Python 3.11, Java 17, PySpark 3.5.6 y driver PostgreSQL JDBC 42.7.7; dependencias fijadas para PyArrow, pandas y psycopg2-binary. Se añadió el servicio `pyspark` bajo el perfil Compose `data`, en la red interna de PostgreSQL, con singleton `SparkSessionFactory`, modo `local[*]`, heap/driver de 2 GiB y límite de contenedor de 3 GiB. El smoke test realiza una lectura JDBC de solo lectura y no depende de tablas de negocio. Se documentaron los comandos, variables y rutas Parquet en `README.md` y `data-engine/README.md`, y se agregó `make test-data` como atajo.
+- **Ajuste por validación:** Spark 3.5 rechaza `-Xmx` en `spark.driver.extraJavaOptions`; se usa `spark.driver.memory=2g`, que es el mecanismo soportado para fijar el heap.
+- **Compatibilidad:** Java 17 se limita al contenedor de Spark; el backend conserva Java 21.
+- **Validación:** `docker compose --profile data build pyspark` completó correctamente y `docker compose --profile data run --rm pyspark` aprobó el smoke test, confirmando Spark 3.5.6 y conexión JDBC a la base `skillbridge`. Durante la validación se corrigió el import del módulo y el parámetro de heap. El test es de solo lectura.
+
+
 ## [2026-10-22] Resolución de Conflictos y Sincronización con Develop (HU-29.11 y LiveKit SDK)
 - **Rol:** Fullstack Developer
 - **Contexto:** Sincronización de la rama `develop` sobre `feature/hu-29.11-interfaz-videoconferencias-livekit` y resolución integral de conflictos de fusión.
