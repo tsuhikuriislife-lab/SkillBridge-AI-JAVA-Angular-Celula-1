@@ -2,6 +2,20 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-12] Verificación real de lectura y eventos del Feature Store (HU-PS06 / KAN-55)
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Completar la validación Docker Compose de la lectura Redis/PostgreSQL y del consumidor `features.updated`, incluyendo duplicados, DLQ, compatibilidad del embedding, fallback con Redis detenido y limpieza.
+- **Cambios realizados:**
+  - Se ajustó el test de integración de fallback para usar `@DataJpaTest` y construir el adaptador Redis directamente. Así prueba los repositorios PostgreSQL y las métricas de fallback sin levantar Rabbit ni la autoconfiguración Gemini; no se modificó código de producción.
+- **Validación real:**
+  - Docker Compose quedó activo con PostgreSQL, Redis, RabbitMQ y backend healthy; Spark master y worker de verificación también estaban activos. El worker se ejecutó sin publicar la UI para evitar el conflicto de puerto 8081. `GET /actuator/health` respondió `{"status":"UP","groups":["liveness","readiness"]}`.
+  - RabbitMQ confirmó los exchanges durables `feature-store.events` (topic) y `feature-store.dlx` (direct). Existían `features.updated.queue` y `features.updated.dlq` con sus bindings (`features.updated` y `features.updated.failed`).
+  - Seed real: `app_users=4`, `mentores(PROVIDER)=1`, `services=3`; batch `4809fe07-dab2-42a4-9e67-85622f02fc12`. El loader Python completó 1 mentor y 3 embeddings. Backend registró `features.updated received: batch_id=4809fe07-dab2-42a4-9e67-85622f02fc12 mentors=1 embeddings=3 rejected=0`; la segunda ejecución registró `Duplicate features.updated ignored: batch_id=4809fe07-dab2-42a4-9e67-85622f02fc12`.
+  - Mensaje malformado `{invalid json`, publicado con routing key `features.updated`, agotó los reintentos y se rechazó sin reencolar; se enrutó a `features.updated.dlq`. El log incluyó `Retries exhausted for message` y `AmqpRejectAndDontRequeueException`; el backend permaneció healthy.
+  - `RedisFeatureStoreComposeIntegrationTest`: 1 prueba, 0 fallos, 0 errores, 0 omitidas. Leyó las claves escritas por el loader real y decodificó dimensión 384 (1536 bytes) con valores float32 finitos y coherentes con el rango sintético [-1, 1].
+  - Con Redis detenido, `FeatureStoreFallbackComposeIntegrationTest`: 1 prueba, 0 fallos, 0 errores, 0 omitidas; recuperó mentor y embedding desde PostgreSQL y verificó en el `SimpleMeterRegistry` contadores positivos de errores Redis y fallback para ambas lecturas. Los logs reportaron `Unable to connect to Redis` y el fallback a PostgreSQL. Redis se inició de nuevo y quedó healthy (`PONG`).
+  - Limpieza con `seed_feature_data.py --cleanup --batch-id 4809fe07-dab2-42a4-9e67-85622f02fc12`: eliminó 1 mentor, 3 embeddings, 1 batch y 8 claves Redis. `SCAN` no encontró claves `mentor:feat:*` ni `service:emb:*`; `featurestore:last_batch` quedó ausente. Las colas durables quedaron en 0 mensajes ready y 0 unacked; se conservó la topología declarada por el backend.
+
 ## [2026-11-12] Lectura del Feature Store y consumidor `features.updated` (HU-PS06 / KAN-55)
 - **Agente:** AI assistant using Copilot SDK in VS Code
 - **Contexto:** Agregar lectura Redis/PostgreSQL del Feature Store y consumo idempotente del evento de fin de batch, respetando arquitectura hexagonal, sin modificar `AiRecommendationService`, Gemini ni el esquema V18.
