@@ -172,11 +172,14 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-skillbridge}
       POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PYTHONPATH: /app/jobs:/app
     ports:
       - "8080:8080"
       - "7077:7077"
     volumes:
       - ./analytics-service/jobs:/app/jobs
+      - ./analytics-service/tests:/app/tests
       - ./analytics-service/data:/data
     depends_on:
       postgres:
@@ -202,11 +205,14 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-skillbridge}
       POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PYTHONPATH: /app/jobs:/app
     ports:
       - "8081:8081"
       - "4040:4040"
     volumes:
       - ./analytics-service/jobs:/app/jobs
+      - ./analytics-service/tests:/app/tests
       - ./analytics-service/data:/data 
     depends_on:
       spark-master:
