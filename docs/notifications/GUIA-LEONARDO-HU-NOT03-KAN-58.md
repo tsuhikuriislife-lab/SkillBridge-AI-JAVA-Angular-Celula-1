@@ -324,10 +324,14 @@ const RANK: Record<DeliveryStatus, number> = {
   failed: 3,
 };
 
+/** bounced, complained y failed son FINALES: ningún webhook posterior los cambia. */
+const FINAL_RANK = 3;
+
 export function canTransition(
   current: DeliveryStatus,
   next: DeliveryStatus,
 ): boolean {
+  if (RANK[current] === FINAL_RANK) return false;
   return next !== current && RANK[next] >= RANK[current];
 }
 ```
@@ -392,7 +396,7 @@ export class ProcessDeliveryEventUseCase {
 
 **Explicación:**
 - **Los webhooks pueden llegar desordenados** (por ejemplo, `delivered` antes que `sent`). `canTransition` asigna un **rango** a cada estado y nunca permite retroceder: un `sent` tardío no pisa un `delivered`.
-- `bounced`, `complained` y `failed` son estados **finales**.
+- `bounced`, `complained` y `failed` son estados **finales**. Como los tres tienen el mismo rango, la regla `RANK[next] >= RANK[current]` por sí sola permitiría pasar de uno a otro (por ejemplo, un `complained` sobrescribiría un `bounced`). Por eso `canTransition` corta antes con `FINAL_RANK`. La única forma de llegar a `complained` es desde `sent`, `delivery_delayed` o `delivered`.
 - **`STATUS_BY_EVENT`** cubre los 4 eventos del CA 3.2, más `delivery_delayed` y `failed`. Los demás (`opened`, `clicked`) se **ignoran**: el tracking está desactivado por diseño (ver la guía de configuración).
 - **Resultados posibles:** `updated`, `ignored`, `not_found` (por ejemplo, un correo enviado desde el dashboard de Resend y no por nosotros) o `stale` (llegó tarde).
 
@@ -535,6 +539,9 @@ describe('canTransition', () => {
     ['delivered', 'sent', false],
     ['bounced', 'delivered', false],
     ['delivered', 'delivered', false],
+    ['bounced', 'complained', false],
+    ['complained', 'bounced', false],
+    ['failed', 'bounced', false],
   ] as const)('%s → %s = %s', (current, next, expected) => {
     expect(canTransition(current, next)).toBe(expected);
   });
