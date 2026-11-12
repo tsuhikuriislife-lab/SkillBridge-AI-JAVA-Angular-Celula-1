@@ -34,6 +34,10 @@ frontend/.env
 # Diseños
 diseños/
 
-*__pycache__/
+# Data / Analytics outputs
+analytics-service/data/
+
+# Python cache & tests
+__pycache__/
+*.py[cod]
 .pytest_cache/
-*.pyc

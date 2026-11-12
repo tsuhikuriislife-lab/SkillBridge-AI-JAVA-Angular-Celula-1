@@ -1,14 +1,225 @@
 # SkillBridge AI
 
-> Proyecto integrador profesional para practicar **Java 21 + Spring Boot + Angular + Arquitectura Hexagonal + PostgreSQL + Redis + RabbitMQ + Nginx + IA + observabilidad + Docker + CI/CD + despliegue cloud**.
-
-SkillBridge AI es una plataforma de mentorías y servicios profesionales. Los proveedores pueden publicar servicios y los usuarios pueden descubrirlos, autenticarse, reservar una sesión y pedir a un asistente de IA recomendaciones basadas únicamente en el catálogo existente.
-
-El objetivo principal no es el dominio de negocio: el dominio fue escogido para que cada tecnología tenga un **caso de uso real** y para que el proyecto pueda crecer hacia una solución distribuida más compleja.
+> Plataforma profesional de mentorías y servicios técnicos especializada en **Java 21 + Spring Boot 3.5 + Angular 20 + Arquitectura Hexagonal + PostgreSQL 17 + Redis 8 + RabbitMQ 4 + Google Gemini AI + LiveKit WebRTC + Prometheus & Grafana + Docker**.
 
 ---
 
-## 1. Qué van a aprender
+## 📑 Centro de Documentación (Docs Hub)
+
+Para consultar la documentación técnica especializada por capas y subsistemas:
+
+| Documento | Ubicación | Descripción |
+|---|---|---|
+| ☕ **Backend README** | [`backend/README.md`](backend/README.md) | Guía del backend Spring Boot, arquitectura hexagonal, DTOs y comandos Maven. |
+| 🅰️ **Frontend README** | [`frontend/README.md`](frontend/README.md) | Guía de la SPA Angular 20, Standalone Components, interceptores y comandos NPM. |
+| 🤖 **Subsistema de IA** | [`docs/AI.md`](docs/AI.md) | Integración de Google Gemini, mini-diagnóstico de prerrequisitos, anti-cheat y prompts. |
+| 🔌 **Especificación REST**| [`docs/API.md`](docs/API.md) | Catálogo completo de endpoints REST, DTOs, códigos de error y respuestas. |
+| 🏛️ **Arquitectura Global**| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Puertos y adaptadores, patrones Cache-Aside, EDA, DLQ y diagramas de flujo. |
+| 📜 **Historial de Versiones**| [`docs/CHANGES-HISTORY.md`](docs/CHANGES-HISTORY.md) | Registro de versiones y changelog formal (Keep a Changelog / SemVer). |
+| 📹 **Monitoreo WebRTC** | [`docs/LIVEKIT-MONITORING.md`](docs/LIVEKIT-MONITORING.md) | SLAs de latencia, calidad de red y streaming sintético de LiveKit. |
+| ⚖️ **Registros de Decisión**| [`docs/adr/`](docs/adr/) | ADRs formales (Monolito, Cloud, Spring AI / Gemini, Dual-Tier Cache). |
+| 🎓 **Guía del Instructor**| [`docs/INSTRUCTOR-GUIDE.md`](docs/INSTRUCTOR-GUIDE.md) | Secuencia pedagógica, rúbrica de evaluación y banco de preguntas de sustentación. |
+| 🚀 **Checklist Despliegue**| [`docs/DEPLOYMENT-CHECKLIST.md`](docs/DEPLOYMENT-CHECKLIST.md) | Lista de verificación pre-flight y smoke testing para producción. |
+
+---
+
+## 1. Arquitectura General del Sistema
+
+```mermaid
+flowchart TD
+    subgraph Cliente["Capa Cliente & Edge"]
+        U["Usuario / Navegador"]
+        SPA["Angular 20 Standalone SPA\n(Puerto 4200 / 8088)"]
+        NGX["Nginx Reverse Proxy"]
+        U --> SPA
+        SPA --> NGX
+    end
+
+    subgraph Backend["Backend Spring Boot 3.5.x (Arquitectura Hexagonal)"]
+        API["Inbound REST Controllers\n(/api/*)"]
+        APP["Casos de Uso & Lógica de Dominio"]
+        PORTS["Puertos de Salida (Outbound Ports)"]
+        CONS["Consumidor Asíncrono RabbitMQ"]
+        NGX --> API
+        API --> APP
+        APP --> PORTS
+    end
+
+    subgraph Persistencia["Datos & Caché"]
+        PG[("PostgreSQL 17\n(System of Record)")]
+        RD[("Redis 8\n(Cache-Aside & Diagnóstico IA)")]
+        PORTS -->|JPA Adapter| PG
+        PORTS -->|Redis Template & Fallback| RD
+    end
+
+    subgraph Mensajeria["Arquitectura Dirigida por Eventos"]
+        MQ{"RabbitMQ 4 Exchange\n(skillbridge.exchange)"}
+        Q_MAIN["Cola: booking.created.queue"]
+        Q_DLQ["Dead Letter Queue (DLQ)\n(Reintentos Agotados)"]
+        PORTS -->|Publica Evento| MQ
+        MQ --> Q_MAIN
+        Q_MAIN --> CONS
+        Q_MAIN -.->|Falla tras 3 reintentos| Q_DLQ
+        CONS -->|Persiste Notificación In-App| PG
+    end
+
+    subgraph InteligenciaArtificial["Subsistema de IA"]
+        GEMINI["Google Gemini API\n(gemini-3.1-flash-lite)"]
+        PORTS -->|Spring AI ChatClient\n(Recomendaciones & Tests)| GEMINI
+    end
+
+    subgraph StreamingWebRTC["Videoconferencia en Tiempo Real"]
+        LK["LiveKit SFU Server\n(WebRTC Audio/Video)"]
+        PORTS -->|Emite Token JWT de Sala| LK
+        SPA <===>|WebRTC Peer Connection| LK
+        LK -->|Webhooks de Sala| API
+    end
+
+    subgraph Telemetria["Observabilidad"]
+        PROM["Prometheus (9090)"]
+        GRAF["Grafana (3000)"]
+        API -->|/actuator/prometheus| PROM
+        PROM --> GRAF
+    end
+```
+
+---
+
+## 2. Comandos de Terminal para Ejecutar Cada Servicio
+
+A continuación se detallan los comandos para ejecutar el stack completo o cada componente por separado en desarrollo local.
+
+### 2.1. Opción Rápida: Todo con Docker Compose (Recomendado)
+
+Requiere únicamente **Docker** y **Docker Compose**:
+
+```bash
+# 1. Clonar el repositorio y acceder a él
+git clone <URL_DEL_REPOSITORIO>
+cd skillbridge-ai
+
+# 2. Configurar variables de entorno
+cp .env.example .env
+# (Edita .env y añade tu GEMINI_API_KEY y un JWT_SECRET seguro de 32+ caracteres)
+
+# 3. Levantar todos los servicios en segundo plano
+make up
+# o directamente con Docker Compose:
+docker compose up --build -d
+
+# 4. Ver estado de los contenedores
+docker compose ps
+
+# 5. Ver logs del sistema
+docker compose logs -f --tail=100
+```
+
+#### Para detener o reiniciar el stack:
+```bash
+# Detener contenedores
+make down
+# o: docker compose down
+
+# Reinicio completo (elimina volúmenes y reconstruye)
+make reset
+```
+
+---
+
+### 2.2. Opción Híbrida: Infraestructura en Docker + Código Local en Vivo (Ideal para Desarrolladores)
+
+Esta opción permite modificar el backend (Java) y frontend (Angular) con recarga en vivo sin tener que reconstruir imágenes Docker en cada cambio.
+
+#### Paso A — Levantar únicamente los servicios de soporte en Docker:
+```bash
+# Levantar PostgreSQL, Redis, RabbitMQ y LiveKit
+docker compose up -d postgres redis rabbitmq livekit redis-livekit
+```
+
+#### Paso B — Ejecutar el Backend (Spring Boot con Maven):
+```bash
+cd backend
+
+# Exportar variables mínimas de desarrollo
+export JWT_SECRET="clave_secreta_super_segura_de_mas_de_32_caracteres_dev_123"
+export GEMINI_API_KEY="tu_api_key_de_google_ai_studio"
+export GEMINI_MODEL="gemini-3.1-flash-lite"
+export LIVEKIT_API_KEY="devkey"
+export LIVEKIT_API_SECRET="secret"
+
+# Ejecutar el backend (Spring Boot arrancará en http://localhost:8080)
+mvn spring-boot:run
+```
+
+#### Paso C — Ejecutar el Frontend (Angular CLI con Proxy):
+```bash
+cd frontend
+
+# Instalar dependencias
+npm install
+
+# Arrancar el servidor de desarrollo en http://localhost:4200 (con proxy hacia el backend)
+npm start
+```
+
+---
+
+### 2.3. Ejecutar Pruebas Automatizadas en Terminal
+
+```bash
+# 1. Pruebas completas del Backend
+make test-back
+# o directamente:
+cd backend && mvn test
+
+# 2. Pruebas unitarias rápidas del Backend (sin Docker)
+make test-back-unit
+# o directamente:
+cd backend && mvn -Dtest=AssessmentServiceTest,BookingServiceTest test
+
+# 3. Pruebas unitarias del Frontend (Angular/Jasmine)
+make test-front
+# o directamente:
+cd frontend && npm test -- --watch=false
+
+# 4. Pruebas de simulación de streaming WebRTC con LiveKit
+make test-livekit-stream
+```
+
+---
+
+### 2.4. Ejecutar el Stack de Observabilidad (Prometheus + Grafana)
+
+```bash
+# Levantar los contenedores de monitoreo
+make observability
+# o directamente:
+docker compose --profile observability up -d
+
+# Acceder a Grafana en: http://localhost:3000 (usuario: admin, clave: admin)
+# Acceder a Prometheus en: http://localhost:9090
+```
+
+---
+
+## 3. Puertos y Direcciones Locales de Acceso
+
+| Servicio / Componente | Modo Docker Compose | Modo Desarrollo Local Nivel Host | Credenciales por Defecto |
+|---|---|---|---|
+| **Frontend SPA** | `http://localhost:8088` | `http://localhost:4200` | - |
+| **Backend REST API** | `http://localhost:8081` | `http://localhost:8080` | Bearer JWT en cabecera |
+| **Swagger UI (OpenAPI)** | `http://localhost:8081/swagger-ui.html` | `http://localhost:8080/swagger-ui.html` | Pública |
+| **Health Check (Actuator)**| `http://localhost:8081/actuator/health` | `http://localhost:8080/actuator/health` | Pública |
+| **PostgreSQL 17** | `localhost:5435` | `localhost:5432` | `skillbridge` / `skillbridge_dev` |
+| **Redis 8** | Interno (`redis:6379`) | `localhost:6379` | Sin clave (dev) |
+| **RabbitMQ Management** | `http://localhost:15672` | `http://localhost:15672` | `guest` / `guest` |
+| **LiveKit SFU Server** | `http://localhost:7880` | `http://localhost:7880` | `devkey` / `secret` |
+| **Prometheus** | `http://localhost:9090` | `http://localhost:9090` | Sin clave |
+| **Grafana** | `http://localhost:3000` | `http://localhost:3000` | `admin` / `admin` |
+
+---
+
+## 4. Qué van a aprender
 
 Este repositorio sirve como punto de partida para trabajar:
 
@@ -370,7 +581,7 @@ Para probar IA debes agregar una API key válida.
 La configuración recomendada para este proyecto es:
 
 ```env
-GEMINI_MODEL=gemini-3.8-flash
+GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
 La API key se utiliza únicamente en Spring Boot. Angular nunca se conecta
@@ -1030,7 +1241,7 @@ La cola es durable. Si el backend gratuito se duerme, los mensajes pueden perman
 
 ```env
 GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-3.8-flash
+GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
 Página de precios/límites:
@@ -1087,7 +1298,7 @@ REDIS_URL=rediss://...
 RABBITMQ_URL=amqps://...
 JWT_SECRET=...
 GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-3.8-flash
+GEMINI_MODEL=gemini-3.1-flash-lite
 CORS_ALLOWED_ORIGINS=https://TU-FRONTEND.vercel.app
 ```
 
@@ -1717,18 +1928,21 @@ Verifica siempre condiciones y cuotas actuales antes de iniciar una nueva cohort
 
 ---
 
-# 37. Archivos complementarios
+# 37. Archivos complementarios y Guías Especializadas
 
-Lee también:
+Consulta la documentación técnica detallada en:
 
-```text
-docs/ARCHITECTURE.md
-docs/BACKLOG.md
-docs/DEPLOYMENT-CHECKLIST.md
-docs/INSTRUCTOR-GUIDE.md
-```
-
-`BACKLOG.md` está pensado para trabajar el proyecto por sprints/células.
+- ☕ [Backend README](backend/README.md) — Arquitectura hexagonal, configuración Spring Boot y ejecución con Maven.
+- 🅰️ [Frontend README](frontend/README.md) — Arquitectura de componentes standalone Angular 20 y comandos NPM.
+- 🤖 [Subsistema de Inteligencia Artificial](docs/AI.md) — Guía profunda de prompts, mini-assessments y gobernanza de cuotas.
+- 🔌 [Especificación REST API](docs/API.md) — Especificación de endpoints, schemas de petición/respuesta y códigos HTTP.
+- 🏛️ [Arquitectura Global del Sistema](docs/ARCHITECTURE.md) — Puertos, adaptadores, patrones Cache-Aside, EDA y DLQ.
+- 📜 [Historial de Versiones](docs/CHANGES-HISTORY.md) — Release notes de versiones v1.0.0 a v1.3.0.
+- 📹 [Monitoreo y Streaming WebRTC](docs/LIVEKIT-MONITORING.md) — Guía de monitoreo y pruebas sintéticas de LiveKit.
+- ⚖️ [Registros de Decisión Arquitectónica (ADRs)](docs/adr/) — Decisiones de diseño justificadas y versionadas.
+- 📋 [Backlog del Proyecto](docs/BACKLOG.md) — Historias de usuario, criterios de aceptación y sprints.
+- 🚀 [Checklist de Despliegue](docs/DEPLOYMENT-CHECKLIST.md) — Verificaciones previas y posteriores al pase a producción.
+- 🎓 [Guía del Instructor](docs/INSTRUCTOR-GUIDE.md) — Rúbrica y preguntas de sustentación oral.
 
 ---
 

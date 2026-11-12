@@ -156,12 +156,17 @@ services:
     networks: [ skillbridge ]
 
   livekit:
-    image: livekit/livekit-server:v1.8
+    image: livekit/livekit-server:latest
     command: --config /etc/livekit.yaml
     restart: unless-stopped
     environment:
-      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-devkey}: ${LIVEKIT_API_SECRET}"
       LIVEKIT_RTC_USE_EXTERNAL_IP: ${LIVEKIT_RTC_USE_EXTERNAL_IP:-false}
+      LIVEKIT_RTC_NODE_IP: ${LIVEKIT_RTC_NODE_IP:-127.0.0.1}
+      LIVEKIT_RTC_ADVERTISE_INTERNAL_IP: ${LIVEKIT_RTC_ADVERTISE_INTERNAL_IP:-true}
+      LIVEKIT_RTC_ENABLE_LOOPBACK_CANDIDATE: ${LIVEKIT_RTC_ENABLE_LOOPBACK_CANDIDATE:-true}
+      LIVEKIT_RTC_USE_ICE_LITE: ${LIVEKIT_RTC_USE_ICE_LITE:-true}
+      NODE_IP: ${NODE_IP:-127.0.0.1}
       REDIS_HOST: redis-livekit:6379
       REDIS_PASSWORD: ${LIVEKIT_REDIS_PASSWORD:?Set LIVEKIT_REDIS_PASSWORD}
     volumes:
@@ -173,6 +178,66 @@ services:
       - "${LIVEKIT_HTTP_PORT:-7880}:7880"
       - "${LIVEKIT_TCP_PORT:-7881}:7881"
       - "${LIVEKIT_UDP_PORT:-7882}:7882/udp"
+      - "127.0.0.1:6789:6789"
+    networks: [ skillbridge ]
+
+  spark-master:
+    build:
+      context: ./analytics-service
+    container_name: skillbridge-spark-master
+    command: [ "/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master" ]
+    environment:
+      SPARK_MODE: master
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-skillbridge}
+      POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./analytics-service/jobs:/app/jobs
+      - ./analytics-service/data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [ skillbridge ]
+
+  spark-worker:
+    build:
+      context: ./analytics-service
+    container_name: skillbridge-spark-worker
+    command: [ "/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077" ]
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 1g
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-skillbridge}
+      POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
+    ports:
+      - "8081:8081"
+      - "4040:4040"
+    volumes:
+      - ./analytics-service/jobs:/app/jobs
+      - ./analytics-service/data:/data 
+    depends_on:
+      spark-master:
+        condition: service_started
+      postgres:
+        condition: service_healthy
     networks: [ skillbridge ]
 
 networks:
