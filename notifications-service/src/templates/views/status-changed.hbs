@@ -1,0 +1,13 @@
+{{#if deactivated}}
+<h1 style="margin:0 0 18px;font-size:22px;">Tu cuenta fue desactivada</h1>
+<p>Hola {{firstName}}, el estado de tu cuenta cambió de {{previousStatusLabel}} a {{newStatusLabel}}.</p>
+<p>Mientras tu cuenta esté inactiva no podrás ingresar ni usar los servicios de la plataforma. Si crees que se trata de un error, contacta al administrador.</p>
+{{else}}
+<h1 style="margin:0 0 18px;font-size:22px;">¡Tu cuenta está activa de nuevo!</h1>
+<p>Hola {{firstName}}, el estado de tu cuenta cambió de {{previousStatusLabel}} a {{newStatusLabel}}.</p>
+<p>Ya puedes ingresar y usar la plataforma con normalidad.</p>
+{{/if}}
+{{> details rows=changeDetails}}
+{{#unless deactivated}}
+{{> button url=loginUrl label="Iniciar sesión"}}
+{{/unless}}
