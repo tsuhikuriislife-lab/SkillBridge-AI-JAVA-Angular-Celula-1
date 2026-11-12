@@ -38,3 +38,11 @@ diseños/
 notifications-service/node_modules/
 notifications-service/dist/
 notifications-service/coverage/
+
+# Data / Analytics outputs
+analytics-service/data/
+
+# Python cache & tests
+__pycache__/
+*.py[cod]
+.pytest_cache/
