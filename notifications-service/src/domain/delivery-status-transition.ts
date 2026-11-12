@@ -13,9 +13,13 @@ const RANK: Record<DeliveryStatus, number> = {
   failed: 3,
 };
 
+/** bounced, complained y failed son FINALES: ningún webhook posterior los cambia. */
+const FINAL_RANK = 3;
+
 export function canTransition(
   current: DeliveryStatus,
   next: DeliveryStatus,
 ): boolean {
+  if (RANK[current] === FINAL_RANK) return false;
   return next !== current && RANK[next] >= RANK[current];
 }
