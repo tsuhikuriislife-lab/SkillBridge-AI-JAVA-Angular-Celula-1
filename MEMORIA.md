@@ -2,6 +2,26 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-11] Carga masiva del Feature Store (HU-PS06 / KAN-55)
+- **Agente:** AI assistant using Copilot SDK in VS Code
+- **Contexto:** Implementar el loader Spark/PostgreSQL→Redis y el generador de datos sintéticos, sin modificar backend ni publicar el evento de RabbitMQ.
+- **Cambios realizados:**
+  - Creado `analytics-service/jobs/redis_batch_loader.py`: selección explícita o del batch RUNNING más reciente, lectura JDBC paginada por UUID y limitada a `FEATURE_STORE_BATCH_SIZE`, pipeline Redis con reintentos, TTL con jitter, validación de float32/dimensión, contadores y estados `COMPLETED`/`FAILED`. Solo escribe `featurestore:last_batch` al cerrar con éxito.
+  - Creado `analytics-service/jobs/seed_feature_data.py`: inserta features para usuarios `PROVIDER` y embeddings para servicios existentes, crea batch RUNNING, soporta `--include-invalid-dimension` y limpieza limitada por `--batch-id`, incluyendo claves Redis que sigan perteneciendo al batch.
+  - Se usó exclusivamente el Redis compartido `redis`; no se publicó ningún evento ni se modificó código backend.
+- **Validación real:**
+  - `docker compose build spark-master spark-worker`: completado correctamente.
+  - `docker compose up -d postgres redis rabbitmq spark-master spark-worker`: PostgreSQL, Redis, RabbitMQ y Spark master healthy/started. La publicación del worker Compose falló porque `127.0.0.1:8081` ya estaba ocupado por `skillbridge-ai-backend-1`. Sin detener ni modificar ese contenedor, se ejecutó el worker sin publicar su UI (`docker compose run -d --no-deps --name skillbridge-spark-worker-task spark-worker`); se registró correctamente y la UI del master mostró 1 worker.
+  - `python3 -m py_compile /app/jobs/redis_batch_loader.py /app/jobs/seed_feature_data.py` en `skillbridge-spark-master`: aprobado. El intérprete Python del host no estaba instalado.
+  - La base activa `skillbridge` estaba en Flyway V14 y no tenía `feature_batches`, en contra del contexto recibido. No se modificó esa base: para los ejercicios se creó una base temporal, se copiaron los IDs existentes (4 `app_users`, 1 `PROVIDER` y 3 `services`) y se aplicó allí el SQL V18 del repositorio. La base temporal se eliminó al terminar.
+  - Seed y carga normal: batch `7b6d94f1-b91f-4af5-889d-3fd01080f700`, 1 mentor y 3 embeddings; estado COMPLETED y `featurestore:last_batch` presente. Con `SCAN`: 1 clave `mentor:feat:*`, 6 `service:emb:*` (3 binarios y 3 hashes `:meta`). TTL observado entre 237124 y 271976 segundos, con 8 valores distintos; `STRLEN` de un embedding: 1536 bytes.
+  - Reejecución del mismo batch: exit 0; conteos invariantes (mentor 1→1, claves `service:emb:*` 6→6).
+  - Prueba de dimensión incorrecta: `--include-invalid-dimension` creó un embedding de dimensión 385; el loader emitió WARN para `11111111-1111-1111-1111-111111111111`, rechazó 1 fila, cargó los otros 2 embeddings y completó. La clave del servicio rechazado no se escribió.
+  - Configuración `EMBEDDING_DIMENSION=0`: falló antes de leer/cargar datos con exit 2.
+  - Redis no disponible (`REDIS_URL=redis://127.0.0.1:6399`): se observaron 3 intentos y esperas de 1 y 2 segundos; exit 1, batch FAILED, ninguna clave Redis y sin `featurestore:last_batch`.
+  - Sin batch RUNNING: mensaje claro y exit 1.
+  - Limpieza: cada lote sintético fue borrado; el último cleanup eliminó 8 claves. Verificación final con `SCAN`: 0 claves `mentor:feat:*`, 0 `service:emb:*`, marcador ausente y tablas temporales vacías. La base temporal también se eliminó.
+
 ## [2026-11-11] Preparación del contrato técnico HU-PS06 Feature Store
 - **Agente:** AI assistant using Copilot SDK in VS Code
 - **Contexto:** KAN-55; crear V18 para persistir batches, features numéricas de mentores y embeddings de servicios, y preparar la configuración del sincronizador de analytics.
