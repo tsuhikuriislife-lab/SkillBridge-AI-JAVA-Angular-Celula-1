@@ -1358,6 +1358,28 @@ Este documento guarda el historial de tareas, decisiones técnicas y modificacio
   - **`docker-compose.yml`:** Se mantuvieron las variables de entorno WebRTC locales (`LIVEKIT_RTC_NODE_IP`, `LIVEKIT_RTC_ADVERTISE_INTERNAL_IP`, `LIVEKIT_RTC_USE_ICE_LITE`, etc.) y la dependencia con el contenedor de estado efímero `redis-livekit`, asegurando la estabilidad de la conexión WebRTC.
   - **`MEMORIA.md`:** Se unificaron sin pérdidas todas las bitácoras técnicas de ambas ramas (69 secciones únicas preservadas).
 
+
+## [2026-11-11] HU-PS04 -- Pipeline de Generación de Embeddings en Batch con Tolerancia a Fallos
+- **Rol:** Ingeniero de LLMs / Data Engineer
+- **Contexto:** Generación distribuida de representaciones vectoriales para chunks de texto del catálogo de servicios y mentores mediante PySpark, preparando los vectores para búsquedas semánticas y RAG en el Feature Store (HU-PS06).
+- **Cambios realizados:**
+  - **Cliente Batch de Embeddings (`analytics-service/jobs/embedding_client.py` - CA 4.1 y CA 4.2):**
+    - Implementada clase `BatchEmbeddingClient` con soporte para Gemini API (`text-embedding-004:batchEmbedContents`), HuggingFace Inference API y modo `mock` determinista (hash SHA-256 normalizado L2).
+    - Agrupación en micro-lotes configurables (`batch_size=20`, máximo 100) y limitador defensivo de peticiones por minuto (`requests_per_minute=60`) para respetar límites de cuota/RPM de la API.
+    - Mecanismo de reintentos exponenciales (*exponential backoff con jitter*) ante códigos HTTP 429 (Too Many Requests), 5xx y timeouts de red, respetando cabeceras `Retry-After`.
+  - **Pipeline Batch Distribuido en PySpark (`analytics-service/jobs/generate_embeddings_batch.py` - CA 4.2 y CA 4.3):**
+    - Carga de chunks desde `/data/processed/catalog_chunks.parquet` o construcción semántica a partir de `catalog_clean.parquet` con `text_hash` SHA-256.
+    - **Tolerancia a fallos y Checkpointing:** Configuración de `spark.sparkContext.setCheckpointDir()` y filtro incremental *anti-join* (`left_anti`) contra embeddings ya existentes en Parquet para evitar reprocesar chunks ya vectorizados.
+    - **Optimización con `mapPartitions`:** Mapeo de particiones distribuidas reutilizando una única instancia de cliente y sesión HTTP por partición de Spark para minimizar latencia de handshake TCP/TLS.
+    - **Validación de Dimensionalidad y Consistencia:** Verificación estricta de dimensionalidad fija (`dimension=768` o `384`), ausencia de valores nulos o corruptos (`NaN`/infinitos).
+    - **Persistencia Parquet:** Guardado con compresión Snappy y esquema fuertemente tipado indexable: `vector: ArrayType(FloatType())`.
+  - **Infraestructura (`docker-compose.yml` y `requirements.txt`):**
+    - Inyectada la variable `GEMINI_API_KEY` en `spark-master` y `spark-worker`.
+    - Agregado `requests==2.32.3` en `analytics-service/requirements.txt`.
+  - **Pruebas Automatizadas (`analytics-service/tests/test_embedding_pipeline.py`):**
+    - Cobertura de micro-lotes, generación mock determinista, reintentos exponenciales ante 429 simulado, validación de dimensiones, filtro anti-reprocesamiento incremental y persistencia de `ArrayType(FloatType())` con `mapPartitions`.
+- **Validación:**
+  - Pruebas unitarias y de integración de PySpark ejecutadas en contenedor Docker (`docker-compose run --rm spark-master python3 -m pytest tests/test_embedding_pipeline.py -v`): 9 de 9 pruebas aprobadas al 100% (micro-lotes, generación mock determinista, recuperación ante errores HTTP 429 transitorios, validación estricta de dimensionalidad, filtro incremental anti-reprocesamiento con checkpointing y ejecución distribuida con `mapPartitions` sobre Parquet `ArrayType(FloatType())`).
 ## [2026-11-11] Implementación del Pipeline ETL de Extracción, Limpieza y Normalización del Catálogo (HU-PS02)
 - **Rol:** Data Engineer
 - **Contexto:** Desarrollo del pipeline de procesamiento de datos por lotes (Batch ETL) utilizando Apache Spark y PySpark para extraer, desinfectar y consolidar la información de servicios, categorías y mentores desde PostgreSQL hacia un almacenamiento columnar analítico optimizado (Parquet).

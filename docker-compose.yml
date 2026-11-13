@@ -197,6 +197,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-skillbridge}
       POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PYTHONPATH: /app/jobs:/app
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/%2F}
       FEATURE_STORE_BATCH_INTERVAL_HOURS: ${FEATURE_STORE_BATCH_INTERVAL_HOURS:-24}
@@ -209,6 +211,7 @@ services:
       - "7077:7077"
     volumes:
       - ./analytics-service/jobs:/app/jobs
+      - ./analytics-service/tests:/app/tests
       - ./analytics-service/data:/data
     depends_on:
       postgres:
@@ -238,6 +241,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-skillbridge}
       POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PYTHONPATH: /app/jobs:/app
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/%2F}
       FEATURE_STORE_BATCH_INTERVAL_HOURS: ${FEATURE_STORE_BATCH_INTERVAL_HOURS:-24}
@@ -250,6 +255,7 @@ services:
       - "4040:4040"
     volumes:
       - ./analytics-service/jobs:/app/jobs
+      - ./analytics-service/tests:/app/tests
       - ./analytics-service/data:/data 
     depends_on:
       spark-master:
