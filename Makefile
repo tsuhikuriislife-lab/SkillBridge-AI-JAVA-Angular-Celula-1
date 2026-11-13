@@ -1,4 +1,4 @@
-.PHONY: up down reset logs ps observability test-back test-back-unit test-front test-livekit test-livekit-stream build db-notifications test-notifications logs-notifications
+.PHONY: up down reset logs ps observability test-back test-back-unit test-front test-livekit test-livekit-stream build db-notifications test-notifications logs-notifications test-data
 
 up:
 	docker compose up --build -d
