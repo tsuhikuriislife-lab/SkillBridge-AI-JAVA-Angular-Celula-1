@@ -124,10 +124,10 @@ En la configuración del dominio en Resend, **desactiva Click tracking y Open tr
 |---|---|---|---|
 | `skillbridge-dev-dylan` | **Sending access** | `mail.skillbridgeai.online` | Dylan (local) |
 | `skillbridge-dev-kevin` | Sending access | `mail.skillbridgeai.online` | Kevin (local) |
-| `skillbridge-dev-leonardo` | **Full access** (sólo dev) | — | Leonardo (local: el health check usa `domains.list`, que requiere Full access) |
-| `skillbridge-prod` | **Full access** | — | Despliegue (§8). El `/health` consulta `domains.list` |
+| `skillbridge-dev-leonardo` | Sending access | `mail.skillbridgeai.online` | Leonardo (local) |
+| `skillbridge-prod` | **Sending access** | `mail.skillbridgeai.online` | Despliegue (§8) |
 
-3. **Sending access** es lo más seguro: si la llave se filtra, sólo sirve para enviar. **Pero** el check de Resend en `/health` (KAN-58) usa `domains.list()`, que necesita **Full access**. Opciones: usar Full access sólo donde corre `/health` con `EMAIL_DRIVER=resend` (producción y la máquina de Leonardo) o aceptar que `/health` marque `resend: down` con llaves de Sending access. Recomendado: Full access en producción, **guardada como secreto** y rotada si hay sospecha de filtración.
+3. **Usa siempre Sending access**, también en producción: si la llave se filtra, sólo sirve para enviar. El check de Resend en `/health` (KAN-58) llama a `domains.list()`; con una llave de Sending access Resend responde `restricted_api_key`, y el indicador lo toma como **up** (`"key": "sending-only"`), porque prueba que la llave es válida y que Resend responde. Sólo marca **down** si la llave es inválida o Resend no responde. Si ya creaste llaves con Full access, cámbialas por llaves de Sending access y revoca las anteriores.
 4. La llave (`re_...`) **se muestra una sola vez**. Cópiala directo a tu `.env` (§4).
 5. **Compartirla con el equipo:** usa un canal seguro, como un enlace de un solo uso (Bitwarden Send o <https://onetimesecret.com>). **Nunca** por el chat grupal, Jira, un commit o un screenshot.
 

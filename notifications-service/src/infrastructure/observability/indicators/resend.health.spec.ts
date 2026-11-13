@@ -46,4 +46,22 @@ describe('ResendHealthIndicator', () => {
       resend: { status: 'down' },
     });
   });
+
+  it('con una llave de "Sending access" responde up (sending-only)', async () => {
+    const list = jest.fn().mockResolvedValue({
+      data: null,
+      error: {
+        name: 'restricted_api_key',
+        message: 'This API key is restricted to only send emails',
+      },
+    });
+    const indicator = new ResendHealthIndicator(
+      { domains: { list } } as never,
+      health,
+      new ConfigService({ EMAIL_DRIVER: 'resend' }),
+    );
+    await expect(indicator.check()).resolves.toMatchObject({
+      resend: { status: 'up', key: 'sending-only' },
+    });
+  });
 });
