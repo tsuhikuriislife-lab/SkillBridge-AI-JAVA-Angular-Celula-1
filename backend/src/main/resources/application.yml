@@ -37,6 +37,9 @@ spring:
       timeout: 2s
   rabbitmq:
     addresses: ${RABBITMQ_URL:amqp://guest:guest@localhost:5672}
+    # Si RabbitMQ no responde, publicar un evento no debe bloquear la petición del usuario
+    # (sin este valor, el cliente espera al sistema operativo: ~40 s).
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:3s}
     listener:
       simple:
         default-requeue-rejected: false

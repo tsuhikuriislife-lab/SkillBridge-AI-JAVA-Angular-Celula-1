@@ -711,7 +711,9 @@ por:
 
 📝 **Modificar** `backend/src/main/java/com/riwi/skillbridge/infrastructure/adapter/in/rest/UserAccountController.java`
 
-Reemplaza los métodos `changeStatus` y `delete`:
+Reemplaza **sólo** los métodos `changeStatus` y `delete`, y **agrega** el helper `actorEmail` al final de la clase.
+
+> ⚠️ **No borres `toOut(UserAccount u)`**: lo usan los demás métodos del controller. Si lo borras, aparecen ~28 errores `cannot find symbol: method toOut()`.
 
 ```java
     // PATCH /users/{id}/status — activar/desactivar
@@ -1033,11 +1035,14 @@ class RabbitUserEventPublisherTest {
 ### 12.4 Ejecutar
 
 ```bash
-# Desde la raíz del repo: compila y corre TODAS las pruebas del backend (igual que CI)
-mvn -f backend/pom.xml -B clean verify
+# Desde backend/ (si usas mise, backend/mise.toml sólo se activa dentro de esa carpeta)
+cd backend
+
+# Compila y corre TODAS las pruebas del backend (igual que CI)
+mvn -B clean verify
 
 # Sólo las pruebas nuevas y las modificadas (más rápido mientras desarrollas)
-mvn -f backend/pom.xml test -Dtest='UserEventEmitterTest,RabbitUserEventPublisherTest,UserAccountServiceTest,AdminUserServiceTest,AuthServiceTest,ServiceEnrollmentServiceTest,AuthSessionSecurityTest'
+mvn test -Dtest='UserEventEmitterTest,RabbitUserEventPublisherTest,UserAccountServiceTest,AdminUserServiceTest,AuthServiceTest,ServiceEnrollmentServiceTest,AuthSessionSecurityTest'
 ```
 
 ---
@@ -1376,20 +1381,28 @@ class AuthServiceTest {
 
 ### 13.6 Verificación manual
 
+El backend exige el token **CSRF** en todo `POST`, `PATCH` y `DELETE`. Sin él responde **403**, incluso en `/api/auth/register` y `/api/auth/login`. Por eso primero se pide la cookie `XSRF-TOKEN` y después se envía su valor en el header `X-XSRF-TOKEN`:
+
 ```bash
+# Pedir el token CSRF (lo guarda en la cookie XSRF-TOKEN del archivo /tmp/sb-a)
+curl -s -c /tmp/sb-a -b /tmp/sb-a http://localhost:8081/api/auth/csrf
+TOKEN=$(awk '/XSRF-TOKEN/{print $7}' /tmp/sb-a)
+
 # Login como usuario A (CUSTOMER); guarda su cookie de sesión
-curl -s -c /tmp/sb-a -X POST http://localhost:8081/api/auth/login \
-  -H 'Content-Type: application/json' -d '{"email":"<correo-A>","password":"<clave-A>"}'
+curl -s -c /tmp/sb-a -b /tmp/sb-a -X POST http://localhost:8081/api/auth/login \
+  -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $TOKEN" \
+  -d '{"email":"<correo-A>","password":"<clave-A>"}'
+TOKEN=$(awk '/XSRF-TOKEN/{print $7}' /tmp/sb-a)   # el token puede cambiar tras el login
 
 # Intentar desactivar al usuario B con la sesión de A → debe responder 403
-curl -s -o /dev/null -w "%{http_code}\n" -b /tmp/sb-a -X PATCH \
+curl -s -o /dev/null -w "%{http_code}\n" -c /tmp/sb-a -b /tmp/sb-a -X PATCH \
   http://localhost:8081/api/users/<id-B>/status \
-  -H 'Content-Type: application/json' -d '{"active": false}'
+  -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $TOKEN" -d '{"active": false}'
 
 # A se desactiva a sí mismo → 200; después, su login responde 401 con "Tu cuenta está desactivada..."
 ```
 
-> Si el backend exige el header CSRF en peticiones con cookie, la forma más simple de probar es desde Swagger (`http://localhost:8081/swagger-ui.html`) o desde el frontend.
+> También puedes probar desde Swagger (`http://localhost:8081/swagger-ui.html`) o desde el frontend, que manejan el CSRF solos.
 
 > **Pendiente fuera de esta épica (anotar en Jira):** el panel de administración de Angular **no** tiene botón para activar o desactivar usuarios (sólo cambia roles). Hoy el admin sólo puede hacerlo por API o Swagger.
 
@@ -1398,8 +1411,8 @@ curl -s -o /dev/null -w "%{http_code}\n" -b /tmp/sb-a -X PATCH \
 ## Paso 14: Verificación manual (con todo levantado)
 
 ```bash
-# 1. Levantar todo (backend + rabbit + notifications de las otras personas)
-make up
+# 1. Levantar sólo lo necesario (sin Spark ni LiveKit: el build es mucho más liviano)
+docker compose up --build -d postgres rabbitmq redis backend notifications
 
 # 2. Ver los logs del backend filtrando eventos publicados
 docker compose logs -f backend | grep -i "Evento publicado"
@@ -1408,13 +1421,17 @@ docker compose logs -f backend | grep -i "Evento publicado"
 En otra terminal:
 
 ```bash
-# 3. Registrar un usuario: debe aparecer "Evento publicado: type=user.registered"
-curl -s -X POST http://localhost:8081/api/auth/register \
-  -H 'Content-Type: application/json' \
+# 3. Registrar un usuario (con token CSRF, ver 13.6): debe aparecer "Evento publicado: type=user.registered"
+curl -s -c /tmp/sb -b /tmp/sb http://localhost:8081/api/auth/csrf
+TOKEN=$(awk '/XSRF-TOKEN/{print $7}' /tmp/sb)
+curl -s -c /tmp/sb -b /tmp/sb -X POST http://localhost:8081/api/auth/register \
+  -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $TOKEN" \
   -d '{"name":"Prueba Notif","email":"delivered@resend.dev","password":"Clave123*"}'
 ```
 
-4. Abre `http://localhost:15672` (`guest` / `guest`) → **Exchanges**. Debe existir `skillbridge.events`. Si el consumidor de Kevin todavía no está mergeado, los mensajes se pierden porque no hay cola enlazada. Es normal: para verlos, crea una cola temporal y enlázala con `user.#` y `enrollment.#`.
+4. Abre `http://localhost:15672` (`guest` / `guest`) → **Exchanges**. Debe existir `skillbridge.events`. Spring lo declara recién cuando abre la primera conexión, así que puede no aparecer hasta el primer evento.
+   - Si el consumidor de Kevin todavía no está mergeado, los mensajes se pierden porque no hay ninguna cola enlazada. Es normal.
+   - Para verlos, crea una cola temporal **durable** y enlázala con `user.#` y `enrollment.#`. RabbitMQ 4 ya no permite colas no durables compartidas. Bórrala al terminar.
 5. Inscríbete en un servicio desde el frontend → `Evento publicado: type=enrollment.created`.
 
 ---

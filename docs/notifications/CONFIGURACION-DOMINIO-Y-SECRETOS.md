@@ -64,26 +64,27 @@ Remitente final: `SkillBridge AI <notificaciones@mail.skillbridgeai.online>`.
 2. **Domains → Add Domain**.
    - Name: `mail.skillbridgeai.online`
    - Region: `South America (São Paulo) – sa-east-1` (la más cercana a Colombia) o la que sugiera Resend.
-3. Resend muestra una tabla de registros. **Copia los valores EXACTOS de tu pantalla.** Se verán así:
+3. **Apaga "Enable receiving"**: sólo se envía desde este subdominio. Las respuestas van a `support@skillbridgeai.online` (Hostinger).
+4. Resend muestra una tabla de registros. **Copia los valores EXACTOS de tu pantalla.** Para `mail.skillbridgeai.online` fueron estos (creados en Hostinger el 2026-11-11):
 
-| Tipo | Nombre (Host) | Valor | Prioridad |
+| Tipo | Nombre (Host) | Valor | TTL |
 |---|---|---|---|
-| MX | `send.mail` | `feedback-smtp.sa-east-1.amazonses.com` | `10` |
-| TXT | `send.mail` | `v=spf1 include:amazonses.com ~all` | — |
-| TXT | `resend._domainkey.mail` | `p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQ...` (larga, única para tu cuenta) | — |
+| TXT (DKIM) | `resend._domainkey.mail` | `p=MIGfMA0GCSqG…8fdUIcwIDAQAB` (216 caracteres, única para la cuenta) | 3600 |
+| CNAME (SPF) | `send.mail` | `send.forge.rmta.net` | 3600 |
+| CNAME (SPF) | `rsend.mail` | `rsend-sae1.forge.rmta.net` | 3600 |
 
-- **MX en `send.mail`:** recibe los rebotes y quejas, que Resend procesa automáticamente. **No** afecta a tu correo normal.
-- **SPF (TXT):** autoriza a los servidores de Resend (Amazon SES) a enviar en nombre de tu subdominio.
-- **DKIM (TXT):** firma criptográfica. Gmail y Outlook la usan para confirmar que el correo es auténtico y no fue alterado.
+- **DKIM (TXT):** firma criptográfica. Gmail y Outlook la usan para confirmar que el correo es auténtico y no fue alterado. Es una llave **pública**, así que se puede compartir.
+- **SPF (CNAME `send.mail` y `rsend.mail`):** son los dominios de retorno (*return-path*). Resend publica allí el SPF y recibe los rebotes y quejas. **No** afectan al correo de Hostinger, que sigue en la raíz.
+- Versiones anteriores de Resend pedían un MX y un TXT con `amazonses.com` en `send.mail`. Si tu pantalla muestra eso, usa lo que muestre la pantalla.
+- **Ojo con el DKIM:** en la tabla, Resend recorta el valor con `[…]`. Usa el botón de copiar; si falta un solo carácter, la verificación falla.
 
 ### 2.2 En Hostinger (hPanel)
 1. **Dominios → Portafolio de dominios →** tu dominio **→ Administrar → DNS / Nameservers →** pestaña **Registros DNS**.
 2. Por cada fila de la tabla de Resend, en **"Administrar registros DNS"**:
-   - **Tipo:** MX o TXT.
-   - **Nombre:** sólo la parte del host, **sin** el dominio: `send.mail`, `resend._domainkey.mail`. Hostinger agrega `.skillbridgeai.online` solo.
+   - **Tipo:** TXT o CNAME.
+   - **Nombre:** sólo la parte del host, **sin** el dominio: `send.mail`, `rsend.mail`, `resend._domainkey.mail`. Hostinger agrega `.skillbridgeai.online` solo.
    - **Apunta a / Contenido / Valor:** pega el valor tal cual (sin comillas extra).
-   - **Prioridad** (sólo MX): `10`.
-   - **TTL:** deja el valor por defecto (14400) o pon `3600`.
+   - **TTL:** `3600`.
    - Haz clic en **Agregar registro**.
 3. **DMARC: ✅ ya existe en `skillbridgeai.online`** (`v=DMARC1; p=none`) y cubre a `mail.`, así que **no crees otro**. Como referencia, el formato es:
 
@@ -96,17 +97,17 @@ Remitente final: `SkillBridge AI <notificaciones@mail.skillbridgeai.online>`.
 ### 2.3 Comprobar la propagación y verificar
 
 ```bash
-# Debe responder con el valor de SPF
-dig +short TXT send.mail.skillbridgeai.online
+# Debe responder "send.forge.rmta.net." y "rsend-sae1.forge.rmta.net."
+dig +short CNAME send.mail.skillbridgeai.online
+dig +short CNAME rsend.mail.skillbridgeai.online
 
 # Debe responder con la llave DKIM (p=...)
 dig +short TXT resend._domainkey.mail.skillbridgeai.online
-
-# Debe responder "10 feedback-smtp.sa-east-1.amazonses.com."
-dig +short MX send.mail.skillbridgeai.online
 ```
 
-> En Arch Linux, `dig` viene en el paquete `bind` (`sudo pacman -S bind`). Alternativa web: <https://dnschecker.org>.
+> En Arch Linux, `dig` viene en el paquete `bind` (`sudo pacman -S bind`). Sin `dig`: `curl -s "https://dns.google/resolve?name=resend._domainkey.mail.skillbridgeai.online&type=TXT"`. Alternativa web: <https://dnschecker.org>.
+>
+> Si consultaste un nombre **antes** de crearlo, los resolvers públicos guardan el "no existe" hasta 10 minutos (TTL negativo de Hostinger). Espera y vuelve a probar.
 
 Cuando los 3 respondan, en Resend → **Domains →** tu dominio → **Verify DNS Records**. Debe quedar en **Verified** ✅. En Hostinger suele tardar entre 5 y 60 minutos, y como máximo 48 h.
 
@@ -123,10 +124,10 @@ En la configuración del dominio en Resend, **desactiva Click tracking y Open tr
 |---|---|---|---|
 | `skillbridge-dev-dylan` | **Sending access** | `mail.skillbridgeai.online` | Dylan (local) |
 | `skillbridge-dev-kevin` | Sending access | `mail.skillbridgeai.online` | Kevin (local) |
-| `skillbridge-dev-leonardo` | **Full access** (sólo dev) | — | Leonardo (local: el health check usa `domains.list`, que requiere Full access) |
-| `skillbridge-prod` | **Full access** | — | Despliegue (§8). El `/health` consulta `domains.list` |
+| `skillbridge-dev-leonardo` | Sending access | `mail.skillbridgeai.online` | Leonardo (local) |
+| `skillbridge-prod` | **Sending access** | `mail.skillbridgeai.online` | Despliegue (§8) |
 
-3. **Sending access** es lo más seguro: si la llave se filtra, sólo sirve para enviar. **Pero** el check de Resend en `/health` (KAN-58) usa `domains.list()`, que necesita **Full access**. Opciones: usar Full access sólo donde corre `/health` con `EMAIL_DRIVER=resend` (producción y la máquina de Leonardo) o aceptar que `/health` marque `resend: down` con llaves de Sending access. Recomendado: Full access en producción, **guardada como secreto** y rotada si hay sospecha de filtración.
+3. **Usa siempre Sending access**, también en producción: si la llave se filtra, sólo sirve para enviar. El check de Resend en `/health` (KAN-58) llama a `domains.list()`; con una llave de Sending access Resend responde `restricted_api_key`, y el indicador lo toma como **up** (`"key": "sending-only"`), porque prueba que la llave es válida y que Resend responde. Sólo marca **down** si la llave es inválida o Resend no responde. Si ya creaste llaves con Full access, cámbialas por llaves de Sending access y revoca las anteriores.
 4. La llave (`re_...`) **se muestra una sola vez**. Cópiala directo a tu `.env` (§4).
 5. **Compartirla con el equipo:** usa un canal seguro, como un enlace de un solo uso (Bitwarden Send o <https://onetimesecret.com>). **Nunca** por el chat grupal, Jira, un commit o un screenshot.
 

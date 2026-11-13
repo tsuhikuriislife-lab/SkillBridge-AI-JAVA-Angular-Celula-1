@@ -1,0 +1,5 @@
+<h1 style="margin:0 0 18px;font-size:22px;">Tu rol fue actualizado</h1>
+<p>Hola {{firstName}}, {{actorLabelLower}} actualizó tu rol de {{previousRoleLabel}} a <strong>{{newRoleLabel}}</strong>.</p>
+{{#if roleHint}}<p>{{roleHint}}</p>{{/if}}
+{{> details rows=changeDetails}}
+{{> button url=roleUrl label="Ir a SkillBridge AI"}}

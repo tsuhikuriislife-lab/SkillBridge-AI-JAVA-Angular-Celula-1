@@ -17,6 +17,9 @@ public class RabbitConfiguration {
     public static final String DLX = "booking.dlx";
     public static final String DLQ = "booking.created.dlq";
     public static final String DLQ_KEY = "booking.created.failed";
+    /** Exchange de eventos de dominio consumidos por notifications-service. Contrato: docs/notifications/CONTRACT.md */
+    public static final String EVENTS_EXCHANGE = "skillbridge.events";
+
     public static final String FEATURE_STORE_EXCHANGE = "feature-store.events";
     public static final String FEATURES_UPDATED_QUEUE = "features.updated.queue";
     public static final String FEATURES_UPDATED_KEY = "features.updated";
@@ -26,6 +29,12 @@ public class RabbitConfiguration {
 
     @Bean TopicExchange bookingExchange() { return new TopicExchange(BOOKING_EXCHANGE, true, false); }
     @Bean DirectExchange deadLetterExchange() { return new DirectExchange(DLX, true, false); }
+    
+    @Bean
+    TopicExchange skillbridgeEventsExchange() {
+        return new TopicExchange(EVENTS_EXCHANGE, true, false);
+    }
+
 
     @Bean
     Queue bookingCreatedQueue() {

@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+
 import java.util.List;
 import java.util.UUID;
 
@@ -104,18 +105,23 @@ public class UserAccountController {
     // PATCH /users/{id}/status — activar/desactivar
     @PatchMapping("/{id}/status")
     public ResponseEntity<UserAccountOut> changeStatus(@PathVariable UUID id,
-                                                       @Valid @RequestBody ChangeStatusRequest request) {
-        return changeStatusUseCase.changeStatus(id, request.active())
+                                                       @Valid @RequestBody ChangeStatusRequest request,
+                                                       Authentication authentication) {
+        return changeStatusUseCase.changeStatus(id, request.active(), actorEmail(authentication))
             .map(u -> ResponseEntity.ok(toOut(u)))
             .orElse(ResponseEntity.notFound().build());
     }
 
     // DELETE /users/{id}
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        return deleteUseCase.deleteUserAccount(id)
+    public ResponseEntity<Void> delete(@PathVariable UUID id, Authentication authentication) {
+        return deleteUseCase.deleteUserAccount(id, actorEmail(authentication))
             ? ResponseEntity.noContent().build()
             : ResponseEntity.notFound().build();
+    }
+
+    private static String actorEmail(Authentication authentication) {
+        return authentication == null ? null : authentication.getName();
     }
 
     private UserAccountOut toOut(UserAccount u) {
