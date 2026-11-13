@@ -281,7 +281,7 @@ services:
       FEATURE_STORE_BATCH_PAUSE_MS: ${FEATURE_STORE_BATCH_PAUSE_MS:-50}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-384}
     ports:
-      - "8081:8081"
+      - "8082:8081"   # 8081 en el host es del backend
       - "4040:4040"
     volumes:
       - ./analytics-service/jobs:/app/jobs

@@ -2,6 +2,34 @@
 
 Este documento guarda el historial de tareas, decisiones técnicas y modificaciones realizadas en el código fuente por agentes de Inteligencia Artificial a lo largo del desarrollo de **SkillBridge AI**.
 
+## [2026-11-12] Choque de puertos: el Spark Worker ocupaba el 8081 del backend
+- **Agente:** Claude Code (Claude Opus 5.5), a pedido de Dylan.
+- **Problema:** `make up` fallaba con `Bind for 0.0.0.0:8081 failed: port is already allocated`. El servicio `spark-worker` (PR #92, en `develop`) publicaba su interfaz web en el puerto 8081 del host, que el backend usa desde antes (`127.0.0.1:8081:8080`). El backend no arrancaba y, con él, tampoco el frontend ni `notifications`.
+- **Arreglo:** el Worker Web UI pasa al puerto **8082** del host (`8082:8081`; dentro del contenedor sigue en 8081). Se actualizó `docs/SPARK-GUIDE.md`. El backend no cambia.
+- **E2E con correo real (mismo día):**
+  - Un registro por `POST /api/auth/register` dejó 2 filas en `notification_log` (`welcome` y `admin.new-registration`), en `sent` y con ID de Resend. Dylan confirmó que llegaron los 2 correos (redirigidos con `MAIL_REDIRECT_TO`).
+  - Colas y DLQ en 0. El primer intento no publicó porque `docker compose up -d` reutilizó una imagen vieja del backend; se resolvió con `--build`.
+  - RabbitMQ 4 trae desactivadas las estadísticas de mensajes en la API de gestión: para revisar, usar `notification_log` y los logs.
+- **Webhooks de Resend de punta a punta (Paso 9 de la guía de Leonardo):**
+  - Túnel `cloudflared` hacia `localhost:3100` y endpoint creado por Mateo en Resend.
+  - **Entrega:** registro nuevo → 2 correos de `sent` a `delivered` en menos de 10 s.
+  - **Rebote:** con `MAIL_REDIRECT_TO` vacío se publicó a mano un `user.created` a `bounced@resend.dev` sin admins (para no enviar a `admin@skillbridge.com`, que no es un dominio nuestro). Quedó en `bounced`.
+  - **Idempotencia (KAN-57):** se republicó el mismo `eventId`. No hubo correo nuevo ni fila nueva, y `skillbridge_notifications_duplicate_total{event_type="user.created"}` quedó en 1.
+  - **Firma falsa** por el túnel → 401.
+  - Colas y DLQ en 0. Los correos enviados antes de crear el endpoint siguen en `sent` (Resend no reenvía eventos viejos).
+  - El reloj local va ~4 s adelantado respecto de Resend (`last_event_at` < `created_at`); no afecta las transiciones.
+- **Preparación del PR hacia `develop`:**
+  - `develop` tenía 33 commits que no estaban en la épica (feature store HU-PS06, semantic chunking, documentación). `promote.yml` no abrió el PR solo porque usa el token vencido.
+  - Rama `chore/notificaciones-sync-develop-2` (worktree `../SkillBridge-sync-develop`): `develop` mergeado con 7 conflictos, todos resueltos conservando ambos lados:
+    - `RabbitConfiguration` (exchange `skillbridge.events` + constantes del feature store);
+    - `.env.example`, `Makefile` (unión del `.PHONY`), `docker-compose.yml`, `.gitignore`, `analytics-service/requirements.txt` y `MEMORIA.md`.
+  - Resultado: backend **137 pruebas**, 0 fallos, 4 omitidas; `notifications-service` lint, 73 pruebas y build; compose válido.
+  - `MEMORIA.md` arrastra secciones repetidas de merges anteriores (el título aparece 4 veces). Queda pendiente limpiarlo después del merge a `develop`.
+- **`/health` con llaves de Sending access (rama `fix/notificaciones-health-sending-key`):**
+  - Con una llave de Sending access, `domains.list()` responde `restricted_api_key` (comprobado contra Resend real), y `/health` marcaba `resend: down`.
+  - Ahora ese caso cuenta como **up** (`"key": "sending-only"`); sigue en down si la llave es inválida o Resend no responde. Se agregó una prueba (74/74).
+  - La guía de configuración y el ADR-0005 recomiendan Sending access en todos los entornos, también producción (mínimo privilegio).
+
 ## [2026-11-12] Revisión del avance de la épica e integración del consumidor de Kevin (KAN-57)
 - **Agente:** Claude Code (Claude Opus 5.5), a pedido de Dylan. Dylan hace el commit, el push y el merge.
 - **Estado al revisar:**
