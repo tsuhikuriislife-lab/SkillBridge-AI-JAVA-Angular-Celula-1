@@ -263,7 +263,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
     ports:
-      - "8081:8081"
+      - "8082:8081"   # 8081 en el host es del backend
       - "4040:4040"
     volumes:
       - ./analytics-service/jobs:/app/jobs
