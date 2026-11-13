@@ -43,7 +43,7 @@ Restricciones:
 - ✅ Entrega "al menos una vez" sin duplicados visibles (Redis + Resend), y trazabilidad completa en `notification_log`.
 - ✅ Reutiliza el dashboard de Grafana "SkillBridge - Notificaciones" (los nombres de las métricas coinciden).
 - ⚠️ Infraestructura extra: una base de datos más (`notifications`, creada con `make db-notifications`) y un túnel para probar webhooks en local.
-- ⚠️ El check de Resend en `/health` requiere una API key con *Full access*.
+- ✅ El check de Resend en `/health` funciona con una llave de *Sending access* (mínimo privilegio): el error `restricted_api_key` cuenta como "up" (2026-11-12).
 - ⚠️ Sin outbox: si RabbitMQ está caído en el momento de publicar, ese correo se pierde.
 - ⚠️ Versiones fijadas (`@nestjs/config@4`, `@golevelup/nestjs-rabbitmq@6`, `typeorm@0.3`) por compatibilidad CommonJS con Jest. Hay que revisarlas al migrar a Nest 12.
 - ⚠️ Se agrega el parámetro `actorEmail` a `ChangeStatusUserAccountUseCase` y `DeleteUserAccountUseCase`, junto con las reglas de autorización (403).
