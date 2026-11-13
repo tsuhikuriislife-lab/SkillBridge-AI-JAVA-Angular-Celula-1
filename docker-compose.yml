@@ -232,6 +232,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-skillbridge}
       POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/%2F}
+      FEATURE_STORE_BATCH_INTERVAL_HOURS: ${FEATURE_STORE_BATCH_INTERVAL_HOURS:-24}
+      FEATURE_STORE_TTL_SECONDS: ${FEATURE_STORE_TTL_SECONDS:-259200}
+      FEATURE_STORE_BATCH_SIZE: ${FEATURE_STORE_BATCH_SIZE:-500}
+      FEATURE_STORE_BATCH_PAUSE_MS: ${FEATURE_STORE_BATCH_PAUSE_MS:-50}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-384}
     ports:
       - "8080:8080"
       - "7077:7077"
@@ -240,6 +247,10 @@ services:
       - ./analytics-service/data:/data
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks: [ skillbridge ]
 
@@ -262,6 +273,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-skillbridge}
       POSTGRES_USER: ${POSTGRES_USER:-skillbridge}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillbridge_dev}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/%2F}
+      FEATURE_STORE_BATCH_INTERVAL_HOURS: ${FEATURE_STORE_BATCH_INTERVAL_HOURS:-24}
+      FEATURE_STORE_TTL_SECONDS: ${FEATURE_STORE_TTL_SECONDS:-259200}
+      FEATURE_STORE_BATCH_SIZE: ${FEATURE_STORE_BATCH_SIZE:-500}
+      FEATURE_STORE_BATCH_PAUSE_MS: ${FEATURE_STORE_BATCH_PAUSE_MS:-50}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-384}
     ports:
       - "8082:8081"   # 8081 en el host es del backend
       - "4040:4040"
@@ -272,6 +290,10 @@ services:
       spark-master:
         condition: service_started
       postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks: [ skillbridge ]
 
@@ -284,6 +306,4 @@ volumes:
   redis_data:
   rabbitmq_data:
   grafana_data:
-
-
 
