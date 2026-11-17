@@ -2,7 +2,7 @@
 
 Todas las modificaciones notables de **SkillBridge AI** quedan documentadas en este archivo según el estándar [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y siguiendo [Semantic Versioning](https://semver.org/).
 
-Para el registro diario continuo de ejecución de tareas por agentes inteligentes, consulte también [MEMORIA.md](../MEMORIA.md).
+Para consultar el estado técnico consolidado actual y la trazabilidad de historias de usuario, consulte [STATE.md](../STATE.md) y [docs/user-stories/](user-stories/). (Para auditoría histórica anterior, consulte el registro archivado en [MEMORIA.md](../MEMORIA.md) o use `git log`).
 
 ---
 
