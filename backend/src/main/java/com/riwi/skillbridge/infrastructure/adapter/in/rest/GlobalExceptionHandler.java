@@ -97,4 +97,11 @@ public class GlobalExceptionHandler {
         p.setTitle("Forbidden");
         return p;
     }
+
+    @ExceptionHandler(com.riwi.skillbridge.domain.exception.AccountAccessDeniedException.class)
+    ProblemDetail accountAccessForbidden(com.riwi.skillbridge.domain.exception.AccountAccessDeniedException ex) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        p.setTitle("Forbidden");
+        return p;
+    }
 }
