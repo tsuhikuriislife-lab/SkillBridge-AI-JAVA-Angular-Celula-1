@@ -24,6 +24,7 @@ Para profundizar en el diseño, contratos, estado actual e historias de usuario 
 
 | Recurso / Documento | Ubicación | Descripción |
 |---|---|---|
+| 📌 **Tablero de Proyecto (Kanban)** | [GitHub Projects #1](https://github.com/users/tsuhikuriislife-lab/projects/1) | Tablero ágil con el seguimiento de Historias de Usuario, epics y backlog activo. |
 | 📋 **Historias de Usuario (US)** | [`docs/user-stories/`](docs/user-stories/) | Trazabilidad técnica, criterios de aceptación y referencias exactas de código por funcionalidad. |
 | 📍 **Estado Técnico Actual** | [`STATE.md`](STATE.md) | Fotografía viva del sistema, servicios activos, integraciones y pendientes inmediatos. |
 | 🤖 **Reglas para Agentes IA** | [`AGENTS.md`](AGENTS.md) | Directrices arquitectónicas, regla de dependencia, manejo de memoria y auditoría vía Git. |
