@@ -10,6 +10,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# tiktoken descarga la codificación la primera vez que se usa.
+# La dejamos en la imagen para que el chunker y los tests funcionen sin internet.
+ENV TIKTOKEN_CACHE_DIR=/opt/tiktoken-cache
+RUN python3 -c "import tiktoken; tiktoken.get_encoding('cl100k_base')" \
+    && chown -R spark:spark /opt/tiktoken-cache
+
+# Configuración de pytest (los tests se montan como volumen en docker-compose)
+COPY pytest.ini .
+
 # Copiar la carpeta donde residirán los scripts de trabajo
 COPY jobs/ /app/jobs/
 
