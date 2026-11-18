@@ -65,7 +65,7 @@ Catálogo completo indexado en [`docs/user-stories/README.md`](docs/user-stories
 
 ## 4. Pendientes Técnicos Inmediatos (Backlog Activo de Auditoría)
 
-Historias registradas en el tablero de GitHub Projects en columna `Todo`:
+### 4.1. Historias Técnicas de Mitigación y Cobertura (En Backlog)
 
 1. **`US-INFRA-01` [Asignado: `@deleonguillermo87`]:**
    - Remapear `spark-worker` a `8082:8081` en `docker-compose.yml` para evitar colisión con `backend`.
@@ -93,6 +93,21 @@ Historias registradas en el tablero de GitHub Projects en columna `Todo`:
     - Unificar el modelo oficial `gemini-3.8-flash` en `.env.example`, `README.md` y guías técnicas.
 11. **`US-DOCS-03` [Asignado: `@deleonguillermo87`]:**
     - Mantenimiento y actualización del catálogo central de Historias de Usuario base en `docs/user-stories/`.
+
+### 4.2. Historias de Usuario Evolutivas (Nuevos Ejes Técnicos Priorizados)
+
+12. **`US-AUTH-04` [#118]:** Protección anti-bot con Cloudflare Turnstile en Login/Registro (`[REQUERIDO]`).
+13. **`US-AUTH-05` [#119]:** Validación con Google OAuth2 y recuperación de contraseñas con token temporal (`[OPCIONAL]`).
+14. **`US-USER-01` [#120]:** Vista y gestión reactiva del perfil de usuario (`/profile`) con Signals (`[REQUERIDO]`).
+15. **`US-SRV-02` [#121]:** Consolidación del ciclo de vida y gestión integral de servicios formativos (`[REQUERIDO]`).
+16. **`US-NOSQL-01` [#122]:** Persistencia políglota de historiales y logs en MongoDB vía RabbitMQ (`[OPCIONAL]`).
+17. **`US-FORM-01` [#123]:** Formularios reactivos fuertemente tipados con Bean Validation y reglas de dominio (`[REQUERIDO]`).
+18. **`US-SEC-02` [#124]:** Hardening integral: Rate Limiting distribuido con Bucket4j/Redis, CSP estricta y sanitización (`[REQUERIDO]`).
+19. **`US-AI-02` [#125]:** Búsqueda semántica vectorial con `pgvector` sobre PostgreSQL 17 y jobs PySpark (`[OPCIONAL]`).
+20. **`US-A11Y-01` [#126]:** Accesibilidad universal WCAG 2.1 AA (navegación por teclado, ARIA, ratios de contraste) (`[REQUERIDO]`).
+21. **`US-ERR-01` [#127]:** Taxonomía de errores RFC 7807 (`ERR-xxx`) y páginas de fallo personalizadas (`[REQUERIDO]`).
+22. **`US-DOCS-04` [#128]:** OpenAPI 3 / Swagger interactivo, sincronización de contratos y diagramas C4 (`[REQUERIDO]`).
+23. **`US-LK-02` [#129]:** Resiliencia en tiempo real de LiveKit WebRTC, reconexión con backoff y validación de webhooks (`[REQUERIDO]`).
 
 ---
 

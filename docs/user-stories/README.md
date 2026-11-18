@@ -61,3 +61,20 @@ Conforme a las directrices de `AGENTS.md`, cada documento debe cumplir estrictam
 | **US-DOCS-01** | Actualización Contrato API.md Cookies HttpOnly / CSRF | `[ ] Por hacer` | `@tsuhikuriislife-lab` | Documentación / API | [`US-DOCS-01-actualizacion-contrato-api-rest-httponly.md`](US-DOCS-01-actualizacion-contrato-api-rest-httponly.md) |
 | **US-DOCS-02** | Unificación Modelo Oficial Gemini 3.8 Flash | `[ ] Por hacer` | `@leonardo-200224` | Configuración / IA | [`US-DOCS-02-unificacion-especificaciones-modelos-ia.md`](US-DOCS-02-unificacion-especificaciones-modelos-ia.md) |
 | **US-DOCS-03** | Creación y Estandarización de Fichas Base HU-01..11 | `[ ] Por hacer` | `@deleonguillermo87` | Trazabilidad / Docs | [`US-DOCS-03-catalogo-user-stories-funcionalidades-base.md`](US-DOCS-03-catalogo-user-stories-funcionalidades-base.md) |
+
+### 2.3. Nuevas Historias de Usuario (Fase Evolutiva - Sprint Activo)
+
+| Código | Título | Tipo | Estado | Módulo Principal | Documento |
+|---|---|---|---|---|---|
+| **US-AUTH-04** | Protección Anti-Bot con Cloudflare Turnstile en Login/Registro | `[REQUERIDO]` | `[ ] Por hacer` | Seguridad / Auth | [`US-AUTH-04-captcha-cloudflare-turnstile.md`](US-AUTH-04-captcha-cloudflare-turnstile.md) |
+| **US-AUTH-05** | Validación Google OAuth2 y Recuperación de Contraseña | `[OPCIONAL]` | `[ ] Por hacer` | Seguridad / Auth | [`US-AUTH-05-oauth2-google-recuperacion-password.md`](US-AUTH-05-oauth2-google-recuperacion-password.md) |
+| **US-USER-01** | Vista y Gestión Reactiva del Perfil de Usuario | `[REQUERIDO]` | `[ ] Por hacer` | Frontend / Perfil | [`US-USER-01-vista-perfil-usuario.md`](US-USER-01-vista-perfil-usuario.md) |
+| **US-SRV-02** | Consolidación y Gestión Integral del Ciclo de Servicios | `[REQUERIDO]` | `[ ] Por hacer` | Core / Servicios | [`US-SRV-02-gestion-integral-servicios.md`](US-SRV-02-gestion-integral-servicios.md) |
+| **US-NOSQL-01** | Persistencia Políglota de Historiales y Auditoría en MongoDB vía RabbitMQ | `[OPCIONAL]` | `[ ] Por hacer` | NoSQL / EDA | [`US-NOSQL-01-separacion-historiales-mongodb-eda.md`](US-NOSQL-01-separacion-historiales-mongodb-eda.md) |
+| **US-FORM-01** | Formularios Reactivos con Validación y Reglas de Negocio | `[REQUERIDO]` | `[ ] Por hacer` | Frontend / Core | [`US-FORM-01-formularios-reactivos-validaciones-negocio.md`](US-FORM-01-formularios-reactivos-validaciones-negocio.md) |
+| **US-SEC-02** | Hardening Integral: Rate Limiting Distribuido, CSP y Sanitización | `[REQUERIDO]` | `[ ] Por hacer` | Seguridad / Infra | [`US-SEC-02-hardening-seguridad-datos.md`](US-SEC-02-hardening-seguridad-datos.md) |
+| **US-AI-02** | Búsqueda Semántica Vectorial con `pgvector` y ETL PySpark | `[OPCIONAL]` | `[ ] Por hacer` | IA / Analytics | [`US-AI-02-base-datos-vectorial-pgvector-pyspark.md`](US-AI-02-base-datos-vectorial-pgvector-pyspark.md) |
+| **US-A11Y-01** | Accesibilidad Web Universal bajo Estándar WCAG 2.1 AA | `[REQUERIDO]` | `[ ] Por hacer` | Frontend / UX | [`US-A11Y-01-accesibilidad-universal-wcag.md`](US-A11Y-01-accesibilidad-universal-wcag.md) |
+| **US-ERR-01** | Catálogo Estandarizado de Códigos de Error (`ERR-xxx`) y Vistas Dedicadas | `[REQUERIDO]` | `[ ] Por hacer` | Backend / Frontend | [`US-ERR-01-comunicacion-errores-clasificacion-paginas.md`](US-ERR-01-comunicacion-errores-clasificacion-paginas.md) |
+| **US-DOCS-04** | Centralización Documental OpenAPI 3, Arquitectura C4 y Textos | `[REQUERIDO]` | `[ ] Por hacer` | Documentación | [`US-DOCS-04-documentacion-tecnica-arquitectura.md`](US-DOCS-04-documentacion-tecnica-arquitectura.md) |
+| **US-LK-02** | Resiliencia de Videoconferencias LiveKit, Webhooks y Métricas WebRTC | `[REQUERIDO]` | `[ ] Por hacer` | Backend / LiveKit | [`US-LK-02-fortalecimiento-resiliencia-livekit.md`](US-LK-02-fortalecimiento-resiliencia-livekit.md) |
