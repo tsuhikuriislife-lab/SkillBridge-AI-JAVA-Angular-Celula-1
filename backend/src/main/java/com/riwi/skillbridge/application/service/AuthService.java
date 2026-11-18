@@ -20,11 +20,14 @@ public class AuthService implements AuthUseCase {
     private final UserAccountPort users;
     private final PasswordHasherPort passwords;
     private final TokenPort tokens;
+    private final UserEventEmitter events;
 
-    public AuthService(UserAccountPort users, PasswordHasherPort passwords, TokenPort tokens) {
+    public AuthService(UserAccountPort users, PasswordHasherPort passwords, TokenPort tokens,
+                       UserEventEmitter events) {
         this.users = users;
         this.passwords = passwords;
         this.tokens = tokens;
+        this.events = events;
     }
 
     @Override
@@ -46,6 +49,7 @@ public class AuthService implements AuthUseCase {
             Status.ACTIVE,
             OffsetDateTime.now(),
             OffsetDateTime.now()));
+        events.registered(saved);
         return tokens.generate(saved.email(), saved.role().name());
     }
 
@@ -55,6 +59,10 @@ public class AuthService implements AuthUseCase {
             .orElseThrow(() -> new BusinessRuleException("Credenciales inválidas"));
         if (!passwords.matches(rawPassword, user.password())) {   // ✅ accessor del record
             throw new InvalidCredentialsException("Credenciales inválidas");
+        }
+        if (user.status() == Status.INACTIVE) {
+            throw new InvalidCredentialsException(
+                "Tu cuenta está desactivada. Contacta al administrador para reactivarla.");
         }
         return tokens.generate(user.email(), user.role().name());
     }

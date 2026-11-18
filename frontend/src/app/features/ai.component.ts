@@ -4,8 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { apiBase } from '../core/api';
-import { Offering, OfferingService } from '../core/offering.service';
+import { apiBase } from '../core/api/api';
+import { Offering, OfferingService } from '../core/services/offering/offering.service';
 
 export interface RecommendedCourse {
   id: string;

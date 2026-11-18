@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { AuthService } from '../core/auth.service';
-import { NotificationService } from '../core/notification.service';
+import { AuthService } from '../core/services/auth/auth.service';
+import { NotificationService } from '../core/services/notification/notification.service';
 import { MyNotificationsComponent } from './my-notifications.component';
 
 describe('MyNotificationsComponent', () => {
