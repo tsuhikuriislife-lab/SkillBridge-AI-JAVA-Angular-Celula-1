@@ -18,7 +18,7 @@
 | **Caché & Feature Store** | Redis 8 (Cache-Aside para catálogo y embeddings/features) | Activo / Operativo | `redis:6379` (Docker interno) / `6379` |
 | **Broker de Mensajería** | RabbitMQ 4 (AMQP 0-9-1) con Dead Letter Queue (DLQ) | Activo / Operativo | `localhost:5672` (AMQP) / `15672` (UI) |
 | **WebRTC SFU** | LiveKit Server v1.8 + Redis-LiveKit para estado efímero | Activo / Operativo | `localhost:7880` (HTTP) / `7881` (RTC) |
-| **Data Engine & Analytics** | Python 3.11, Apache Spark 3.5.6, PySpark, PyArrow | Activo (Perfil `data`) | Clúster Spark `localhost:7077` / UI `8082` |
+| **Data Engine & Analytics** | Python 3.8 (imagen `apache/spark:3.5.1-python3`), Apache Spark 3.5.1, PySpark 3.5.1, JDBC PostgreSQL 42.7.3, tiktoken 0.7.0, pytest | Activo (Perfil `data`) | Clúster Spark `localhost:7077` / UI `8082` |
 | **Observabilidad** | Prometheus v3.5.0 + Grafana 12.1.1 (Micrometer Actuator) | Activo (Perfil `observability`) | Prometheus `9090` / Grafana `3000` |
 
 ---
@@ -32,7 +32,7 @@
 
 ### 2.2. Feature Store & Recomendaciones IA (HU-PS06, HU-PS02, HU-PS03, HU-05)
 - **Extracción y Limpieza Batch (HU-PS02):** Pipeline ETL en Apache Spark (`analytics-service/jobs/extract_and_clean_catalog.py`) que extrae vía JDBC particionado desde PostgreSQL, normaliza texto eliminando HTML/Markdown y escribe en formato columnar Parquet comprimido con Snappy.
-- **Segmentación Semántica (HU-PS03):** Chunker semántico para descripciones de servicios en `analytics-service/jobs/text_chunker.py`.
+- **Segmentación Semántica (HU-PS03):** Chunker semántico para descripciones de servicios en `analytics-service/jobs/text_chunker.py`, cubierto por `analytics-service/tests/test_catalog_chunking.py` (US-ANL-01).
 - **Feature Store Redis + Fallback PostgreSQL (HU-PS06):**
   - Carga masiva con batch pipeline en Redis (`analytics-service/jobs/redis_batch_loader.py`).
   - Notificación asíncrona mediante evento `features.updated` en RabbitMQ.
@@ -71,9 +71,9 @@ Historias registradas en el tablero de GitHub Projects en columna `Todo`:
    - Remapear `spark-worker` a `8082:8081` en `docker-compose.yml` para evitar colisión con `backend`.
    - Asignar `profiles: ["data"]` a `spark-master` y `spark-worker`.
    - Montar `./ops/prometheus/rules` en el contenedor `prometheus`.
-2. **`US-ANL-01` [Asignado: `@DylanSrz`]:**
-   - Añadir `tiktoken` en `analytics-service/requirements.txt` y Dockerfile.
-   - Formalizar `test_catalog_chunking.py` como test unitario con asserts y crear `pytest.ini`.
+2. **`US-ANL-01` [Asignado: `@DylanSrz`] — `[👀] En revisión`:**
+   - `tiktoken==0.7.0` (último compatible con Python 3.8) en `requirements.txt`; la codificación `cl100k_base` queda cacheada en la imagen.
+   - `test_catalog_chunking.py` convertido a suite pytest (18 casos) y `pytest.ini` creado. Suite Analytics: 37 tests en verde.
 3. **`US-FE-01` [Asignado: `@KevinMercado1`]:**
    - Corregir los 3 tests fallando en `display-bookings.spec.ts` agregando mock de `MeetingService`.
    - Renombrar `admin-dashboard.componentspec.ts` a `admin-dashboard.component.spec.ts` y corregir tipo `TS2345`.

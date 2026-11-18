@@ -51,7 +51,7 @@ Conforme a las directrices de `AGENTS.md`, cada documento debe cumplir estrictam
 | Código | Título | Estado | Asignado | Módulo | Documento |
 |---|---|---|---|---|---|
 | **US-INFRA-01** | Conflicto Puertos Spark Worker y Perfiles Compose | `[ ] Por hacer` | `@deleonguillermo87` | Infraestructura | [`US-INFRA-01-resolucion-conflicto-puertos-spark-compose.md`](US-INFRA-01-resolucion-conflicto-puertos-spark-compose.md) |
-| **US-ANL-01** | Dependencias (`tiktoken`) y Suite Tests Analytics | `[ ] Por hacer` | `@DylanSrz` | Analytics / PySpark | [`US-ANL-01-estabilizacion-dependencias-tests-analytics.md`](US-ANL-01-estabilizacion-dependencias-tests-analytics.md) |
+| **US-ANL-01** | Dependencias (`tiktoken`) y Suite Tests Analytics | `[👀] En revisión` | `@DylanSrz` | Analytics / PySpark | [`US-ANL-01-estabilizacion-dependencias-tests-analytics.md`](US-ANL-01-estabilizacion-dependencias-tests-analytics.md) |
 | **US-FE-01** | Fix Tests DisplayBookings y Spec AdminDashboard | `[ ] Por hacer` | `@KevinMercado1` | Frontend / Angular | [`US-FE-01-correccion-tests-display-bookings-admin-dashboard.md`](US-FE-01-correccion-tests-display-bookings-admin-dashboard.md) |
 | **US-FE-02** | Cobertura Tests Componentes LiveKit y Checkout | `[ ] Por hacer` | `@juanvargasviloria2507-gif`| Frontend / Testing | [`US-FE-02-cobertura-componentes-criticos-livekit-checkout.md`](US-FE-02-cobertura-componentes-criticos-livekit-checkout.md) |
 | **US-FE-03** | Cobertura Tests Guards y AuthInterceptor | `[ ] Por hacer` | `@andresmbd` | Frontend / Security | [`US-FE-03-cobertura-seguridad-guards-auth-interceptor.md`](US-FE-03-cobertura-seguridad-guards-auth-interceptor.md) |
