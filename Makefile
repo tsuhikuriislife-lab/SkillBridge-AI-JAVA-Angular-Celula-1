@@ -1,4 +1,4 @@
-.PHONY: up down reset logs ps observability test-back test-back-unit test-front test-livekit test-livekit-stream test-data build
+.PHONY: up down reset logs ps observability test-back test-back-unit test-front test-livekit test-livekit-stream build db-notifications test-notifications logs-notifications test-data
 
 up:
 	docker compose up --build -d
@@ -47,3 +47,12 @@ test-data:
 
 build:
 	docker compose build
+
+db-notifications:
+	docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"' < ops/postgres/init/10-notifications-db.sql
+
+test-notifications:
+	cd notifications-service && npm ci && npm run lint:check && npm test
+
+logs-notifications:
+	docker compose logs -f --tail=200 notifications

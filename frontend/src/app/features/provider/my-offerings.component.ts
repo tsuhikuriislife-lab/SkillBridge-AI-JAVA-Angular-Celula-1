@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { Offering, OfferingService, PageResult } from '../../core/offering.service';
+import { Offering, OfferingService, PageResult } from '../../core/services/offering/offering.service';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 @Component({

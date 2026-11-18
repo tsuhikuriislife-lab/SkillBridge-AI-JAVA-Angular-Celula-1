@@ -8,6 +8,7 @@ import com.riwi.skillbridge.application.port.out.UserAccountPort;
 import com.riwi.skillbridge.domain.enums.Gender;
 import com.riwi.skillbridge.domain.enums.Role;
 import com.riwi.skillbridge.domain.enums.Status;
+import com.riwi.skillbridge.domain.exception.AccountAccessDeniedException;
 import com.riwi.skillbridge.domain.exception.BusinessRuleException;
 import com.riwi.skillbridge.domain.exception.DomainNotFoundException;
 import com.riwi.skillbridge.domain.model.PageResult;
@@ -25,9 +26,11 @@ public class UserAccountService implements RetrieveUserAccountUseCase, UpdateUse
     ChangeStatusUserAccountUseCase, DeleteUserAccountUseCase {
 
     private final UserAccountPort userAccountPort;
+    private final UserEventEmitter events;
 
-    public UserAccountService(UserAccountPort userAccountPort) {
+    public UserAccountService(UserAccountPort userAccountPort, UserEventEmitter events) {
         this.userAccountPort = userAccountPort;
+        this.events = events;
     }
 
     @Override
@@ -80,12 +83,20 @@ public class UserAccountService implements RetrieveUserAccountUseCase, UpdateUse
     }
 
     @Override
-    public Optional<UserAccount> changeStatus(UUID id, boolean active) {
+    public Optional<UserAccount> changeStatus(UUID id, boolean active, String actorEmail) {
         // 🛡️ REGLA 2: debe existir
         UserAccount existing = userAccountPort.findById(id)
             .orElseThrow(() -> new DomainNotFoundException("Usuario no encontrado"));
 
-        return Optional.of(userAccountPort.save(new UserAccount(
+        // 🛡️ REGLA 5: sólo un ADMIN o el propio usuario
+        ensureCanManage(existing, actorEmail);
+
+        // 🛡️ REGLA 4: la plataforma nunca se queda sin administrador activo
+        if (existing.role() == Role.ADMIN && !active) {
+            throw new BusinessRuleException("No se puede desactivar la cuenta del administrador");
+        }
+
+        UserAccount saved = userAccountPort.save(new UserAccount(
             existing.id(),
             existing.name(),
             existing.email(),
@@ -97,11 +108,14 @@ public class UserAccountService implements RetrieveUserAccountUseCase, UpdateUse
             active ? Status.ACTIVE : Status.INACTIVE,
             existing.createdAt(),
             OffsetDateTime.now()
-        )));
+        ));
+
+        events.statusChanged(existing, saved, actorEmail);
+        return Optional.of(saved);
     }
 
     @Override
-    public boolean deleteUserAccount(UUID id) {
+    public boolean deleteUserAccount(UUID id, String actorEmail) {
         // 🛡️ REGLA 2: debe existir
         UserAccount existing = userAccountPort.findById(id)
             .orElseThrow(() -> new DomainNotFoundException("Usuario no encontrado"));
@@ -111,8 +125,27 @@ public class UserAccountService implements RetrieveUserAccountUseCase, UpdateUse
             throw new BusinessRuleException("No se puede eliminar un usuario administrador");
         }
 
+        // 🛡️ REGLA 5: sólo un ADMIN o el propio usuario
+        ensureCanManage(existing, actorEmail);
+
         userAccountPort.deleteById(id);
+        events.deleted(existing, actorEmail);
         return true;
+    }
+
+    /** Lanza 403 si el actor no es ADMIN ni el dueño de la cuenta. */
+    private void ensureCanManage(UserAccount target, String actorEmail) {
+        UserAccount actor = (actorEmail == null || actorEmail.isBlank())
+            ? null
+            : userAccountPort.findByEmail(actorEmail.trim().toLowerCase()).orElse(null);
+
+        boolean isAdmin = actor != null && actor.role() == Role.ADMIN;
+        boolean isSelf = actor != null && actor.id().equals(target.id());
+
+        if (!isAdmin && !isSelf) {
+            throw new AccountAccessDeniedException(
+                "Sólo un administrador o el propio usuario puede modificar esta cuenta");
+        }
     }
 
     @Override

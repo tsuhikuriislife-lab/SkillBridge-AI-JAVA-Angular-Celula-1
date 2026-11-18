@@ -47,7 +47,7 @@ El clúster analítico se encuentra orquestado dentro de `docker-compose.yml` en
 | Puerto | Interfaz | Descripción |
 | :--- | :--- | :--- |
 | **`http://localhost:8080`** | **Spark Master Web UI** | Estado del clúster: trabajadores activos, memoria, núcleos disponibles y lista de aplicaciones terminadas o en ejecución. |
-| **`http://localhost:8081`** | **Spark Worker Web UI** | Detalle técnico del nodo trabajador (uso de recursos por ejecutor). |
+| **`http://localhost:8082`** | **Spark Worker Web UI** | Detalle técnico del nodo trabajador (uso de recursos por ejecutor). |
 | **`http://localhost:4040`** | **Spark Application UI** | Se activa dinámicamente mientras un trabajo está procesando. Muestra las etapas (*Stages*), tareas (*Tasks*) y el grafo acíclico dirigido (DAG). |
 
 ---

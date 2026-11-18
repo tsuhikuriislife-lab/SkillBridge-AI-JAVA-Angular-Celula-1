@@ -2,10 +2,10 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CurrencyPipe, CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { apiBase } from '../core/api';
-import { Offering, OfferingService } from '../core/offering.service';
-import { AuthService } from '../core/auth.service';
-import { AssessmentService, ClientAssessmentResponse, AssessmentEvaluation } from '../core/assessment.service';
+import { apiBase } from '../core/api/api';
+import { Offering, OfferingService } from '../core/services/offering/offering.service';
+import { AuthService } from '../core/services/auth/auth.service';
+import { AssessmentService, ClientAssessmentResponse, AssessmentEvaluation } from '../core/services/assessment/assessment.service';
 
 @Component({
   selector: 'app-service-details',

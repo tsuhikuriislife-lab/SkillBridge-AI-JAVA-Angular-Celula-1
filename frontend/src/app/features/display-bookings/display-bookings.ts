@@ -2,9 +2,9 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { BookingService, BookingSummary, BookingSort, BookingActivityFilter, BookingPage } from '../../core/booking.service';
-import { ToastService } from '../../core/toast.service';
-import { MeetingService } from '../../core/meeting.service';
+import { BookingService, BookingSummary, BookingSort, BookingActivityFilter, BookingPage } from '../../core/services/booking/booking.service';
+import { ToastService } from '../../core/services/toast/toast.service';
+import { MeetingService } from '../../core/services/meeting/meeting.service';
 
 
 @Component({

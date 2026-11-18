@@ -1,9 +1,9 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { NotificationPage, NotificationService, NotificationSummary } from '../core/notification.service';
-import { AuthService } from '../core/auth.service';
-import { compactDisplayId } from '../core/display-id';
+import { NotificationPage, NotificationService, NotificationSummary } from '../core/services/notification/notification.service';
+import { AuthService } from '../core/services/auth/auth.service';
+import { compactDisplayId } from '../core/utils/display-id';
 
 interface NotificationGroup {
   dateLabel: string;

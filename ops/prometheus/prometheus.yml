@@ -14,3 +14,8 @@ scrape_configs:
   - job_name: livekit
     static_configs:
       - targets: ["livekit:6789"]
+
+  - job_name: notifications-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["notifications:3100"]
