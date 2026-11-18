@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { apiBase } from './api';
-import { AuthService } from './auth.service';
+import { apiBase } from '../../api/api';
+import { AuthService } from '../auth/auth.service';
 
 export interface NotificationSummary {
     id: string;

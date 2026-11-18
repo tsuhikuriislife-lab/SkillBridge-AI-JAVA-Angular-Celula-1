@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { apiBase } from './api';
+import { apiBase } from '../../api/api';
 
 export interface ClientAssessmentQuestion {
   id: string;

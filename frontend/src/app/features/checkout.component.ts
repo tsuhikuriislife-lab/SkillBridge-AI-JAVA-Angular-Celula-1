@@ -2,11 +2,11 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import { BookingService } from '../core/booking.service';
-import { OfferingService, Offering } from '../core/offering.service';
-import { apiBase } from '../core/api';
+import { BookingService } from '../core/services/booking/booking.service';
+import { OfferingService, Offering } from '../core/services/offering/offering.service';
+import { apiBase } from '../core/api/api';
 
-import { ToastService } from '../core/toast.service';
+import { ToastService } from '../core/services/toast/toast.service';
 
 @Component({
   selector: 'app-checkout',

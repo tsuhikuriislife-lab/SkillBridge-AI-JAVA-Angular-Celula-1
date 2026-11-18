@@ -2,11 +2,11 @@ import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { OfferingService, Offering } from '../../core/offering.service';
-import { UserService, UserDto } from '../../core/userDto.service';
-import { ToastService } from '../../core/toast.service';
-import { MeetingService, MeetingTokenOut } from '../../core/meeting.service';
-import { compactDisplayId } from '../../core/display-id';
+import { OfferingService, Offering } from '../../core/services/offering/offering.service';
+import { UserService, UserDto } from '../../core/services/user/userDto.service';
+import { ToastService } from '../../core/services/toast/toast.service';
+import { MeetingService, MeetingTokenOut } from '../../core/services/meeting/meeting.service';
+import { compactDisplayId } from '../../core/utils/display-id';
 
 export type ViewType = 'usuarios' | 'servicios';
 

@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, UrlTree } from '@angular/router';
-import { AuthService } from '../core/auth.service';
+import { AuthService } from '../core/services/auth/auth.service';
 
 export const adminGuard: CanActivateFn = (_route, state): boolean | UrlTree => {
   const auth = inject(AuthService);

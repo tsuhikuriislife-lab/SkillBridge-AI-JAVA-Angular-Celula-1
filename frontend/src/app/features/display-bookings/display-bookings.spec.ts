@@ -2,8 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DisplayBookingsComponent } from './display-bookings';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { BookingService } from '../../core/booking.service';
-import { ToastService } from '../../core/toast.service';
+import { BookingService } from '../../core/services/booking/booking.service';
+import { ToastService } from '../../core/services/toast/toast.service';
 
 describe('DisplayBookings', () => {
   let component: DisplayBookingsComponent;

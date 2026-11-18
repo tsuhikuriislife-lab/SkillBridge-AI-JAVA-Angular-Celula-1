@@ -2,8 +2,8 @@ import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inje
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Room, RoomEvent, RemoteTrack, RemoteParticipant, Track } from 'livekit-client';
-import { MeetingService, MeetingTokenOut } from '../../core/meeting.service';
-import { ToastService } from '../../core/toast.service';
+import { MeetingService, MeetingTokenOut } from '../../core/services/meeting/meeting.service';
+import { ToastService } from '../../core/services/toast/toast.service';
 
 @Component({
   selector: 'app-meeting-room',
