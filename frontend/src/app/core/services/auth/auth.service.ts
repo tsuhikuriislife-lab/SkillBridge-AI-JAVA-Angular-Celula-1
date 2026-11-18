@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap, catchError, of, switchMap } from 'rxjs';
-import { apiBase } from './api';
+import { apiBase } from '../../api/api';
 
 export interface UserProfile {
   id: string;

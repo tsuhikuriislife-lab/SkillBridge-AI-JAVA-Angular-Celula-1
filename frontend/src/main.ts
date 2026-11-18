@@ -5,8 +5,8 @@ import { provideAppInitializer, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { AppComponent } from './app/app.component';
 import { routes } from './app/app.routes';
-import { AuthService } from './app/core/auth.service';
-import { authInterceptor } from './app/core/auth.interceptor';
+import { AuthService } from './app/core/services/auth/auth.service';
+import { authInterceptor } from './app/core/interceptors/auth.interceptor';
 import { registerLocaleData } from '@angular/common';
 import localeEsCo from '@angular/common/locales/es-CO';
 

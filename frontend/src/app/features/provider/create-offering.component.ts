@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { OfferingService } from '../../core/offering.service';
+import { OfferingService } from '../../core/services/offering/offering.service';
 
 @Component({
   selector: 'app-create-offering',

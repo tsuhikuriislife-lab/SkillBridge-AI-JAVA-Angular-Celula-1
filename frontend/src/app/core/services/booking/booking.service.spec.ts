@@ -3,7 +3,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { BookingPage, BookingService } from './booking.service';
-import { OfferingService } from './offering.service';
+import { OfferingService } from '../offering/offering.service';
 
 describe('BookingService', () => {
     let service: BookingService;

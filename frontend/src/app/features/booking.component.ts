@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { Offering, OfferingService } from '../core/offering.service';
-import { BookingService } from '../core/booking.service';
+import { Offering, OfferingService } from '../core/services/offering/offering.service';
+import { BookingService } from '../core/services/booking/booking.service';
 
 @Component({
   standalone: true,

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { apiBase } from './api';
+import { apiBase } from '../../api/api';
 
 export interface UserDto {
   id: string;

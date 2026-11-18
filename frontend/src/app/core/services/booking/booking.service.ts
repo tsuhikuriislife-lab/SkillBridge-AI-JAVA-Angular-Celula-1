@@ -2,8 +2,8 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, forkJoin, of } from 'rxjs';
 import { map, switchMap, catchError } from 'rxjs/operators';
-import { apiBase } from './api';
-import { OfferingService } from './offering.service';
+import { apiBase } from '../../api/api';
+import { OfferingService } from '../offering/offering.service';
 
 export interface BookingSummary {
     id: string; // The serviceId

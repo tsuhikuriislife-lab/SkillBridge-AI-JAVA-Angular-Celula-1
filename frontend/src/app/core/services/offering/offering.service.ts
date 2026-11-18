@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { apiBase } from './api';
+import { apiBase } from '../../api/api';
 import { Observable, forkJoin, of } from 'rxjs';
 import { map, switchMap, shareReplay } from 'rxjs/operators';
 

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AuthService } from '../../core/auth.service'; 
+import { AuthService } from '../../core/services/auth/auth.service'; 
 
 @Component({
   selector: 'app-login',

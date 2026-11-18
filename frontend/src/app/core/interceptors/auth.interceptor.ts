@@ -2,7 +2,7 @@ import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { catchError, switchMap } from 'rxjs/operators';
 import { throwError } from 'rxjs';
-import { AuthService } from './auth.service';
+import { AuthService } from '../services/auth/auth.service';
 
 function getXsrfCookie(): string | null {
   if (typeof document === 'undefined') return null;
